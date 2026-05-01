@@ -75,6 +75,13 @@ export const getComments = (targetId, targetType, pageNum = 1, pageSize = 20) =>
   })
 }
 
+export const deleteComment = (commentId) => {
+  return request({
+    url: `/interaction/comment/${commentId}`,
+    method: 'delete'
+  })
+}
+
 // 获取内容收藏数
 export const getCollectCount = (targetId, targetType) => {
   return request({
@@ -127,13 +134,3 @@ export const deleteLike = (data) => {
   })
 }
 
-// 导出互动数据
-// @param {Object} params - { tab, filterStatus, startDate, endDate }
-export const exportInteractions = (params) => {
-  return request({
-    url: '/interaction/export',
-    method: 'post',
-    data: params,
-    responseType: 'blob' // 重要：接收文件流
-  })
-}

@@ -36,8 +36,8 @@
                 label-width="120px"
                 class="profile-form"
               >
-                <el-row :gutter="30">
-                  <el-col :span="12">
+                <el-row :gutter="20">
+                  <el-col :span="8">
                     <el-form-item label="头像">
                       <div class="avatar-upload">
                         <div class="avatar-preview" @click="triggerAvatarUpload">
@@ -56,38 +56,35 @@
                           style="display: none"
                         >
                         </el-upload>
-                        <el-button size="small" type="primary" @click="triggerAvatarUpload">
-                          上传新头像
-                        </el-button>
                       </div>
                     </el-form-item>
                   </el-col>
-                  <el-col :span="12">
+                  <el-col :span="8">
                     <el-form-item label="用户名" prop="username">
                       <el-input v-model="profileForm.username" disabled placeholder="用户名不可修改" />
                     </el-form-item>
                   </el-col>
-                </el-row>
-
-                <el-row :gutter="30">
-                  <el-col :span="12">
+                  <el-col :span="8">
                     <el-form-item label="昵称" prop="nickname">
                       <el-input v-model="profileForm.nickname" placeholder="请输入昵称" />
                     </el-form-item>
                   </el-col>
+                </el-row>
+
+                <el-row :gutter="20">
                   <el-col :span="12">
                     <el-form-item label="邮箱" prop="email">
                       <el-input v-model="profileForm.email" placeholder="请输入邮箱地址" />
                     </el-form-item>
                   </el-col>
-                </el-row>
-
-                <el-row :gutter="30">
                   <el-col :span="12">
                     <el-form-item label="手机号" prop="phone">
                       <el-input v-model="profileForm.phone" placeholder="请输入手机号" />
                     </el-form-item>
                   </el-col>
+                </el-row>
+
+                <el-row :gutter="20">
                   <el-col :span="12">
                     <el-form-item label="性别">
                       <el-select v-model="profileForm.gender" placeholder="请选择性别" style="width: 100%">
@@ -97,38 +94,39 @@
                       </el-select>
                     </el-form-item>
                   </el-col>
+                  <el-col :span="12">
+                    <el-form-item label="专业领域">
+                      <el-select
+                        v-model="profileForm.expertise"
+                        multiple
+                        filterable
+                        allow-create
+                        placeholder="请选择或添加专业领域"
+                        style="width: 100%"
+                      >
+                        <el-option
+                          v-for="field in expertiseOptions"
+                          :key="field"
+                          :label="field"
+                          :value="field"
+                        />
+                      </el-select>
+                    </el-form-item>
+                  </el-col>
                 </el-row>
 
                 <el-form-item label="个人简介">
                   <el-input
                     v-model="profileForm.bio"
                     type="textarea"
-                    :rows="4"
+                    :rows="3"
                     placeholder="请简要介绍自己..."
                     maxlength="200"
                     show-word-limit
                   />
                 </el-form-item>
 
-                <el-form-item label="专业领域">
-                  <el-select
-                    v-model="profileForm.expertise"
-                    multiple
-                    filterable
-                    allow-create
-                    placeholder="请选择或添加您的专业领域"
-                    style="width: 100%"
-                  >
-                    <el-option
-                      v-for="field in expertiseOptions"
-                      :key="field"
-                      :label="field"
-                      :value="field"
-                    />
-                  </el-select>
-                </el-form-item>
-
-                <el-form-item>
+                <el-form-item class="form-actions">
                   <el-button
                     type="primary"
                     @click="submitProfile"
@@ -764,6 +762,19 @@ export default {
 }
 
 /* 卡片样式 */
+.content-card {
+  background: var(--bg-canvas);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.content-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-base);
+}
+
 .profile-card {
   padding: 0;
   overflow: hidden;
@@ -824,7 +835,17 @@ export default {
 }
 
 :deep(.el-form-item) {
-  margin-bottom: var(--space-5);
+  margin-bottom: var(--space-4);
+}
+
+:deep(.el-form-item:last-child) {
+  margin-bottom: 0;
+}
+
+.form-actions {
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px dashed var(--border-light);
 }
 
 /* 头像上传 */
@@ -832,7 +853,7 @@ export default {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-3);
 }
 
 .avatar-preview {
@@ -1028,6 +1049,10 @@ export default {
 
   .profile-form :deep(.el-col) {
     width: 100%;
+    margin-bottom: var(--space-3);
+  }
+
+  .profile-form :deep(.el-col:first-child) {
     margin-bottom: var(--space-4);
   }
 
@@ -1044,6 +1069,22 @@ export default {
 
   .data-management {
     flex-direction: column;
+  }
+
+  .form-actions {
+    margin-top: var(--space-4);
+    padding-top: var(--space-3);
+  }
+
+  .notification-settings {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  :deep(.el-checkbox) {
+    margin-right: var(--space-4);
+    margin-bottom: 0;
   }
 }
 

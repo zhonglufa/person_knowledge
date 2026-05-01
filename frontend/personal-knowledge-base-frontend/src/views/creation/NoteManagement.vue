@@ -204,39 +204,6 @@
         </div>
       </div>
     </div>
-
-    <el-dialog :title="isEditing ? '编辑笔记' : '新建笔记'" :visible.sync="showDialog" width="700px" :before-close="handleDialogClose">
-      <el-form :model="noteForm" :rules="formRules" ref="noteForm" label-width="80px">
-        <el-form-item label="标题" prop="title">
-          <el-input v-model="noteForm.title" placeholder="请输入笔记标题" />
-        </el-form-item>
-        <el-form-item label="类型" prop="type">
-          <el-select v-model="noteForm.type" placeholder="选择类型" style="width: 100%">
-            <el-option label="概念性知识" value="conceptual" />
-            <el-option label="程序性知识" value="procedural" />
-            <el-option label="事实性知识" value="factual" />
-            <el-option label="元认知知识" value="metacognitive" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="内容" prop="content">
-          <el-input v-model="noteForm.content" type="textarea" :rows="10" placeholder="请输入笔记内容" />
-        </el-form-item>
-        <el-form-item label="公开设置">
-          <el-switch v-model="noteForm.isPublic" active-text="公开" inactive-text="私有" />
-        </el-form-item>
-        <el-form-item label="标签">
-          <el-select v-model="noteForm.tags" multiple filterable allow-create placeholder="添加标签" style="width: 100%">
-            <el-option v-for="tag in availableTags" :key="tag" :label="tag" :value="tag" />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <span slot="footer" class="dialog-footer">
-        <el-button @click="handleDialogClose">取消</el-button>
-        <el-button type="primary" @click="handleSubmitNote" :loading="submitLoading">
-          {{ isEditing ? '更新' : '创建' }}
-        </el-button>
-      </span>
-    </el-dialog>
   </div>
 </template>
 
@@ -255,33 +222,12 @@ export default {
     return {
       viewMode: 'grid',
       loading: false,
-      submitLoading: false,
       searchKeyword: '',
       filterType: '',
       filterStatus: '',
       currentPage: 1,
       pageSize: 12,
       notes: [],
-      availableTags: ['Vue', 'React', '前端', '后端', '知识管理'],
-      showDialog: false,
-      isEditing: false,
-      noteForm: {
-        title: '',
-        type: 'conceptual',
-        content: '',
-        isPublic: false,
-        tags: []
-      },
-      formRules: {
-        title: [
-          { required: true, message: '请输入笔记标题', trigger: 'blur' },
-          { min: 2, max: 100, message: '长度在 2 到 100 个字符', trigger: 'blur' }
-        ],
-        content: [
-          { required: true, message: '请输入笔记内容', trigger: 'blur' },
-          { min: 10, message: '内容至少10个字符', trigger: 'blur' }
-        ]
-      },
       showBatchMode: false,
       selectedNotes: []
     }
@@ -372,42 +318,25 @@ export default {
       }
     },
     handleCreateNote() {
-      this.isEditing = false
-      this.noteForm = { title: '', type: 'conceptual', content: '', isPublic: false, tags: [] }
-      this.showDialog = true
+      this.$router.push({
+        path: '/creation/notes/create',
+        query: { mode: 'create' }
+      })
     },
-    async handleEditNote(note) {
-      this.isEditing = true
-      this.noteForm = {
-        id: note.id,
-        title: note.title,
-        type: note.type,
-        content: note.content,
-        isPublic: note.isPublic || false,
-        tags: note.tags || []
+    handleEditNote(note) {
+      if (!note?.id) {
+        return
       }
-      this.showDialog = true
+      this.$router.push({
+        path: `/creation/notes/${note.id}`,
+        query: { mode: 'edit' }
+      })
     },
-    async handleViewNote(note) {
-      try {
-        const response = await noteApi.getNoteDetail(note.id)
-        if (response?.code === 200) {
-          const noteDetail = response.data
-          this.isEditing = true
-          this.noteForm = {
-            id: noteDetail.id,
-            title: noteDetail.title,
-            type: noteDetail.type,
-            content: noteDetail.content,
-            isPublic: noteDetail.isPublic || false,
-            tags: noteDetail.tags || []
-          }
-          this.showDialog = true
-        }
-      } catch (error) {
-        console.error('获取笔记详情失败:', error)
-        this.$message.error('加载笔记详情失败')
+    handleViewNote(note) {
+      if (!note?.id) {
+        return
       }
+      this.$router.push(`/creation/notes/${note.id}`)
     },
     async handleDeleteNote(note) {
       try {
@@ -433,45 +362,15 @@ export default {
     async handleTogglePublic(note) {
       try {
         const newStatus = !note.isPublic
-        await noteApi.updateNote(note.id, { isPublic: newStatus })
+        const response = await noteApi.updateNote(note.id, { isPublic: newStatus })
+        if (response?.code !== 200) {
+          throw new Error(response?.message || '操作失败')
+        }
         note.isPublic = newStatus
         this.$message.success(`${newStatus ? '设为公开' : '设为私有'}成功`)
       } catch (error) {
         console.error('切换状态失败:', error)
-        this.$message.error('操作失败')
-      }
-    },
-    handleDialogClose() {
-      this.showDialog = false
-      this.$refs.noteForm?.resetFields()
-    },
-    async handleSubmitNote() {
-      try {
-        await this.$refs.noteForm.validate()
-        this.submitLoading = true
-        const noteData = {
-          title: this.noteForm.title,
-          type: this.noteForm.type,
-          content: this.noteForm.content,
-          isPublic: this.noteForm.isPublic,
-          tags: this.noteForm.tags
-        }
-        if (this.isEditing) {
-          await noteApi.updateNote(this.noteForm.id, noteData)
-          this.$message.success('更新成功')
-        } else {
-          await noteApi.createNote(noteData)
-          this.$message.success('创建成功')
-        }
-        this.handleDialogClose()
-        this.loadNotes()
-      } catch (error) {
-        if (!error.errors) {
-          console.error('操作失败:', error)
-          this.$message.error('操作失败')
-        }
-      } finally {
-        this.submitLoading = false
+        this.$message.error(error?.message || '操作失败')
       }
     },
     handleRefresh() {
@@ -500,16 +399,13 @@ export default {
         return
       }
       try {
-        await this.$confirm(`确定要将选中的 ${this.selectedNotes.length} 篇笔记${isPublic ? '设为公开' : '设为私有'}吗？`, '批量操作确认', { type: 'warning' })
-        await Promise.all(this.selectedNotes.map(noteId => noteApi.updateNote(noteId, { isPublic })))
-        this.$message.success('批量操作成功')
-        this.selectedNotes = []
+        await Promise.all(this.selectedNotes.map(id => noteApi.updateNote(id, { isPublic })))
+        this.$message.success(`批量设为${isPublic ? '公开' : '私有'}成功`)
+        this.clearSelection()
         this.loadNotes()
       } catch (error) {
-        if (error !== 'cancel') {
-          console.error('批量操作失败:', error)
-          this.$message.error('批量操作失败')
-        }
+        console.error('批量操作失败:', error)
+        this.$message.error('批量操作失败')
       }
     },
     async batchDelete() {
@@ -518,10 +414,10 @@ export default {
         return
       }
       try {
-        await this.$confirm(`确定要删除选中的 ${this.selectedNotes.length} 篇笔记吗？此操作不可恢复！`, '批量删除确认', { type: 'error' })
-        await Promise.all(this.selectedNotes.map(noteId => noteApi.deleteNote(noteId)))
+        await this.$confirm(`确定要删除选中的 ${this.selectedNotes.length} 篇笔记吗？`, '确认删除', { type: 'warning' })
+        await Promise.all(this.selectedNotes.map(id => noteApi.deleteNote(id)))
         this.$message.success('批量删除成功')
-        this.selectedNotes = []
+        this.clearSelection()
         this.loadNotes()
       } catch (error) {
         if (error !== 'cancel') {
@@ -532,9 +428,11 @@ export default {
     },
     handleSearch() {
       this.currentPage = 1
+      this.loadNotes()
     },
     handleFilterChange() {
       this.currentPage = 1
+      this.loadNotes()
     },
     handleSizeChange(size) {
       this.pageSize = size
@@ -543,18 +441,28 @@ export default {
     handlePageChange(page) {
       this.currentPage = page
     },
-    getNoteExcerpt(note) {
-      if (!note.content) return '暂无内容'
-      return note.content.length > 80 ? `${note.content.substring(0, 80)}...` : note.content
-    },
-    getTypeClass(type) {
-      const map = {
-        conceptual: 'type-conceptual',
-        procedural: 'type-procedural',
-        factual: 'type-factual',
-        metacognitive: 'type-metacognitive'
+    getNoteStage(note) {
+      const status = note.status || note.stage
+      if (status === '完成' || status === 'published') {
+        return 'published'
       }
-      return map[type] || 'type-conceptual'
+      return 'draft'
+    },
+    getNoteExcerpt(note) {
+      const raw = note.description || note.content || ''
+      return raw.length > 88 ? `${raw.slice(0, 88)}...` : raw || '暂无内容摘要'
+    },
+    getSourceReference(note) {
+      return note.collectionItemTitle || note.sourceTitle || (note.collectionItemId ? '关联收藏项' : '独立笔记')
+    },
+    getTypeLabel(type) {
+      const map = {
+        conceptual: '概念型',
+        procedural: '程序型',
+        factual: '事实型',
+        metacognitive: '元认知型'
+      }
+      return map[type] || '未分类'
     },
     getTypeTag(type) {
       const map = {
@@ -565,45 +473,23 @@ export default {
       }
       return map[type] || 'info'
     },
-    getTypeLabel(type) {
+    getTypeClass(type) {
       const map = {
-        conceptual: '概念性',
-        procedural: '程序性',
-        factual: '事实性',
-        metacognitive: '元认知'
+        conceptual: 'type-conceptual',
+        procedural: 'type-procedural',
+        factual: 'type-factual',
+        metacognitive: 'type-metacognitive'
       }
-      return map[type] || '概念性'
-    },
-    getNoteStage(note) {
-      if (note.status) {
-        return note.status === 'draft' ? 'draft' : 'published'
-      }
-      if (note.isDraft !== undefined) {
-        return note.isDraft ? 'draft' : 'published'
-      }
-      return note.isPublic ? 'published' : 'draft'
-    },
-    getSourceReference(note) {
-      if (note.collectionItemTitle) return note.collectionItemTitle
-      if (note.collectionItemId) return `收藏项 #${note.collectionItemId}`
-      return '未关联收藏项'
+      return map[type] || 'type-default'
     },
     formatDate(date) {
-      if (!date) return ''
-      return new Date(date).toLocaleDateString('zh-CN')
+      if (!date) return '未知'
+      const parsed = new Date(date)
+      return Number.isNaN(parsed.getTime()) ? date : parsed.toLocaleDateString('zh-CN')
     }
   },
-  watch: {
-    initialStatus: {
-      immediate: true,
-      handler(value) {
-        if (value === 'draft') {
-          this.filterStatus = 'draft'
-        }
-      }
-    }
-  },
-  mounted() {
+  created() {
+    this.filterStatus = this.initialStatus || ''
     this.loadNotes()
   }
 }
@@ -611,358 +497,282 @@ export default {
 
 <style scoped>
 .note-management {
-  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .notes-overview {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-4);
-  margin-bottom: var(--space-6);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.overview-card,
+.side-card,
+.note-card,
+.batch-operation-bar,
+.toolbar,
+.notes-main,
+.notes-side {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
 }
 
 .overview-card {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  background: var(--bg-card);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-xl);
+  gap: 16px;
+  padding: 20px;
 }
 
 .overview-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
 }
 
-.overview-icon.primary { background: linear-gradient(135deg, #6366f1, #8b5cf6); }
-.overview-icon.warning { background: linear-gradient(135deg, #f59e0b, #f97316); }
-.overview-icon.success { background: linear-gradient(135deg, #10b981, #06b6d4); }
-.overview-icon.info { background: linear-gradient(135deg, #3b82f6, #06b6d4); }
+.overview-icon.primary { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+.overview-icon.warning { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.overview-icon.success { background: linear-gradient(135deg, #10b981, #059669); }
+.overview-icon.info { background: linear-gradient(135deg, #6366f1, #4f46e5); }
 
 .overview-value {
-  font-size: var(--font-size-2xl);
+  font-size: 24px;
   font-weight: 700;
-  color: var(--text-primary);
+  color: #1f2937;
 }
 
 .overview-label {
-  color: var(--text-secondary);
-  font-size: var(--font-size-sm);
+  color: #64748b;
+  font-size: 14px;
 }
 
-.toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--space-6);
-  padding-bottom: var(--space-4);
-  border-bottom: 1px solid var(--border-base);
-}
-
-.toolbar-left,
-.toolbar-right,
-.batch-actions {
-  display: flex;
-  gap: var(--space-3);
-  align-items: center;
-}
-
+.toolbar,
 .batch-operation-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--space-3) var(--space-4);
-  margin-bottom: var(--space-4);
-  background: linear-gradient(135deg, #fff5f5, #ffe5e5);
-  border: 1px solid #ffcccc;
-  border-radius: var(--radius-md);
+  padding: 16px 20px;
 }
 
-.batch-info {
+.toolbar-left,
+.toolbar-right,
+.batch-actions,
+.batch-info,
+.notes-header {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  color: #f56c6c;
+  gap: 12px;
+}
+
+.search-input {
+  width: 260px;
+}
+
+.filter-select {
+  width: 140px;
+}
+
+.filter-select-sm {
+  width: 120px;
 }
 
 .notes-workbench {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.8fr);
-  gap: var(--space-5);
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 20px;
 }
 
 .notes-main,
-.side-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-xl);
+.notes-side {
+  padding: 20px;
 }
 
 .notes-main {
-  padding: var(--space-5);
-}
-
-.notes-side {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: 20px;
 }
 
-.side-card {
-  padding: var(--space-4);
-}
-
-.notes-header,
-.side-header {
-  display: flex;
+.notes-header {
   justify-content: space-between;
-  align-items: flex-start;
-  gap: var(--space-4);
-  margin-bottom: var(--space-4);
 }
 
 .notes-header h3,
-.side-header h3 {
-  margin: 0 0 var(--space-1);
-  color: var(--text-primary);
+.side-header h3,
+.card-title,
+.side-title {
+  margin: 0;
 }
 
 .notes-header p,
 .side-desc,
-.source-info,
+.empty-desc,
 .card-desc,
-.card-meta {
-  color: var(--text-secondary);
+.source-label,
+.source-value,
+.card-meta,
+.empty-text {
+  color: #64748b;
 }
 
 .grid-view {
-  margin-bottom: var(--space-4);
+  margin: 0 !important;
 }
 
 .note-card {
   position: relative;
-  background: var(--bg-container);
-  border-radius: var(--radius-lg);
   overflow: hidden;
-  border: 1px solid var(--border-base);
-  transition: all var(--transition-normal);
-  margin-bottom: var(--space-5);
   cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .note-card:hover {
   transform: translateY(-4px);
-  box-shadow: var(--shadow-lg);
-  border-color: var(--primary-color);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.1);
 }
 
 .card-checkbox {
   position: absolute;
-  top: var(--space-3);
-  left: var(--space-3);
-  z-index: 20;
-}
-
-.card-checkbox :deep(.el-checkbox__label) {
-  display: none;
+  top: 14px;
+  left: 14px;
+  z-index: 2;
 }
 
 .card-badges {
   position: absolute;
-  top: var(--space-2);
-  right: var(--space-2);
+  top: 14px;
+  right: 14px;
   display: flex;
-  gap: var(--space-1);
-  z-index: 10;
+  gap: 6px;
+  z-index: 2;
 }
 
 .card-cover {
-  height: 100px;
-  background: linear-gradient(135deg, var(--bg-canvas), var(--primary-bg));
+  height: 110px;
+  background: linear-gradient(135deg, #eff6ff, #eef2ff);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: var(--primary-color);
-}
-
-.card-cover i {
-  font-size: 32px;
-  margin-bottom: var(--space-2);
-}
-
-.word-count {
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-  color: var(--text-secondary);
+  color: #3b82f6;
+  gap: 8px;
 }
 
 .card-body {
-  padding: var(--space-4);
+  padding: 18px;
 }
 
 .card-title {
-  font-size: var(--font-size-md);
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0 0 var(--space-2);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  font-size: 16px;
+  color: #1f2937;
+  margin-bottom: 10px;
 }
 
 .card-desc {
-  margin: 0 0 var(--space-3);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  line-height: 1.7;
+  min-height: 48px;
+  margin-bottom: 14px;
 }
 
 .source-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  margin-bottom: var(--space-3);
-  font-size: var(--font-size-sm);
-}
-
-.source-label {
-  color: var(--text-placeholder);
-}
-
-.source-value {
-  color: var(--text-primary);
+  gap: 4px;
+  margin-bottom: 14px;
 }
 
 .card-meta,
 .card-actions,
-.table-title,
-.side-item {
+.side-list {
   display: flex;
-  gap: var(--space-2);
-}
-
-.card-meta {
-  flex-wrap: wrap;
-  font-size: var(--font-size-xs);
-  margin-bottom: var(--space-3);
+  flex-direction: column;
+  gap: 10px;
 }
 
 .card-actions {
-  opacity: 0;
-  transition: opacity var(--transition-normal);
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
 }
 
-.note-card:hover .card-actions {
-  opacity: 1;
+.side-card {
+  padding: 18px;
+  margin-bottom: 16px;
+}
+
+.side-header {
+  margin-bottom: 12px;
+}
+
+.side-item {
+  padding: 12px 0;
+  border-top: 1px solid #eef2f7;
+}
+
+.side-item:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.empty-state {
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 40px;
+  color: #cbd5e1;
+  margin-bottom: 16px;
 }
 
 .table-title {
+  display: flex;
   align-items: center;
 }
 
 .type-dot {
   width: 8px;
   height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
+  border-radius: 999px;
+  display: inline-block;
+  margin-right: 8px;
 }
 
-.type-dot.type-conceptual { background: #6366f1; }
-.type-dot.type-procedural { background: #10b981; }
-.type-dot.type-factual { background: #f59e0b; }
-.type-dot.type-metacognitive { background: #06b6d4; }
+.type-conceptual { background: #3b82f6; }
+.type-procedural { background: #10b981; }
+.type-factual { background: #f59e0b; }
+.type-metacognitive { background: #8b5cf6; }
+.type-default { background: #94a3b8; }
 
-.side-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.side-item {
-  flex-direction: column;
-  padding-bottom: var(--space-3);
-  border-bottom: 1px solid var(--border-light);
-}
-
-.side-item:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.side-title {
-  color: var(--text-primary);
-  font-weight: 600;
-}
-
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: var(--space-12) var(--space-6);
-}
-
-.empty-icon {
-  font-size: 64px;
-  color: var(--text-placeholder);
-  margin-bottom: var(--space-4);
-}
-
-.empty-text {
-  font-size: var(--font-size-lg);
-  color: var(--text-regular);
-  margin-bottom: var(--space-2);
-}
-
-.empty-desc {
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
-  margin-bottom: var(--space-4);
+.text-danger {
+  color: #ef4444;
 }
 
 .pagination-wrapper {
   display: flex;
-  justify-content: center;
-  margin-top: var(--space-6);
+  justify-content: flex-end;
 }
 
-.search-input { width: 220px; }
-.filter-select { width: 120px; }
-.filter-select-sm { width: 120px; }
-.text-danger { color: var(--danger-color); }
-
-@media (max-width: 1200px) {
-  .notes-overview {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
+@media (max-width: 1024px) {
   .notes-workbench {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 768px) {
-  .notes-overview {
-    grid-template-columns: 1fr;
-  }
-
   .toolbar,
-  .toolbar-left,
-  .toolbar-right,
   .batch-operation-bar,
-  .batch-actions,
-  .notes-header {
+  .notes-header,
+  .toolbar-left,
+  .toolbar-right {
     flex-direction: column;
     align-items: stretch;
   }

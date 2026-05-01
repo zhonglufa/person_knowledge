@@ -6,6 +6,7 @@ import store from './store' // 引入 Vuex store
 // Element UI 按需导入（性能优化）
 import {
   Button,
+  ButtonGroup,
   Input,
   Select,
   Option,
@@ -52,6 +53,7 @@ import {
   Divider,
   Empty,
   Skeleton,
+  SkeletonItem,
   Result,
   Steps,
   Step,
@@ -69,7 +71,9 @@ import {
   Rate,
   Slider,
   Link,
-  Backtop
+  Backtop,
+  Row,
+  Col
 } from 'element-ui'
 import 'element-ui/lib/theme-chalk/index.css'
 import './styles/index.scss' // 引入样式系统入口文件
@@ -93,8 +97,13 @@ import './styles/components/components.scss'
 import vLazy from '@/directives/lazyImage'
 Vue.directive('lazy', vLazy)
 
+// 注册权限指令
+import vPermission from '@/directives/permission'
+Vue.directive('permission', vPermission)
+
 // 按需注册Element UI组件
 Vue.use(Button)
+Vue.use(ButtonGroup)
 Vue.use(Input)
 Vue.use(Select)
 Vue.use(Option)
@@ -137,6 +146,7 @@ Vue.use(Avatar)
 Vue.use(Divider)
 Vue.use(Empty)
 Vue.use(Skeleton)
+Vue.use(SkeletonItem)
 Vue.use(Result)
 Vue.use(Steps)
 Vue.use(Step)
@@ -155,6 +165,8 @@ Vue.use(Rate)
 Vue.use(Slider)
 Vue.use(Link)
 Vue.use(Backtop)
+Vue.use(Row)
+Vue.use(Col)
 
 // 注册v-loading指令
 Vue.use(Loading, { directive: true })

@@ -43,6 +43,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/user/register",
                         "/user/send-verify-code",
                         "/user/reset-password",
+                        // 管理员登录（无需Token）
+                        "/admin/login",
                         // 公开内容接口（产品首页使用）
                         "/note/recommended",
                         "/collections/recommended",

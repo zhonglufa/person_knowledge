@@ -88,6 +88,28 @@
 
             <div class="workspace-card compact">
               <div class="card-header">
+                <h3>创作路径</h3>
+              </div>
+              <div class="path-list">
+                <div class="path-item">
+                  <span class="path-step">1</span>
+                  <div>
+                    <div class="task-title">从收藏中心进入待加工内容</div>
+                    <div class="task-meta">优先处理今日新增与未消化内容</div>
+                  </div>
+                </div>
+                <div class="path-item">
+                  <span class="path-step">2</span>
+                  <div>
+                    <div class="task-title">在创作中心完成加工与沉淀</div>
+                    <div class="task-meta">围绕摘要、标签、笔记草稿推进知识沉淀</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="workspace-card compact">
+              <div class="card-header">
                 <h3>今日提醒</h3>
               </div>
               <div class="reminder-list">
@@ -149,6 +171,7 @@ export default {
   overflow-y: auto;
 }
 .page-header {
+  padding: var(--spacing-lg);
   margin-bottom: var(--space-6);
   padding-bottom: var(--space-4);
   border-bottom: 1px solid var(--border-base);
@@ -207,6 +230,28 @@ export default {
   margin: 0;
   font-size: var(--font-size-lg);
   color: var(--text-primary);
+}
+.path-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.path-item {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+.path-step {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
 }
 .task-list,
 .reminder-list {

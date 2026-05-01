@@ -124,6 +124,15 @@ export const getRecommendedNotes = (pageNum = 1, pageSize = 10) => {
   })
 }
 
+// 更新笔记公开状态
+export const updateNotePublicStatus = (noteId, isPublic) => {
+  return request({
+    url: `/note/${noteId}`,
+    method: 'put',
+    data: { isPublic: isPublic ? 1 : 0 }
+  })
+}
+
 // 封装成 noteApi 对象导出
 export const noteApi = {
   createNote,
@@ -134,6 +143,7 @@ export const noteApi = {
   publishNote,
   getNoteList,
   getPublicNotes,
+  updateNotePublicStatus,
   collectNote,
   uncollectNote,
   getCollectedNotes,

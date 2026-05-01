@@ -1,7 +1,7 @@
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 
 // 管理员路由配置
-export default [
+export const adminRoutes = [
   {
     path: '/admin',
     component: AdminLayout,
@@ -21,7 +21,8 @@ export default [
         meta: {
           title: '管理员首页',
           requiresAuth: true,
-          isAdmin: true
+          isAdmin: true,
+          permission: 'admin:dashboard:view'
         }
       },
       {
@@ -31,7 +32,8 @@ export default [
         meta: {
           title: '用户管理',
           requiresAuth: true,
-          isAdmin: true
+          isAdmin: true,
+          permission: 'user:view'
         }
       },
       {
@@ -41,7 +43,8 @@ export default [
         meta: {
           title: '内容管理',
           requiresAuth: true,
-          isAdmin: true
+          isAdmin: true,
+          permission: 'content:view'
         }
       },
       {
@@ -51,7 +54,8 @@ export default [
         meta: {
           title: '公告管理',
           requiresAuth: true,
-          isAdmin: true
+          isAdmin: true,
+          permission: 'announcement:view'
         }
       },
       {
@@ -61,7 +65,30 @@ export default [
         meta: {
           title: '操作日志',
           requiresAuth: true,
-          isAdmin: true
+          isAdmin: true,
+          permission: 'content:view'
+        }
+      },
+      {
+        path: 'roles',
+        name: 'RoleManagement',
+        component: () => import('@/views/admin/RoleManagement.vue'),
+        meta: {
+          title: '角色管理',
+          requiresAuth: true,
+          isAdmin: true,
+          permission: 'user:view'
+        }
+      },
+      {
+        path: 'permissions',
+        name: 'PermissionManagement',
+        component: () => import('@/views/admin/PermissionManagement.vue'),
+        meta: {
+          title: '权限管理',
+          requiresAuth: true,
+          isAdmin: true,
+          permission: 'user:view'
         }
       }
     ]
@@ -76,3 +103,5 @@ export default [
     }
   }
 ]
+
+export default adminRoutes

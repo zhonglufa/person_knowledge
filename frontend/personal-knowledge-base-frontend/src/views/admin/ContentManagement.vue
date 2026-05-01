@@ -27,7 +27,7 @@
             <i slot="prefix" class="el-input__icon el-icon-search"></i>
           </el-input>
         </el-form-item>
-        <el-form-item label="公开状态">
+        <el-form-item v-if="activeTab === 'note'" label="公开状态">
           <el-select
             v-model="queryParams.isPublic"
             placeholder="全部状态"
@@ -60,10 +60,16 @@
             @selection-change="handleSelectionChange"
           >
             <el-table-column type="selection" width="50" align="center" />
-            <el-table-column prop="id" label="ID" width="80" align="center" />
+            <el-table-column type="index" label="序号" width="80" align="center" :index="indexMethod" />
             <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip />
-            <el-table-column prop="userId" label="用户ID" width="90" align="center" />
             <el-table-column prop="source" label="来源" width="100" align="center" />
+            <el-table-column label="所属收藏集公开" width="130" align="center">
+              <template slot-scope="scope">
+                <el-tag :type="scope.row.isPublic === 1 ? 'success' : 'info'" size="small">
+                  {{ scope.row.isPublic === 1 ? '公开' : '私有' }}
+                </el-tag>
+              </template>
+            </el-table-column>
             <el-table-column label="消化状态" width="110" align="center">
               <template slot-scope="scope">
                 <el-tag :type="getDigestStatusType(scope.row.digestStatus)" size="small">
@@ -110,9 +116,8 @@
             @selection-change="handleSelectionChange"
           >
             <el-table-column type="selection" width="50" align="center" />
-            <el-table-column prop="id" label="ID" width="80" align="center" />
+            <el-table-column type="index" label="序号" width="80" align="center" :index="indexMethod" />
             <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip />
-            <el-table-column prop="userId" label="用户ID" width="90" align="center" />
             <el-table-column label="笔记类型" width="110" align="center">
               <template slot-scope="scope">
                 <el-tag :type="getNoteTypeType(scope.row.noteType)" size="small">
@@ -122,8 +127,8 @@
             </el-table-column>
             <el-table-column label="可见性" width="100" align="center">
               <template slot-scope="scope">
-                <el-tag :type="scope.row.isPublic ? 'success' : 'info'" size="small">
-                  {{ scope.row.isPublic ? '公开' : '私有' }}
+                <el-tag :type="scope.row.isPublic === 1 ? 'success' : 'info'" size="small">
+                  {{ scope.row.isPublic === 1 ? '公开' : '私有' }}
                 </el-tag>
               </template>
             </el-table-column>
@@ -311,7 +316,14 @@ export default {
 
     handleBatchTakeDown() {
       if (this.selectedRows.length === 0) return
-      this.$confirm(`确定要批量下架选中的 ${this.selectedRows.length} 条内容吗？下架后其他用户将无法查看。`, '批量下架确认', {
+      const alreadyDownCount = this.selectedRows.filter(row => row.isPublic !== 1).length
+      const actionableCount = this.selectedRows.length - alreadyDownCount
+      if (actionableCount === 0) {
+        this.$message.warning('选中的内容均已下架，无需重复操作')
+        return
+      }
+      const extraMsg = alreadyDownCount > 0 ? `（其中 ${alreadyDownCount} 条已下架将被跳过）` : ''
+      this.$confirm(`确定要批量下架选中的 ${actionableCount} 条公开内容吗？下架后其他用户将无法查看。${extraMsg}`, '批量下架确认', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning'
@@ -339,7 +351,14 @@ export default {
 
     handleBatchRestore() {
       if (this.selectedRows.length === 0) return
-      this.$confirm(`确定要批量恢复选中的 ${this.selectedRows.length} 条内容吗？恢复后其他用户可以查看。`, '批量恢复确认', {
+      const alreadyPublicCount = this.selectedRows.filter(row => row.isPublic === 1).length
+      const actionableCount = this.selectedRows.length - alreadyPublicCount
+      if (actionableCount === 0) {
+        this.$message.warning('选中的内容均已公开，无需恢复')
+        return
+      }
+      const extraMsg = alreadyPublicCount > 0 ? `（其中 ${alreadyPublicCount} 条已公开将被跳过）` : ''
+      this.$confirm(`确定要批量恢复选中的 ${actionableCount} 条已下架内容吗？恢复后其他用户可以查看。${extraMsg}`, '批量恢复确认', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'success'
@@ -375,8 +394,11 @@ export default {
       this.loadContentList()
     },
 
+    indexMethod(index) {
+      return (this.pagination.currentPage - 1) * this.pagination.pageSize + index + 1
+    },
     formatDate(date) {
-      if (!date) return ''
+      if (!date) return '-'
       return new Date(date).toLocaleString('zh-CN')
     },
 

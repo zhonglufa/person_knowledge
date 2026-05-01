@@ -76,3 +76,6 @@ package-lock.json
 .trae/
 extension/
 database/
+.agents
+.sql
+.txt

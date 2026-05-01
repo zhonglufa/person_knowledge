@@ -13,6 +13,7 @@ import com.qst.lm.exception.BusinessException;
 import com.qst.lm.mapper.*;
 import com.qst.lm.pojo.*;
 import com.qst.lm.service.IUserService;
+import com.qst.lm.service.TokenBlacklistService;
 import com.qst.lm.service.VerificationCodeService;
 import com.qst.lm.utils.JwtUtils;
 import com.qst.lm.utils.OssUtil;
@@ -27,10 +28,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
-/**
- * 用户服务实现类
- */
 @Slf4j
 @Service
 public class UserServiceImpl implements IUserService {
@@ -48,6 +47,7 @@ public class UserServiceImpl implements IUserService {
     private final ObjectMapper objectMapper;
     private final CategoryMapper categoryMapper;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final TokenBlacklistService tokenBlacklistService;
 
     public UserServiceImpl(UserMapper userMapper,
                            CollectionMapper collectionMapper,
@@ -59,7 +59,8 @@ public class UserServiceImpl implements IUserService {
                            JwtUtils jwtUtils,
                            UserSettingsMapper userSettingsMapper,
                            CategoryMapper categoryMapper,
-                           RedisTemplate<String, Object> redisTemplate) {
+                           RedisTemplate<String, Object> redisTemplate,
+                           TokenBlacklistService tokenBlacklistService) {
         this.userMapper = userMapper;
         this.collectionMapper = collectionMapper;
         this.collectionItemMapper = collectionItemMapper;
@@ -73,44 +74,53 @@ public class UserServiceImpl implements IUserService {
         this.objectMapper = new ObjectMapper();
         this.categoryMapper = categoryMapper;
         this.redisTemplate = redisTemplate;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
     @Override
     public R login(LoginDTO dto) {
-        // 检查账号是否被锁定
         String lockKey = "login:lockout:" + dto.getUsername();
         Boolean isLocked = redisTemplate.hasKey(lockKey);
         if (Boolean.TRUE.equals(isLocked)) {
             throw new BusinessException("账号已锁定，请10分钟后重试");
         }
 
-        // 支持用户名或邮箱登录
         User user = userMapper.selectByUsername(dto.getUsername());
         if (user == null) {
-            // 用户名查不到，尝试用邮箱查找
             user = userMapper.selectByEmail(dto.getUsername());
         }
         if (user == null) {
             throw new BusinessException("用户名或密码错误");
         }
         if (!passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
-            // 密码错误，记录失败次数
             String failKey = "login:fail:" + dto.getUsername();
             redisTemplate.opsForValue().increment(failKey);
-            redisTemplate.expire(failKey, 10, java.util.concurrent.TimeUnit.MINUTES);
-            Long failCount = ((Number) redisTemplate.opsForValue().get(failKey)).longValue();
+            redisTemplate.expire(failKey, 10, TimeUnit.MINUTES);
+            Object failVal = redisTemplate.opsForValue().get(failKey);
+            long failCount = failVal instanceof String ? Long.parseLong((String) failVal) : ((Number) failVal).longValue();
             if (failCount >= 5) {
+                redisTemplate.opsForValue().set(lockKey, 1, 10, TimeUnit.MINUTES);
                 throw new BusinessException("密码错误次数过多，账号已锁定10分钟");
             }
             throw new BusinessException("用户名或密码错误");
         }
 
-        // 登录成功，清除失败计数
-        redisTemplate.delete("login:fail:" + dto.getUsername());
+        if (!"enabled".equals(user.getStatus())) {
+            throw new BusinessException("账号已被禁用");
+        }
 
-        // 生成JWT Token
-        String token = jwtUtils.generateToken(user.getUsername(), user.getId());
-        // 构建返回数据
+        redisTemplate.delete("login:fail:" + dto.getUsername());
+        redisTemplate.delete(lockKey);
+
+        Long tokenVersion = user.getTokenVersion() == null ? 1L : user.getTokenVersion();
+        String token = jwtUtils.generateToken(user.getUsername(), user.getId(), tokenVersion);
+
+        LambdaUpdateWrapper<User> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(User::getId, user.getId())
+                .set(User::getLastLoginAt, LocalDateTime.now());
+        userMapper.update(null, updateWrapper);
+        user.setLastLoginAt(LocalDateTime.now());
+
         Map<String, Object> loginData = new HashMap<>(2);
         loginData.put("token", token);
         user.setPassword(null);
@@ -122,17 +132,14 @@ public class UserServiceImpl implements IUserService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public R register(RegisterDTO dto) {
-        // 检查用户名是否已存在
         User existingUser = userMapper.selectByUsername(dto.getUsername());
         if (existingUser != null) {
             throw new BusinessException("用户名已存在");
         }
-        // 检查邮箱是否已注册
         User existingEmail = userMapper.selectByEmail(dto.getEmail());
         if (existingEmail != null) {
             throw new BusinessException("邮箱已被注册");
         }
-        // 验证邮箱验证码
         if (!verificationCodeService.verifyCode(dto.getEmail(), dto.getCode())) {
             throw new BusinessException("验证码无效或已过期");
         }
@@ -142,16 +149,16 @@ public class UserServiceImpl implements IUserService {
         user.setEmail(dto.getEmail());
         user.setNickname(dto.getUsername());
         user.setRole("commonUser");
+        user.setTokenVersion(1L);
+        user.setStatus("enabled");
         userMapper.insert(user);
 
-        // 创建默认分类
         Category defaultCategory = new Category();
         defaultCategory.setUserId(user.getId());
         defaultCategory.setName("默认分类");
         defaultCategory.setParentId(0L);
         categoryMapper.insert(defaultCategory);
 
-        // 创建默认收藏集
         Collection defaultCollection = new Collection();
         defaultCollection.setUserId(user.getId());
         defaultCollection.setName("默认收藏集");
@@ -160,6 +167,21 @@ public class UserServiceImpl implements IUserService {
 
         log.info("用户[{}]注册成功", user.getId());
         return R.success("注册成功");
+    }
+
+    @Override
+    public R logout(String authorization) {
+        String token = jwtUtils.extractToken(authorization);
+        if (token == null || token.isBlank()) {
+            return R.success("登出成功");
+        }
+        try {
+            long ttlMillis = jwtUtils.getRemainingExpiration(token);
+            tokenBlacklistService.blacklistToken(token, ttlMillis);
+        } catch (Exception e) {
+            log.warn("登出时加入黑名单失败：{}", e.getMessage());
+        }
+        return R.success("登出成功");
     }
 
     @Override
@@ -183,10 +205,11 @@ public class UserServiceImpl implements IUserService {
         }
         LambdaUpdateWrapper<User> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(User::getId, userId)
-                .set(User::getPassword, passwordEncoder.encode(dto.getNewPassword()));
+                .set(User::getPassword, passwordEncoder.encode(dto.getNewPassword()))
+                .setSql("token_version = IFNULL(token_version, 1) + 1");
         userMapper.update(null, wrapper);
         log.info("用户[{}]修改密码成功", userId);
-        return R.success("密码修改成功");
+        return R.success("密码修改成功，请重新登录");
     }
 
     @Override
@@ -217,7 +240,6 @@ public class UserServiceImpl implements IUserService {
         if (profileMap.containsKey("email")) {
             String email = (String) profileMap.get("email");
             if (StringUtils.hasText(email)) {
-                // 检查邮箱是否被其他用户使用
                 User emailUser = userMapper.selectByEmail(email);
                 if (emailUser != null && !emailUser.getId().equals(userId)) {
                     throw new BusinessException("该邮箱已被其他用户使用");
@@ -239,12 +261,10 @@ public class UserServiceImpl implements IUserService {
         if (file == null || file.isEmpty()) {
             throw new BusinessException("请选择头像文件");
         }
-        // 校验文件类型
         String contentType = file.getContentType();
         if (contentType == null || !contentType.startsWith("image/")) {
             throw new BusinessException("仅支持上传图片文件");
         }
-        // 校验文件大小（最大5MB）
         if (file.getSize() > 5 * 1024 * 1024) {
             throw new BusinessException("头像文件大小不能超过5MB");
         }
@@ -263,32 +283,27 @@ public class UserServiceImpl implements IUserService {
     public R getStatistics(Long userId) {
         Map<String, Object> stats = new HashMap<>(8);
 
-        // 收藏集总数
         LambdaQueryWrapper<Collection> collWrapper = new LambdaQueryWrapper<>();
         collWrapper.eq(Collection::getUserId, userId);
         Long collectionCount = collectionMapper.selectCount(collWrapper);
         stats.put("collectionCount", collectionCount);
 
-        // 收藏项总数
         LambdaQueryWrapper<CollectionItem> itemWrapper = new LambdaQueryWrapper<>();
         itemWrapper.eq(CollectionItem::getUserId, userId);
         Long itemCount = collectionItemMapper.selectCount(itemWrapper);
         stats.put("collectionItemCount", itemCount);
 
-        // 笔记总数
         LambdaQueryWrapper<Note> noteWrapper = new LambdaQueryWrapper<>();
         noteWrapper.eq(Note::getUserId, userId);
         Long noteCount = noteMapper.selectCount(noteWrapper);
         stats.put("noteCount", noteCount);
 
-        // 未读通知数
         LambdaQueryWrapper<Notification> notifyWrapper = new LambdaQueryWrapper<>();
         notifyWrapper.eq(Notification::getUserId, userId)
                 .eq(Notification::getIsRead, 0);
         Long unreadCount = notificationMapper.selectCount(notifyWrapper);
         stats.put("unreadNotifyCount", unreadCount);
 
-        // 各消化状态数量
         Map<String, Long> digestStats = new HashMap<>(4);
         for (String status : new String[]{"undigest", "digesting", "digested", "abandoned"}) {
             LambdaQueryWrapper<CollectionItem> dWrapper = new LambdaQueryWrapper<>();
@@ -307,29 +322,26 @@ public class UserServiceImpl implements IUserService {
         if (!StringUtils.hasText(email) || !StringUtils.hasText(code) || !StringUtils.hasText(newPassword)) {
             throw new BusinessException("参数不完整");
         }
-        // 校验验证码
         if (!verificationCodeService.verifyCode(email, code)) {
             throw new BusinessException("验证码无效或已过期");
         }
-        // 查找用户
         User user = userMapper.selectByEmail(email);
         if (user == null) {
             throw new BusinessException("该邮箱未注册");
         }
-        // 更新密码
         LambdaUpdateWrapper<User> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(User::getId, user.getId())
-                .set(User::getPassword, passwordEncoder.encode(newPassword));
+                .set(User::getPassword, passwordEncoder.encode(newPassword))
+                .setSql("token_version = IFNULL(token_version, 1) + 1");
         userMapper.update(null, wrapper);
         log.info("用户[{}]重置密码成功", user.getId());
-        return R.success("密码重置成功");
+        return R.success("密码重置成功，请重新登录");
     }
 
     @Override
     public R getSettings(Long userId) {
         UserSettings settings = userSettingsMapper.selectByUserId(userId);
 
-        // 如果不存在设置,返回默认值
         if (settings == null) {
             Map<String, Object> defaultSettings = new HashMap<>(8);
             defaultSettings.put("theme", "light");
@@ -337,64 +349,40 @@ public class UserServiceImpl implements IUserService {
             defaultSettings.put("notifyPreferences", "{\"email\":true,\"system\":true}");
             return R.success(defaultSettings);
         }
-
         Map<String, Object> result = new HashMap<>(8);
-        result.put("theme", settings.getTheme() != null ? settings.getTheme() : "light");
-        result.put("displayMode", settings.getDisplayMode() != null ? settings.getDisplayMode() : "card");
+        result.put("theme", settings.getTheme());
+        result.put("displayMode", settings.getDisplayMode());
         result.put("notifyPreferences", settings.getNotifyPreferences());
-
         return R.success(result);
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public R updateSettings(Long userId, UserSettingsDTO dto) {
-        if (dto == null) {
-            throw new BusinessException("请求参数不能为空");
-        }
-
         UserSettings settings = userSettingsMapper.selectByUserId(userId);
-
-        // 将Map序列化为JSON字符串
-        String notifyPreferencesJson = null;
-        if (dto.getNotifyPreferences() != null) {
-            try {
-                notifyPreferencesJson = objectMapper.writeValueAsString(dto.getNotifyPreferences());
-            } catch (JsonProcessingException e) {
-                throw new BusinessException("通知偏好设置格式错误");
-            }
-        }
-
         if (settings == null) {
-            // 如果不存在,创建新设置
             settings = new UserSettings();
             settings.setUserId(userId);
-            settings.setTheme(StringUtils.hasText(dto.getTheme()) ? dto.getTheme() : "light");
-            settings.setDisplayMode(StringUtils.hasText(dto.getDisplayMode()) ? dto.getDisplayMode() : "card");
-            settings.setNotifyPreferences(notifyPreferencesJson);
-            settings.setCreatedAt(LocalDateTime.now());
-            settings.setUpdatedAt(LocalDateTime.now());
+            settings.setTheme(dto.getTheme());
+            settings.setDisplayMode(dto.getDisplayMode());
+            try {
+                settings.setNotifyPreferences(objectMapper.writeValueAsString(dto.getNotifyPreferences()));
+            } catch (JsonProcessingException e) {
+                throw new BusinessException("通知偏好格式错误");
+            }
             userSettingsMapper.insert(settings);
         } else {
-            // 更新现有设置
             LambdaUpdateWrapper<UserSettings> wrapper = new LambdaUpdateWrapper<>();
-            wrapper.eq(UserSettings::getId, settings.getId());
-
-            if (StringUtils.hasText(dto.getTheme())) {
-                wrapper.set(UserSettings::getTheme, dto.getTheme());
+            wrapper.eq(UserSettings::getUserId, userId)
+                    .set(UserSettings::getTheme, dto.getTheme())
+                    .set(UserSettings::getDisplayMode, dto.getDisplayMode());
+            try {
+                wrapper.set(UserSettings::getNotifyPreferences, objectMapper.writeValueAsString(dto.getNotifyPreferences()));
+            } catch (JsonProcessingException e) {
+                throw new BusinessException("通知偏好格式错误");
             }
-            if (StringUtils.hasText(dto.getDisplayMode())) {
-                wrapper.set(UserSettings::getDisplayMode, dto.getDisplayMode());
-            }
-            if (notifyPreferencesJson != null) {
-                wrapper.set(UserSettings::getNotifyPreferences, notifyPreferencesJson);
-            }
-            wrapper.set(UserSettings::getUpdatedAt, LocalDateTime.now());
-
             userSettingsMapper.update(null, wrapper);
         }
-
         log.info("用户[{}]更新个性化设置成功", userId);
-        return R.success("更新设置成功");
+        return R.success("设置更新成功");
     }
 }

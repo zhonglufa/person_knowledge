@@ -215,7 +215,7 @@
 </template>
 
 <script>
-import { getComments, commentContent } from '@/api/interaction'
+import { getComments, commentContent, deleteComment } from '@/api/interaction'
 
 export default {
   name: 'CommentSection',
@@ -430,10 +430,12 @@ export default {
 
       this.submitting = true
       try {
+        const parentId = this.replyParentComment?.id || this.replyDialogTarget?.id || null
         const response = await commentContent(
           this.targetId,
           this.targetType,
-          this.replyDialogContent.trim()
+          this.replyDialogContent.trim(),
+          parentId
         )
 
         if (response.data && response.data.code === 200) {
@@ -486,9 +488,9 @@ export default {
         type: 'warning'
       }).then(async () => {
         try {
-          // 此处应调用后端删除回复API
+          await deleteComment(reply.id)
           this.$message.success('删除成功')
-          this.loadComments()
+          await this.loadComments()
         } catch (error) {
           console.error('删除回复失败:', error)
           this.$message.error('删除失败')

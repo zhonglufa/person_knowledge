@@ -30,13 +30,13 @@ export const navigationMixin = {
     handleUserCommand(command) {
       switch (command) {
         case 'profile':
-          this.$router.push('/user/profile');
+          this.$router.push('/personal/profile');
           break;
         case 'collections':
-          this.$router.push('/collections');
+          this.$router.push('/personal/collections');
           break;
         case 'settings':
-          this.$router.push('/user/settings');
+          this.$router.push('/personal/settings');
           break;
         case 'logout':
           this.handleLogout();
@@ -52,38 +52,29 @@ export const navigationMixin = {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning'
-      }).then(() => {
-        // 清除store中的登录状态
+      }).then(async () => {
         if (this.$store) {
-          this.$store.commit('user/LOGOUT');
+          await this.$store.dispatch('user/logout')
+        } else {
+          localStorage.removeItem('token')
+          localStorage.removeItem('userInfo')
+          sessionStorage.removeItem('user')
         }
-        
-        // 清除所有本地存储
-        localStorage.removeItem('token');
-        localStorage.removeItem('userInfo');
-        sessionStorage.removeItem('user');
-        
-        // 提示并跳转
-        this.$message.success('已退出登录');
-        this.$router.push('/');
+
+        this.$message.success('已退出登录')
+        this.$router.push('/login')
       }).catch(() => {
-        // 用户取消登出
       });
     },
     
     // 搜索处理
     handleSearch(keyword) {
       if (keyword && keyword.trim()) {
-        // 发送全局搜索事件
         this.$emit('global-search', keyword.trim());
-        
-        // 如果在搜索页面，直接执行搜索
-        if (this.$route.path !== '/search') {
-          this.$router.push({
-            path: '/search',
-            query: { q: keyword.trim() }
-          });
-        }
+        this.$router.push({
+          path: '/search/global',
+          query: { q: keyword.trim() }
+        });
       }
     }
   }

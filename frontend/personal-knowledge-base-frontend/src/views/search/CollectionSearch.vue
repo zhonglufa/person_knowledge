@@ -135,6 +135,7 @@
 <script>
 import { sanitizeHtml, escapeHtml } from '@/utils/sanitize'
 import { debounce } from '@/utils/debounce'
+import { searchCollections } from '@/api/search'
 
 export default {
   name: 'CollectionSearch',
@@ -176,10 +177,24 @@ export default {
     }, 300)
   },
   methods: {
-    handleSearch() {
+    async handleSearch() {
       this.hasSearched = true
       this.currentPage = 1
       try {
+        const response = await searchCollections({ keyword: this.displayKeyword })
+        const records = response?.data?.data?.list || response?.data?.list || response?.data?.data || response?.data || []
+        if (Array.isArray(records) && records.length > 0) {
+          this.collections = records.map(item => ({
+            ...item,
+            name: item.name || item.collectionName,
+            itemCount: item.itemCount || item.collectCount || 0,
+            isPublic: item.isPublic !== false,
+            cover: item.cover || item.coverUrl || '',
+            createTime: item.createTime || item.createdAt
+          }))
+          return
+        }
+
         this.collections = this.getMockCollections(this.displayKeyword)
       } catch (error) {
         console.error('搜索收藏集失败:', error)

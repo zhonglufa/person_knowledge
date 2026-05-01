@@ -5,8 +5,6 @@ import com.qst.lm.dto.PageDTO;
 import com.qst.lm.dto.admin.AdminCreateUserDTO;
 import com.qst.lm.dto.admin.AdminEditUserDTO;
 import com.qst.lm.dto.announcement.AnnouncementDTO;
-import com.qst.lm.dto.auth.RegisterDTO;
-import com.qst.lm.dto.admin.AdminCreateUserDTO;
 
 /**
  * 后台管理服务接口
@@ -101,7 +99,16 @@ public interface IAdminService {
     R updateAnnouncement(Long adminId, Long id, AnnouncementDTO dto);
 
     /**
-     * 下架公告
+     * 下架公告（修改状态为已下架）
+     *
+     * @param adminId 管理员ID
+     * @param id      公告ID
+     * @return 操作结果
+     */
+    R takeDownAnnouncement(Long adminId, Long id);
+
+    /**
+     * 删除公告（逻辑删除）
      *
      * @param adminId 管理员ID
      * @param id      公告ID
@@ -110,13 +117,15 @@ public interface IAdminService {
     R deleteAnnouncement(Long adminId, Long id);
 
     /**
-     * 获取公告列表
+     * 获取公告列表（分页，支持状态和类型筛选）
      *
-     * @param page 页码
-     * @param size 每页大小
+     * @param page   页码
+     * @param size   每页大小
+     * @param status 公告状态（0=草稿,1=已发布,2=已下架,3=已过期），为null时不筛选
+     * @param type   公告类型（system=系统公告,activity=活动通知,maintenance=维护通知），为null时不筛选
      * @return 公告列表
      */
-    R getAnnouncementList(Integer page, Integer size, Integer status);
+    R getAnnouncementList(Integer page, Integer size, Integer status, String type);
 
     /**
      * 恢复已下架内容

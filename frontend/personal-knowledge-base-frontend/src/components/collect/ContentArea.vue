@@ -67,9 +67,18 @@ export default {
   props: {
     sidebarItems: Array,
     activeSidebarItem: String,
-    collections: Array,
-    filteredCollections: Array,
-    paginatedCollections: Array,
+    collections: {
+      type: Array,
+      default: () => []
+    },
+    filteredCollections: {
+      type: Array,
+      default: () => []
+    },
+    paginatedCollections: {
+      type: Array,
+      default: () => []
+    },
     filterParams: {
       type: Object,
       default: () => ({})

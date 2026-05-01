@@ -43,9 +43,19 @@ public class Announcement extends BasePojo {
     private LocalDateTime expireAt;
 
     /**
-     * 状态:1=生效,0=下架
+     * 状态: 0=草稿, 1=已发布, 2=已下架, 3=已过期
      */
     private Integer status;
+
+    /**
+     * 公告类型: system=系统公告, activity=活动通知, maintenance=维护通知
+     */
+    private String type;
+
+    /**
+     * 优先级: low=低, medium=中, high=高, urgent=紧急
+     */
+    private String priority;
 
     /**
      * 创建人(管理员ID)

@@ -1,9 +1,5 @@
 import DOMPurify from 'dompurify'
 
-/**
- * HTML消毒工具
- * 过滤用户输入内容，防止XSS攻击
- */
 export function sanitizeHtml(html) {
   if (!html) return ''
   return DOMPurify.sanitize(String(html), {
@@ -12,9 +8,6 @@ export function sanitizeHtml(html) {
   })
 }
 
-/**
- * HTML转义（纯文本输出）
- */
 export function escapeHtml(text) {
   if (!text) return ''
   const map = {
@@ -25,4 +18,15 @@ export function escapeHtml(text) {
     "'": '&#039;'
   }
   return String(text).replace(/[&<>"']/g, m => map[m])
+}
+
+export function stripHtml(html) {
+  if (!html) return ''
+  return String(html).replace(/<[^>]*>/g, '')
+}
+
+export function stripHtmlAndEscape(html) {
+  if (!html) return ''
+  const text = String(html).replace(/<[^>]*>/g, '')
+  return escapeHtml(text)
 }

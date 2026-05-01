@@ -79,7 +79,7 @@
                   <el-button type="text" icon="el-icon-more" circle />
                   <el-dropdown-menu slot="dropdown">
                     <el-dropdown-item command="edit">编辑</el-dropdown-item>
-                    <el-dropdown-item command="process">进入工作台</el-dropdown-item>
+                    <el-dropdown-item command="view">查看详情</el-dropdown-item>
                     <el-dropdown-item v-if="!collection?.isDefault" command="setDefault">设为默认</el-dropdown-item>
                     <el-dropdown-item v-if="!(collection?.isShared || collection?.isPublic)" command="share">分享</el-dropdown-item>
                     <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
@@ -145,7 +145,7 @@ import CreateCollectionModal from '@/components/collect/CreateCollectionModal.vu
 import CollectionEditDialog from '@/components/collect/CollectionEditDialog.vue'
 
 export default {
-  name: 'MyCollectionsPanel',
+  name: 'CollectionListPage',
   components: {
     CreateCollectionModal,
     CollectionEditDialog
@@ -253,32 +253,56 @@ export default {
           this.editingCollection = collection
           this.showEditDialog = true
           break
-        case 'process':
-          this.$router.push(`/collections/${collection?.id}/workspace`)
+        case 'view':
+          this.$router.push(`/collections/${collection?.id}`)
           break
         case 'setDefault':
           this.handleSetDefault(collection)
           break
         case 'share':
-          this.handleShareCollection(collection)
+          this.handleShare(collection)
           break
         case 'delete':
-          this.handleDeleteCollection(collection)
+          this.handleDelete(collection)
           break
       }
     },
-    goToLogin() {
-      this.$router.push({
-        path: '/login',
-        query: { redirect: this.$route.fullPath }
-      })
+    async handleSetDefault(collection) {
+      this.$message.info(`设为默认功能待补充：${collection?.name || ''}`)
+    },
+    async handleShare(collection) {
+      this.$message.info(`分享功能待补充：${collection?.name || ''}`)
+    },
+    async handleDelete(collection) {
+      try {
+        await this.$confirm(`确定删除收藏集「${collection.title || collection.name || ''}」吗？删除后不可恢复。`, '删除确认', {
+          type: 'warning',
+          confirmButtonText: '确定删除',
+          cancelButtonText: '取消'
+        })
+        await collectionsApi.deleteCollection(collection.id)
+        this.$message.success('删除成功')
+        await this.loadCollections()
+      } catch (error) {
+        if (error !== 'cancel') {
+          this.$message.error(error?.message || '删除失败')
+        }
+      }
+    },
+    handleCollectionCreated() {
+      this.showCreateDialog = false
+      this.loadCollections()
+    },
+    handleCollectionUpdated() {
+      this.showEditDialog = false
+      this.loadCollections()
     },
     handleEmptyAction() {
       if (this.isLoggedIn) {
         this.showCreateDialog = true
-      } else {
-        this.goToLogin()
+        return
       }
+      this.$router.push('/login')
     },
     handleSizeChange(size) {
       this.pageSize = size
@@ -288,53 +312,11 @@ export default {
       this.currentPage = page
     },
     formatDate(date) {
-      if (!date) return '未知'
-      return new Date(date).toLocaleDateString('zh-CN')
-    },
-    async handleDeleteCollection(collection) {
-      this.$confirm(`确定要删除收藏集 "${collection?.name || ''}" 吗？这将同时删除其中的所有收藏项。`, '删除确认', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }).then(async () => {
-        try {
-          const response = await collectionsApi.deleteCollection(collection.id)
-          if (response?.data?.code === 200) {
-            this.$message.success('删除成功')
-            await this.loadCollections()
-          } else {
-            this.$message.error(response?.data?.msg || '删除失败')
-          }
-        } catch (error) {
-          console.error('删除失败:', error)
-          this.$message.error('删除失败')
-        }
-      }).catch(() => {})
-    },
-    async handleSetDefault(collection) {
-      try {
-        const response = await collectionsApi.setDefaultCollection(collection.id)
-        if (response?.data?.code === 200) {
-          this.$message.success('设置默认收藏集成功')
-          await this.loadCollections()
-        } else {
-          this.$message.error(response?.data?.msg || '设置失败')
-        }
-      } catch (error) {
-        console.error('设置默认收藏集失败', error)
-        this.$message.error('设置失败')
+      if (!date) {
+        return '未知时间'
       }
-    },
-    handleShareCollection() {
-      this.$message.info('分享功能开发中...')
-    },
-    handleCollectionCreated() {
-      this.showCreateDialog = false
-      this.loadCollections()
-    },
-    handleCollectionUpdated() {
-      this.showEditDialog = false
-      this.loadCollections()
+      const parsed = new Date(date)
+      return Number.isNaN(parsed.getTime()) ? '未知时间' : parsed.toLocaleDateString('zh-CN')
     }
   }
 }

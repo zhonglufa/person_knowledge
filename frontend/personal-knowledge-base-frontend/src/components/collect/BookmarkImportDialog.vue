@@ -293,7 +293,8 @@ export default {
       try {
         // 调用后端获取收藏集列表API
         const response = await collectionsApi.getUserCollections()
-        this.collections = response.data || []
+        const payload = response?.data?.data || response?.data || response || []
+        this.collections = Array.isArray(payload) ? payload : (payload.list || payload.records || [])
         // 默认选择第一个收藏集
         if (this.collections.length > 0) {
           this.targetCollectionId = this.collections[0].id

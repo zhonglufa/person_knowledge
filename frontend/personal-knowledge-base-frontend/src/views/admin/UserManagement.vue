@@ -20,7 +20,7 @@
         <el-form-item label="搜索">
           <el-input
             v-model="queryParams.searchKey"
-            placeholder="用户名 / 昵称 / 邮箱"
+            placeholder="用户名 / 昵称"
             clearable
             @keyup.enter.native="handleSearch"
             @clear="handleSearch"
@@ -58,7 +58,7 @@
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="50" align="center" />
-        <el-table-column prop="id" label="ID" width="80" align="center" />
+        <el-table-column type="index" label="序号" width="80" align="center" :index="indexMethod" />
         <el-table-column prop="username" label="用户名" min-width="120" align="center" />
         <el-table-column prop="nickname" label="昵称" min-width="120" align="center" />
         <el-table-column prop="email" label="邮箱" min-width="180" align="center" />
@@ -71,8 +71,8 @@
         </el-table-column>
         <el-table-column label="状态" width="100" align="center">
           <template slot-scope="scope">
-            <el-tag :type="scope.row.status === 1 ? 'success' : 'danger'" size="small">
-              {{ scope.row.status === 1 ? '正常' : '禁用' }}
+            <el-tag :type="scope.row.status === 'enabled' ? 'success' : 'danger'" size="small">
+              {{ scope.row.status === 'enabled' ? '正常' : '禁用' }}
             </el-tag>
           </template>
         </el-table-column>
@@ -96,11 +96,11 @@
                 @click="handleEditUser(scope.row)"
               >编辑</el-button>
               <el-button
-                :type="scope.row.status === 1 ? 'warning' : 'success'"
+                :type="scope.row.status === 'enabled' ? 'warning' : 'success'"
                 size="mini"
-                :icon="scope.row.status === 1 ? 'el-icon-remove' : 'el-icon-circle-check'"
+                :icon="scope.row.status === 'enabled' ? 'el-icon-remove' : 'el-icon-circle-check'"
                 @click="handleToggleStatus(scope.row)"
-              >{{ scope.row.status === 1 ? '禁用' : '启用' }}</el-button>
+              >{{ scope.row.status === 'enabled' ? '禁用' : '启用' }}</el-button>
             </div>
           </template>
         </el-table-column>
@@ -155,15 +155,15 @@
         <el-form-item label="昵称" prop="nickname">
           <el-input v-model="userForm.nickname" placeholder="请输入昵称" />
         </el-form-item>
-        <el-form-item label="邮箱" prop="email">
+        <el-form-item v-if="isAdd" label="邮箱" prop="email">
           <el-input v-model="userForm.email" placeholder="请输入邮箱地址" />
         </el-form-item>
-        <el-form-item :label="isAdd ? '密码' : '新密码'" :prop="isAdd ? 'password' : ''">
+        <el-form-item v-if="isAdd" label="密码" prop="password">
           <el-input
             v-model="userForm.password"
             type="password"
             show-password
-            :placeholder="isAdd ? '请输入密码（8-20位，含字母和数字）' : '不修改请留空'"
+            placeholder="请输入密码（8-20位，含字母和数字）"
           />
         </el-form-item>
         <el-form-item label="角色" prop="role">
@@ -237,7 +237,8 @@ export default {
         ],
         password: [
           { required: true, message: '请输入密码', trigger: 'blur' },
-          { min: 8, max: 20, message: '密码长度8-20位，需含字母和数字', trigger: 'blur' }
+          { min: 8, max: 20, message: '密码长度8-20位，需含字母和数字', trigger: 'blur' },
+          { pattern: /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]{8,20}$/, message: '密码必须包含字母和数字', trigger: 'blur' }
         ],
         role: [
           { required: true, message: '请选择角色', trigger: 'change' }
@@ -314,7 +315,12 @@ export default {
     },
 
     handleToggleStatus(row) {
-      const action = row.status === 1 ? '禁用' : '启用'
+      const currentAdminId = this.getCurrentAdminId()
+      if (currentAdminId && row.id === currentAdminId) {
+        this.$message.warning('不能禁用自己的账号')
+        return
+      }
+      const action = row.status === 'enabled' ? '禁用' : '启用'
       this.$confirm(`确定要${action}用户 "${row.username}" 吗？`, '提示', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
@@ -322,7 +328,7 @@ export default {
       }).then(async () => {
         try {
           let response
-          if (row.status === 1) {
+          if (row.status === 'enabled') {
             response = await userManageApi.disableUser(row.id)
           } else {
             response = await userManageApi.enableUser(row.id)
@@ -391,9 +397,21 @@ export default {
       this.loadUserList()
     },
 
+    indexMethod(index) {
+      return (this.pagination.currentPage - 1) * this.pagination.pageSize + index + 1
+    },
     formatDate(date) {
-      if (!date) return ''
+      if (!date) return '-'
       return new Date(date).toLocaleString('zh-CN')
+    },
+
+    getCurrentAdminId() {
+      try {
+        const info = JSON.parse(localStorage.getItem('adminInfo') || '{}')
+        return info.id || null
+      } catch {
+        return null
+      }
     },
 
     /**
@@ -401,12 +419,16 @@ export default {
      */
     async handleExport() {
       try {
+        await this.$confirm('将导出符合当前筛选条件的全部用户数据，是否继续？', '导出确认', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'info'
+        })
         const params = {
           keyword: this.queryParams.searchKey || undefined,
           role: this.queryParams.role || undefined
         }
         const response = await userManageApi.exportUsers(params)
-        // 创建下载链接
         const blob = new Blob([response], { type: 'text/csv;charset=utf-8;' })
         const link = document.createElement('a')
         link.href = URL.createObjectURL(blob)
@@ -415,8 +437,10 @@ export default {
         URL.revokeObjectURL(link.href)
         this.$message.success('导出成功')
       } catch (error) {
-        console.error('导出用户列表错误:', error)
-        this.$message.error('导出失败')
+        if (error !== 'cancel' && error?.message !== 'cancel') {
+          console.error('导出用户列表错误:', error)
+          this.$message.error('导出失败')
+        }
       }
     },
 

@@ -199,7 +199,7 @@ export default {
         this.loading = true;
 
         // 调用 API 创建收藏集
-        const response = await collectionsApi.create({
+        const response = await collectionsApi.createCollection({
           name: this.formData.name,
           description: this.formData.description || null,
           coverImage: this.formData.coverImage || null,

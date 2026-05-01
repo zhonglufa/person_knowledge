@@ -5,7 +5,7 @@ export const SIDEBAR_CONFIG = {
     { id: 'discover', text: '发现', icon: 'fas fa-compass' },
     { id: 'tags', text: '标签', icon: 'fas fa-tag' },
     { id: 'my-collections', text: '我的收藏集', icon: 'fas fa-bookmark' },
-    { id: 'recycle', text: '回收站', icon: 'fas fa-trash-alt' },
+    { id: 'recycle', text: '回收站', icon: 'fas fa-trash-alt' }
   ],
 
   creation: [
@@ -53,81 +53,56 @@ export const SIDEBAR_CONFIG = {
 
   search: [
     {
-      group: '搜索',
+      group: '检索',
       icon: 'fas fa-search',
       items: [
         {
-          id: 'search',
-          text: '内容检索',
+          id: 'search-global',
+          text: '综合检索',
           icon: 'fas fa-search',
-          route: '/search',
-          description: '快速查找你的内容',
+          route: '/search/global',
+          description: '跨收藏集、收藏项、笔记与标签统一检索',
           badge: 'core',
           importance: 'high'
-        }
-      ]
-    },
-    {
-      group: '发现',
-      icon: 'fas fa-compass',
-      items: [
+        },
         {
-          id: 'trends',
-          text: '热门搜索',
-          icon: 'fas fa-fire',
-          route: '/search/trends',
-          description: '今日热搜排行',
+          id: 'search-collections',
+          text: '收藏集',
+          icon: 'fas fa-folder-open',
+          route: '/search/collections',
+          description: '按收藏集名称与描述检索',
+          importance: 'high'
+        },
+        {
+          id: 'search-items',
+          text: '收藏项',
+          icon: 'fas fa-bookmark',
+          route: '/search/items',
+          description: '按标题、摘要、关键词与状态筛选',
+          importance: 'high'
+        },
+        {
+          id: 'search-notes',
+          text: '笔记',
+          icon: 'fas fa-file-alt',
+          route: '/search/notes',
+          description: '按标题、内容与笔记类型检索',
           importance: 'medium'
         },
         {
-          id: 'my-searches',
-          text: '我的搜索',
-          icon: 'fas fa-star',
-          route: '/search/my-searches',
-          description: '常用搜索和历史记录',
-          badge: 'dynamic',
-          importance: 'high'
-        }
-      ]
-    },
-    {
-      group: '分析',
-      icon: 'fas fa-chart-bar',
-      items: [
-        {
-          id: 'analytics',
-          text: '搜索分析',
-          icon: 'fas fa-chart-bar',
-          route: '/search/analytics',
-          description: '搜索行为统计',
+          id: 'search-tags',
+          text: '标签',
+          icon: 'fas fa-tag',
+          route: '/search/tags',
+          description: '按标签与关联内容检索',
           importance: 'medium'
-        }
-      ]
-    },
-    {
-      group: '高级',
-      icon: 'fas fa-sliders-h',
-      items: [
+        },
         {
-          id: 'advanced',
-          text: '高级搜索',
-          icon: 'fas fa-sliders-h',
-          route: '/search/advanced',
-          description: '复杂条件组合搜索',
-          importance: 'medium'
-        }
-      ]
-    },
-    {
-      group: '设置',
-      icon: 'fas fa-cog',
-      items: [
-        {
-          id: 'settings',
-          text: '搜索设置',
-          icon: 'fas fa-cog',
-          route: '/search/settings',
-          description: '自定义搜索体验',
+          id: 'search-history',
+          text: '历史记录',
+          icon: 'fas fa-history',
+          route: '/search/history',
+          description: '查看最近搜索记录',
           importance: 'low'
         }
       ]
@@ -135,6 +110,12 @@ export const SIDEBAR_CONFIG = {
   ],
 
   personal: [
+    {
+      id: 'personal-center',
+      text: '个人中心',
+      icon: 'fas fa-user-circle',
+      route: '/personal/center'
+    },
     {
       id: 'personal-dashboard',
       text: '统计看板',
@@ -151,13 +132,13 @@ export const SIDEBAR_CONFIG = {
       id: 'personal-collections',
       text: '收藏管理',
       icon: 'fas fa-folder',
-      route: '/personal/collections'
+      route: '/collections/manage'
     },
     {
       id: 'personal-processing',
       text: '加工管理',
       icon: 'fas fa-cogs',
-      route: '/personal/processing'
+      route: '/creation/processing'
     },
     {
       id: 'personal-public',
@@ -177,12 +158,5 @@ export const SIDEBAR_CONFIG = {
       icon: 'fas fa-bell',
       route: '/personal/notifications'
     }
-  ],
-
-  dashboard: [
-    { id: 'overview', text: '概览', icon: 'fas fa-chart-line', route: '/dashboard' },
-    { id: 'collections', text: '我的收藏', icon: 'fas fa-bookmark', route: '/dashboard/collections' },
-    { id: 'notes', text: '我的笔记', icon: 'fas fa-sticky-note', route: '/dashboard/notes' },
-    { id: 'tasks', text: '待办任务', icon: 'fas fa-tasks', route: '/dashboard/tasks' }
   ]
 }

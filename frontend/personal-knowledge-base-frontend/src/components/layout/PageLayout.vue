@@ -57,6 +57,7 @@
       <!-- 页面内容 -->
       <div class="content-wrapper" :class="{ 'full-width': !showSidebar || sidebarCollapsed }">
         <slot></slot>
+        <router-view v-if="!$slots.default" />
       </div>
     </div>
   </div>
@@ -76,21 +77,20 @@ export default {
     // 导航相关
     navItems: {
       type: Array,
-      required: true,
       default: () => [
         { id: 'collect', text: '收藏中心', icon: 'fas fa-bookmark', url: '/collect/center' },
-        { id: 'creation', text: '创作中心', icon: 'fas fa-edit', url: '/creation/center' },
+        { id: 'creation', text: '创作中心', icon: 'fas fa-edit', url: '/creation/workspace' },
         { id: 'search', text: '检索中心', icon: 'fas fa-search', url: '/search/center' },
         { id: 'personal', text: '个人中心', icon: 'fas fa-user', url: '/personal/center' }
       ]
     },
     activeNav: {
       type: String,
-      required: true
+      default: ''
     },
     user: {
       type: Object,
-      required: true
+      default: () => ({})
     },
     notificationCount: {
       type: Number,
@@ -188,7 +188,7 @@ export default {
           this.$router.push('/collect/center');
           break;
         case 'creation':
-          this.$router.push('/creation/center');
+          this.$router.push('/creation/workspace');
           break;
         case 'search':
           this.$router.push('/search/center');

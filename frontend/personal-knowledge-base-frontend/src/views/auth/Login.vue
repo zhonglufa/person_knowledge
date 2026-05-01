@@ -615,8 +615,8 @@ export default {
               localStorage.removeItem('username');
             }
 
-            // 登录成功后跳转到Dashboard（工作台）
-            const redirect = this.$route.query.redirect || '/personal/dashboard';
+            // 登录成功后跳转到个人中心
+            const redirect = this.$route.query.redirect || '/personal/center';
             this.$router.push(redirect);
 
 
@@ -830,7 +830,8 @@ export default {
             code: this.forgotForm.code,
             newPassword: this.forgotForm.newPassword
           });
-          this.$message.success('密码重置成功，请使用新密码登录');
+          this.$store.commit('user/CLEAR_USER_STATE')
+          this.$message.success('密码重置成功，请使用新密码重新登录');
           this.showForgotDialog = false;
           this.activeTab = 'login';
         } catch (error) {

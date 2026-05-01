@@ -32,4 +32,14 @@ public class AnnouncementDTO {
      * 过期时间
      */
     private LocalDateTime expireAt;
+
+    /**
+     * 公告类型: system=系统公告, activity=活动通知, maintenance=维护通知
+     */
+    private String type;
+
+    /**
+     * 优先级: low=低, medium=中, high=高, urgent=紧急
+     */
+    private String priority;
 }

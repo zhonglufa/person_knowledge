@@ -30,7 +30,7 @@ export function uploadAvatar(formData) {
 // 修改密码
 export function changePassword(data) {
   return request({
-    url: '/user/change-password',
+    url: '/user/password',
     method: 'put',
     data
   })
@@ -49,7 +49,7 @@ export function resetPassword(data) {
   return request({
     url: '/user/reset-password',
     method: 'post',
-    data
+    params: data
   })
 }
 

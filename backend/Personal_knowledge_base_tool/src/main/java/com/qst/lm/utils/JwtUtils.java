@@ -13,9 +13,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * JWT工具类，用于生成和验证Token
- */
 @Component
 public class JwtUtils {
 
@@ -28,10 +25,7 @@ public class JwtUtils {
     @Value("${jwt.tokenPrefix}")
     private String tokenPrefix;
 
-    /**
-     * 生成Token（旧版本，仅包含用户名）
-     */
-    public  String generateToken(String username) {
+    public String generateToken(String username) {
         Date nowDate = new Date();
         Date expireDate = new Date(nowDate.getTime() + expiration);
 
@@ -50,16 +44,15 @@ public class JwtUtils {
                 .compact();
     }
 
-    /**
-     * 生成Token（新版本，包含用户名和用户ID）
-     */
-    public String generateToken(String username, Long userId) {
+    public String generateToken(String username, Long userId, Long tokenVersion) {
         Date nowDate = new Date();
         Date expireDate = new Date(nowDate.getTime() + expiration);
 
         Map<String, Object> claims = new HashMap<>();
         claims.put("username", username);
         claims.put("userId", userId);
+        claims.put("tokenVersion", tokenVersion == null ? 1L : tokenVersion);
+        claims.put("tokenType", "user");
 
         SecretKey key = getSigningKey();
 
@@ -73,9 +66,6 @@ public class JwtUtils {
                 .compact();
     }
 
-    /**
-     * 解析Token
-     */
     public Claims parseJWT(String token) {
         try {
             SecretKey key = getSigningKey();
@@ -89,25 +79,19 @@ public class JwtUtils {
         }
     }
 
-    /**
-     * 解析Token（向后兼容）
-     */
     public Claims getClaimsFromToken(String token) {
         return parseJWT(token);
     }
 
-    /**
-     * 验证Token是否过期
-     */
     public boolean isTokenExpired(String token) {
         try {
             Claims claims = getClaimsFromToken(token);
             if (claims == null) {
-                return true; // 如果无法解析token，则认为已过期
+                return true;
             }
             Date expiration = claims.getExpiration();
             if (expiration == null) {
-                return true; // 如果没有过期时间，则认为已过期
+                return true;
             }
             return expiration.before(new Date());
         } catch (Exception e) {
@@ -115,9 +99,6 @@ public class JwtUtils {
         }
     }
 
-    /**
-     * 从Token中获取用户名
-     */
     public String getUsernameFromToken(String token) {
         try {
             Claims claims = getClaimsFromToken(token);
@@ -127,9 +108,6 @@ public class JwtUtils {
         }
     }
 
-    /**
-     * 从Token中获取用户ID
-     */
     public Long getUserIdFromToken(String token) {
         try {
             Claims claims = getClaimsFromToken(token);
@@ -149,31 +127,55 @@ public class JwtUtils {
         }
     }
 
-    /**
-     * 验证Token
-     */
+    public Long getTokenVersionFromToken(String token) {
+        try {
+            Claims claims = getClaimsFromToken(token);
+            Object versionObj = claims.get("tokenVersion");
+            if (versionObj == null) {
+                return 1L;
+            }
+            if (versionObj instanceof Long) {
+                return (Long) versionObj;
+            }
+            if (versionObj instanceof Integer) {
+                return ((Integer) versionObj).longValue();
+            }
+            return Long.parseLong(versionObj.toString());
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public String getTokenTypeFromToken(String token) {
+        try {
+            Claims claims = getClaimsFromToken(token);
+            Object tokenType = claims.get("tokenType");
+            return tokenType == null ? null : tokenType.toString();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     public boolean validateToken(String token, String username) {
         String tokenUsername = getUsernameFromToken(token);
         return (username.equals(tokenUsername) && !isTokenExpired(token));
     }
 
-    /**
-     * 从带有前缀的Token字符串中提取Token
-     */
     public String extractToken(String tokenWithPrefix) {
         if (tokenWithPrefix != null && tokenWithPrefix.startsWith(tokenPrefix)) {
             return tokenWithPrefix.replace(tokenPrefix, "").trim();
         }
         return null;
     }
-    
-    /**
-     * 生成管理员Token
-     * @param adminId 管理员ID
-     * @param username 管理员用户名
-     * @return Token字符串
-     */
-    public String generateAdminToken(Integer adminId, String username) {
+
+    public long getRemainingExpiration(String token) {
+        Claims claims = getClaimsFromToken(token);
+        Date expirationDate = claims.getExpiration();
+        long remain = expirationDate.getTime() - System.currentTimeMillis();
+        return Math.max(remain, 0);
+    }
+
+    public String generateAdminToken(Integer adminId, String username, Long tokenVersion) {
         Date nowDate = new Date();
         Date expireDate = new Date(nowDate.getTime() + expiration);
 
@@ -181,6 +183,8 @@ public class JwtUtils {
         claims.put("adminId", adminId);
         claims.put("username", username);
         claims.put("isAdmin", true);
+        claims.put("tokenVersion", tokenVersion == null ? 1L : tokenVersion);
+        claims.put("tokenType", "admin");
 
         SecretKey key = getSigningKey();
 
@@ -194,11 +198,6 @@ public class JwtUtils {
                 .compact();
     }
 
-    /**
-     * 从Token中判断是否为管理员
-     * @param token Token字符串
-     * @return 是否为管理员Token
-     */
     public boolean isAdminToken(String token) {
         try {
             Claims claims = getClaimsFromToken(token);
@@ -209,11 +208,6 @@ public class JwtUtils {
         }
     }
 
-    /**
-     * 从Token中获取管理员ID
-     * @param token Token字符串
-     * @return 管理员ID
-     */
     public Integer getAdminIdFromToken(String token) {
         try {
             Claims claims = getClaimsFromToken(token);
@@ -231,11 +225,6 @@ public class JwtUtils {
         }
     }
 
-    /**
-     * 获取用于签名的密钥
-     * 如果secret长度不足64字节则抛出异常
-     * @return SecretKey
-     */
     private SecretKey getSigningKey() {
         byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
         if (keyBytes.length < 64) {

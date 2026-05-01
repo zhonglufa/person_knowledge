@@ -1,4 +1,5 @@
 import router from '@/router'
+import store from '@/store'
 import { Message } from 'element-ui'
 
 // 错误消息去重（防止短时间内重复提示）
@@ -209,6 +210,7 @@ function handleAuthError(status, data) {
     } else if (userToken) {
       // 普通用户Token过期
       localStorage.removeItem('token')
+      store.commit('user/CLEAR_USER_STATE')
       // 保存重定向路径
       localStorage.setItem('redirectAfterLogin', window.location.pathname)
       // 跳转到用户登录页

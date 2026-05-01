@@ -1,6 +1,8 @@
 <template>
   <div class="creation-layout-page">
+    <router-view v-if="isFullscreen" />
     <page-layout
+      v-else
       :nav-items="navItems"
       :active-nav="activeNav"
       :user="currentUser"
@@ -50,6 +52,9 @@ export default {
         name: this.getNickname || this.userInfo?.username || '未知用户',
         avatar: this.getAvatar || 'https://assets.mockplus.cn/ai/newImages/pexels/357.jpg'
       }
+    },
+    isFullscreen() {
+      return this.$route?.meta?.fullscreen === true
     },
     currentSidebarItems() {
       return SIDEBAR_CONFIG?.creation || []
@@ -116,15 +121,20 @@ export default {
       }
     },
     syncSidebarWithRoute() {
+      const path = this.$route?.path || ''
       const routeMap = {
-        '/creation': 'creation-workspace',
         '/creation/workspace': 'creation-workspace',
         '/creation/processing': 'creation-processing',
         '/creation/notes': 'creation-notes',
         '/creation/drafts': 'creation-drafts'
       }
-      const currentRoute = this.$route?.path
-      this.activeSidebarItem = routeMap[currentRoute] || 'creation-workspace'
+      if (routeMap[path]) {
+        this.activeSidebarItem = routeMap[path]
+      } else if (path.startsWith('/creation/notes/')) {
+        this.activeSidebarItem = 'creation-notes'
+      } else {
+        this.activeSidebarItem = 'creation-workspace'
+      }
     }
   },
   watch: {

@@ -2,8 +2,7 @@ import LoginPage from '@/views/auth/Login.vue'
 import GuestHome from '@/views/guest/Home.vue'
 import CollectionCenter from '@/views/collect/CollectionCenter.vue'
 import CollectionDetailPage from '@/views/collection/CollectionDetailPage.vue'
-import CollectionItemWorkspace from '@/views/collection/CollectionItemWorkspace.vue'
-import MyCollectionsPanel from '@/views/collection/MyCollectionsPanel.vue'
+import CollectionListPage from '@/views/collection/CollectionListPage.vue'
 
 export default [
   {
@@ -44,21 +43,32 @@ export default [
   },
   {
     path: '/collections',
-    name: 'MyCollectionsPanel',
-    component: MyCollectionsPanel,
+    redirect: '/collect/center?tab=my-collections'
+  },
+  {
+    path: '/collections/list',
+    name: 'CollectionListPage',
+    component: CollectionListPage,
     meta: {
       requiresAuth: false,
       title: '我的收藏集'
     }
   },
   {
-    path: '/collections/:id/workspace',
-    name: 'CollectionItemWorkspace',
-    component: CollectionItemWorkspace,
-    props: false,
+    path: '/collection-item/:id',
+    redirect: to => `/creation/collection-items/${to.params.id}/note/create`
+  },
+  {
+    path: '/collection-item/:id/note/create',
+    redirect: to => `/creation/collection-items/${to.params.id}/note/create`
+  },
+  {
+    path: '/collections/manage',
+    name: 'CollectionManagementPage',
+    component: () => import('@/views/collection/CollectionManagement.vue'),
     meta: {
       requiresAuth: true,
-      title: '收藏项详情'
+      title: '收藏管理'
     }
   },
   {

@@ -81,19 +81,34 @@
 
             <div class="user-actions">
               <template v-if="isLoggedIn">
-                <el-button
-                    type="text"
-                    class="notification-btn hidden md:inline-flex"
-                    @click="toggleNotifications"
+                <el-tooltip
+                    :content="notificationCount > 0 ? `${notificationCount}条未读通知` : '通知中心'"
+                    placement="bottom"
+                    :open-delay="300"
                 >
-                  <i class="fas fa-bell"></i>
                   <el-badge
-                      v-if="notificationCount > 0"
                       :value="notificationCount"
                       :max="99"
-                      class="notification-badge"
-                  />
-                </el-button>
+                      :hidden="notificationCount === 0"
+                      class="notification-badge-wrapper"
+                  >
+                    <button
+                        class="notification-btn"
+                        :class="{
+                          'has-unread': notificationCount > 0,
+                          'is-active': isNotificationActive,
+                          'is-pressed': isNotificationPressed
+                        }"
+                        :aria-label="notificationCount > 0 ? `${notificationCount}条未读通知，点击查看` : '通知中心，点击查看'"
+                        @click="handleNotificationClick"
+                        @mousedown="isNotificationPressed = true"
+                        @mouseup="isNotificationPressed = false"
+                        @mouseleave="isNotificationPressed = false"
+                    >
+                      <i class="fas fa-bell notification-icon" :class="{ 'bell-shake': notificationCount > 0 }"></i>
+                    </button>
+                  </el-badge>
+                </el-tooltip>
 
                 <el-dropdown
                     trigger="click"
@@ -201,6 +216,8 @@
 
 <script>
 import { mapState, mapGetters, mapActions } from 'vuex';
+import { getUnreadCount } from '@/api/notification'
+import { authApi } from '@/api/auth';
 
 export default {
   name: 'Header',
@@ -213,9 +230,11 @@ export default {
       isAvatarHover: false,
       showMobileSearch: false,
       showLogoSubtitle: true,
-      notificationCount: 3,
+      notificationCount: 0,
       isDesktop: true,
-      windowWidth: 0
+      windowWidth: 0,
+      notificationTimer: null,
+      isNotificationPressed: false
     }
   },
   computed: {
@@ -245,6 +264,9 @@ export default {
     },
     headerHeight() {
       return this.showMobileSearch ? '100px' : '64px';
+    },
+    isNotificationActive() {
+      return this.$route.path === '/personal/notifications';
     }
   },
   watch: {
@@ -255,6 +277,9 @@ export default {
     '$route'(to, from) {
       this.checkLoginStatus();
       this.updateActiveNavigation();
+      if (this.isLoggedIn) {
+        this.fetchNotificationCount();
+      }
     },
     userInfo: {
       handler(newUserInfo) {
@@ -325,9 +350,9 @@ export default {
     },
     handleNavSelect(index) {
       const routeMap = {
-        'home': '/personal/dashboard',
+        'home': '/personal/center',
         'collect': '/collect/center',
-        'creation': '/creation/center',
+        'creation': '/creation/workspace',
         'search': '/search/center'
       };
 
@@ -369,8 +394,35 @@ export default {
         });
       }
     },
-    toggleNotifications() {
-      this.$router.push('/personal/notifications');
+    async handleNotificationClick() {
+      if (this.$route.path === '/personal/notifications') {
+        try {
+          await this.fetchNotificationCount();
+        } catch (e) {
+          // silent
+        }
+        return;
+      }
+      try {
+        await this.$router.push('/personal/notifications');
+      } catch (err) {
+        if (err.name !== 'NavigationDuplicated') {
+          console.error('导航到通知中心失败:', err);
+        }
+      }
+      this.$nextTick(() => this.fetchNotificationCount());
+    },
+    async fetchNotificationCount() {
+      if (!this.isLoggedIn) {
+        this.notificationCount = 0;
+        return;
+      }
+      try {
+        const { data } = await getUnreadCount();
+        this.notificationCount = data || 0;
+      } catch (error) {
+        console.error('获取未读通知数失败:', error);
+      }
     },
     toggleMobileMenu() {
       this.mobileMenuOpen = !this.mobileMenuOpen;
@@ -382,10 +434,10 @@ export default {
           this.$router.push('/personal/center');
           break;
         case 'collections':
-          this.$router.push('/personal/collections');
+          this.$router.push('/collections/manage');
           break;
         case 'creations':
-          this.$router.push('/creation/center');
+          this.$router.push('/creation/workspace');
           break;
         case 'settings':
           this.$router.push('/personal/settings');
@@ -419,10 +471,20 @@ export default {
     this.handleResize();
     this.updateActiveNavigation();
     this.checkLoginStatus();
+    this.fetchNotificationCount();
+    this.notificationTimer = setInterval(() => {
+      if (this.isLoggedIn) {
+        this.fetchNotificationCount();
+      }
+    }, 60000);
     window.addEventListener('resize', this.handleResize);
   },
   beforeDestroy() {
     window.removeEventListener('resize', this.handleResize);
+    if (this.notificationTimer) {
+      clearInterval(this.notificationTimer);
+      this.notificationTimer = null;
+    }
   }
 }
 </script>
@@ -585,16 +647,93 @@ export default {
 
 .notification-btn {
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  outline: none;
+  background: transparent;
   color: #6b7280;
   font-size: 18px;
-  padding: 8px;
+  padding: 0;
   border-radius: 10px;
-  transition: all 0.3s ease;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .notification-btn:hover {
   color: #409eff;
   background: rgba(64, 158, 255, 0.08);
+}
+
+.notification-btn:focus-visible {
+  color: #409eff;
+  background: rgba(64, 158, 255, 0.1);
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.3);
+}
+
+.notification-btn:active,
+.notification-btn.is-pressed {
+  color: #337ecc;
+  background: rgba(64, 158, 255, 0.15);
+  transform: scale(0.92);
+}
+
+.notification-btn.is-active {
+  color: #409eff;
+  background: rgba(64, 158, 255, 0.1);
+}
+
+.notification-btn.has-unread {
+  color: #409eff;
+}
+
+.notification-btn.has-unread:hover {
+  color: #337ecc;
+  background: rgba(64, 158, 255, 0.12);
+}
+
+.notification-icon {
+  font-size: 18px;
+  line-height: 1;
+  transition: transform 0.25s ease;
+}
+
+.notification-btn:hover .notification-icon {
+  transform: scale(1.1);
+}
+
+.bell-shake {
+  animation: bell-shake 0.8s ease-in-out;
+  transform-origin: top center;
+}
+
+@keyframes bell-shake {
+  0% { transform: rotate(0deg); }
+  15% { transform: rotate(14deg); }
+  30% { transform: rotate(-12deg); }
+  45% { transform: rotate(8deg); }
+  60% { transform: rotate(-6deg); }
+  75% { transform: rotate(3deg); }
+  90% { transform: rotate(-1deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.notification-badge-wrapper {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
+.notification-badge-wrapper ::v-deep .el-badge__content {
+  top: 2px;
+  right: 2px;
+  font-size: 11px;
+  line-height: 16px;
+  padding: 0 5px;
 }
 
 .user-profile {

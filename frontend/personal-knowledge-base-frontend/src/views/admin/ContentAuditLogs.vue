@@ -62,8 +62,7 @@
         stripe
         style="width: 100%"
       >
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="adminId" label="管理员ID" width="100" />
+        <el-table-column type="index" label="序号" width="80" />
         <el-table-column label="操作类型" width="120">
           <template slot-scope="scope">
             <el-tag :type="getOperationTypeTag(scope.row.operationType)" size="small">
@@ -76,7 +75,6 @@
             {{ getTargetTypeName(scope.row.targetType) }}
           </template>
         </el-table-column>
-        <el-table-column prop="targetId" label="目标ID" width="100" />
         <el-table-column prop="operationDetail" label="操作详情" min-width="200" show-overflow-tooltip />
         <el-table-column prop="createdAt" label="操作时间" width="180" />
       </el-table>

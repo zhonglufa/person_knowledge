@@ -9,7 +9,6 @@
           <h2 class="page-title">{{ pageTitle }}</h2>
           <p class="page-desc">{{ pageDescription }}</p>
         </div>
-        <el-tag size="small" type="info">ID: {{ collection.id || routeCollectionId }}</el-tag>
         <el-tag size="small" v-if="collection.category">{{ collection.category }}</el-tag>
         <el-tag size="small" :type="digestStatusTag.type" v-if="digestStatusTag.text">{{ digestStatusTag.text }}</el-tag>
       </div>
@@ -32,7 +31,7 @@
     <div class="context-banner">
       <div class="context-item">
         <span class="context-label">来源收藏项</span>
-        <span class="context-value">{{ collection.title || `收藏项 #${routeCollectionId}` }}</span>
+        <span class="context-value">{{ collection.title || '未命名收藏项' }}</span>
       </div>
       <div class="context-item">
         <span class="context-label">加工目标</span>
@@ -44,8 +43,8 @@
       </div>
     </div>
 
-    <div class="main-content-area">
-      <div class="reference-panel">
+    <div class="main-content-area" ref="mainContentArea" :style="mainContentAreaStyle">
+      <div class="reference-panel workbench-panel">
         <div class="panel-header">
           <h3>收藏项参照</h3>
           <div class="panel-controls">
@@ -58,121 +57,124 @@
             />
           </div>
         </div>
-        <div class="reference-content">
-          <div class="basic-info">
-            <div class="info-item">
-              <label>标题:</label>
-              <span>{{ collection.title }}</span>
+        <div class="panel-scroll-area">
+          <div class="reference-content">
+            <div class="basic-info">
+              <div class="info-item">
+                <label>标题:</label>
+                <span>{{ collection.title }}</span>
+              </div>
+              <div class="info-item">
+                <label>来源:</label>
+                <span>{{ collection.source || 'Web' }}</span>
+              </div>
+              <div class="info-item">
+                <label>关键词:</label>
+                <el-tag
+                  v-for="keyword in collection.keywords ? collection.keywords.split(',') : []"
+                  :key="keyword"
+                  size="small"
+                  class="keyword-tag"
+                >
+                  {{ keyword }}
+                </el-tag>
+              </div>
+              <div class="info-item">
+                <label>核心摘要:</label>
+                <span>{{ collection.coreAbstract || '暂无摘要' }}</span>
+              </div>
+              <div class="info-item">
+                <label>学习目标:</label>
+                <span>{{ collection.studyGoal || '尚未设置学习目标' }}</span>
+              </div>
+              <div class="info-item">
+                <label>学习进度:</label>
+                <span>{{ collection.studyProgress || 0 }}%</span>
+              </div>
             </div>
-            <div class="info-item">
-              <label>来源:</label>
-              <span>{{ collection.source || 'Web' }}</span>
-            </div>
-            <div class="info-item">
-              <label>关键词:</label>
-              <el-tag
-                v-for="keyword in collection.keywords ? collection.keywords.split(',') : []"
-                :key="keyword"
-                size="small"
-                class="keyword-tag"
-              >
-                {{ keyword }}
-              </el-tag>
-            </div>
-            <div class="info-item">
-              <label>核心摘要:</label>
-              <span>{{ collection.coreAbstract || '暂无摘要' }}</span>
-            </div>
-            <div class="info-item">
-              <label>学习目标:</label>
-              <span>{{ collection.studyGoal || '尚未设置学习目标' }}</span>
-            </div>
-            <div class="info-item">
-              <label>学习进度:</label>
-              <span>{{ collection.studyProgress || 0 }}%</span>
-            </div>
-          </div>
 
-          <div class="content-body">
-            <h4>主体内容</h4>
-            <div v-if="parseInt(collection.sourceType) === 1" class="web-content-display">
-              <div class="debug-panel">
-                <div class="debug-header" @click="toggleDebugPanel">
-                  <span><strong>网页加载信息</strong></span>
-                  <i :class="['el-icon-arrow-down', { 'rotated': debugPanelExpanded }]"></i>
+            <div class="content-body">
+              <h4>主体内容</h4>
+              <div v-if="parseInt(collection.sourceType) === 1" class="web-content-display">
+                <div class="debug-panel">
+                  <div class="debug-header" @click="toggleDebugPanel">
+                    <span><strong>网页加载信息</strong></span>
+                    <i :class="['el-icon-arrow-down', { 'rotated': debugPanelExpanded }]" />
+                  </div>
+                  <div v-show="debugPanelExpanded" class="debug-content">
+                    <p>加载状态: {{ iframeLoading ? '加载中' : '加载完成' }}</p>
+                    <p>错误状态: {{ iframeError ? '加载失败' : '正常' }}</p>
+                    <p>URL: {{ collection.sourceUrl || collection.url }}</p>
+                  </div>
                 </div>
-                <div v-show="debugPanelExpanded" class="debug-content">
-                  <p>加载状态: {{ iframeLoading ? '加载中' : '加载完成' }}</p>
-                  <p>错误状态: {{ iframeError ? '加载失败' : '正常' }}</p>
-                  <p>URL: {{ collection.sourceUrl || collection.url }}</p>
+                <iframe
+                  :key="iframeKey"
+                  :src="collection.sourceUrl || collection.url"
+                  class="web-iframe"
+                  frameborder="0"
+                  sandbox="allow-scripts allow-same-origin allow-forms"
+                  @load="handleIframeLoad"
+                  @error="handleIframeError"
+                ></iframe>
+                <div v-if="iframeLoading" class="loading-overlay">
+                  <i class="el-icon-loading"></i>
+                  <span>网页加载中...</span>
+                </div>
+                <div v-if="iframeError" class="error-overlay">
+                  <i class="el-icon-warning"></i>
+                  <span>网页加载失败</span>
+                  <el-button size="mini" @click="reloadIframe">重新加载</el-button>
                 </div>
               </div>
-              <iframe
-                :src="collection.sourceUrl || collection.url"
-                class="web-iframe"
-                frameborder="0"
-                sandbox="allow-scripts allow-same-origin allow-forms"
-                @load="handleIframeLoad"
-                @error="handleIframeError"
-              ></iframe>
-              <div v-if="iframeLoading" class="loading-overlay">
-                <i class="el-icon-loading"></i>
-                <span>网页加载中...</span>
+              <div v-else-if="parseInt(collection.sourceType) === 2" class="image-content-display">
+                <el-image
+                  :src="collection.sourceUrl || collection.url"
+                  class="content-image"
+                  fit="contain"
+                  :preview-src-list="[collection.sourceUrl || collection.url]"
+                  @error="handleImageError"
+                >
+                  <div slot="error" class="image-error">
+                    <i class="el-icon-picture-outline"></i>
+                    <p>图片加载失败</p>
+                  </div>
+                </el-image>
               </div>
-              <div v-if="iframeError" class="error-overlay">
-                <i class="el-icon-warning"></i>
-                <span>网页加载失败</span>
-                <el-button size="mini" @click="reloadIframe">重新加载</el-button>
+              <div v-else-if="parseInt(collection.sourceType) === 3" class="text-content-display">
+                <div
+                  class="text-content"
+                  v-html="formatTextContent(collection.content || collection.contentSnapshot || '暂无内容')"
+                  @mouseup="handleTextSelection"
+                ></div>
               </div>
-            </div>
-            <div v-else-if="parseInt(collection.sourceType) === 2" class="image-content-display">
-              <el-image
-                :src="collection.sourceUrl || collection.url"
-                class="content-image"
-                fit="contain"
-                :preview-src-list="[collection.sourceUrl || collection.url]"
-                @error="handleImageError"
-              >
-                <div slot="error" class="image-error">
-                  <i class="el-icon-picture-outline"></i>
-                  <p>图片加载失败</p>
+              <div v-else-if="parseInt(collection.sourceType) === 4" class="video-content-display">
+                <video
+                  :src="collection.sourceUrl || collection.url"
+                  class="content-video"
+                  controls
+                  preload="metadata"
+                  @error="handleVideoError"
+                  @loadstart="handleVideoLoadStart"
+                  @canplay="handleVideoCanPlay"
+                >
+                  您的浏览器不支持视频播放。
+                </video>
+                <div v-if="videoLoading" class="video-loading">
+                  <i class="el-icon-loading"></i>
+                  <span>视频加载中...</span>
                 </div>
-              </el-image>
-            </div>
-            <div v-else-if="parseInt(collection.sourceType) === 3" class="text-content-display">
-              <div
-                class="text-content"
-                v-html="formatTextContent(collection.content || collection.contentSnapshot || '暂无内容')"
-                @mouseup="handleTextSelection"
-              ></div>
-            </div>
-            <div v-else-if="parseInt(collection.sourceType) === 4" class="video-content-display">
-              <video
-                :src="collection.sourceUrl || collection.url"
-                class="content-video"
-                controls
-                preload="metadata"
-                @error="handleVideoError"
-                @loadstart="handleVideoLoadStart"
-                @canplay="handleVideoCanPlay"
-              >
-                您的浏览器不支持视频播放。
-              </video>
-              <div v-if="videoLoading" class="video-loading">
-                <i class="el-icon-loading"></i>
-                <span>视频加载中...</span>
+                <div v-if="videoError" class="video-error">
+                  <i class="el-icon-video-camera"></i>
+                  <span>视频加载失败</span>
+                </div>
               </div>
-              <div v-if="videoError" class="video-error">
-                <i class="el-icon-video-camera"></i>
-                <span>视频加载失败</span>
+              <div v-else class="unknown-content-display">
+                <div
+                  class="content-display"
+                  v-html="formatContent(collection.content || collection.contentSnapshot || '暂无内容')"
+                  @mouseup="handleTextSelection"
+                ></div>
               </div>
-            </div>
-            <div v-else class="unknown-content-display">
-              <div
-                class="content-display"
-                v-html="formatContent(collection.content || collection.contentSnapshot || '暂无内容')"
-                @mouseup="handleTextSelection"
-              ></div>
             </div>
           </div>
         </div>
@@ -182,7 +184,7 @@
         <div class="divider-handle" @mousedown="startResize"></div>
       </div>
 
-      <div class="draft-panel">
+      <div class="draft-panel workbench-panel">
         <div class="panel-header">
           <h3>笔记草稿</h3>
           <div class="draft-status-group">
@@ -190,60 +192,62 @@
             <el-tag size="small" type="info" v-else>新建沉淀</el-tag>
           </div>
         </div>
-        <div class="draft-content">
-          <div class="note-config">
-            <el-form :model="noteForm" :rules="noteRules" ref="noteForm" label-width="80px">
-              <el-form-item label="笔记标题" prop="title">
-                <el-input v-model="noteForm.title" placeholder="请输入笔记标题" @input="markAsModified" />
-              </el-form-item>
-              <el-form-item label="分类" prop="categoryId">
-                <el-select v-model="noteForm.categoryId" placeholder="请选择分类" @change="markAsModified" style="width: 100%;">
-                  <el-option v-for="category in categories" :key="category.id" :label="category.name" :value="category.id" />
-                </el-select>
-              </el-form-item>
-              <el-form-item label="笔记类型" prop="noteType">
-                <el-radio-group v-model="noteForm.noteType" @change="handleNoteTypeChange">
-                  <el-radio label="conceptual">概念型</el-radio>
-                  <el-radio label="procedural">程序型</el-radio>
-                  <el-radio label="factual">事实型</el-radio>
-                  <el-radio label="metacognitive">元认知型</el-radio>
-                </el-radio-group>
-              </el-form-item>
-              <el-form-item label="描述">
-                <el-input v-model="noteForm.description" type="textarea" :rows="2" placeholder="简要描述笔记内容..." @input="markAsModified" />
-              </el-form-item>
-            </el-form>
-          </div>
+        <div class="panel-scroll-area">
+          <div class="draft-content">
+            <div class="note-config">
+              <el-form :model="noteForm" :rules="noteRules" ref="noteForm" label-width="80px">
+                <el-form-item label="笔记标题" prop="title">
+                  <el-input v-model="noteForm.title" placeholder="请输入笔记标题" @input="markAsModified" />
+                </el-form-item>
+                <el-form-item label="分类" prop="categoryId">
+                  <el-select v-model="noteForm.categoryId" placeholder="请选择分类" @change="markAsModified" style="width: 100%;">
+                    <el-option v-for="category in categories" :key="category.id" :label="category.name" :value="category.id" />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="笔记类型" prop="noteType">
+                  <el-radio-group v-model="noteForm.noteType" @change="handleNoteTypeChange">
+                    <el-radio label="conceptual">概念型</el-radio>
+                    <el-radio label="procedural">程序型</el-radio>
+                    <el-radio label="factual">事实型</el-radio>
+                    <el-radio label="metacognitive">元认知型</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                <el-form-item label="描述">
+                  <el-input v-model="noteForm.description" type="textarea" :rows="2" placeholder="简要描述笔记内容..." @input="markAsModified" />
+                </el-form-item>
+              </el-form>
+            </div>
 
-          <div class="editor-section">
-            <div class="editor-header">
-              <h4>笔记内容</h4>
-              <div class="editor-actions">
-                <el-button size="small" @click="insertTemplate">插入模板</el-button>
-                <el-button size="small" @click="copySelectedToNote" :disabled="!selectedText">复制选中内容</el-button>
-                <el-button size="small" @click="goToDrafts">查看草稿箱</el-button>
+            <div class="editor-section">
+              <div class="editor-header">
+                <h4>笔记内容</h4>
+                <div class="editor-actions">
+                  <el-button size="small" @click="insertTemplate">插入模板</el-button>
+                  <el-button size="small" @click="copySelectedToNote" :disabled="!selectedText">复制选中内容</el-button>
+                  <el-button size="small" @click="goToDrafts">查看草稿箱</el-button>
+                </div>
               </div>
-            </div>
-            <div class="editor-toolbar">
-              <div class="word-count-display">
-                <span class="word-count-item">
-                  <i class="el-icon-document"></i>
-                  字符数: {{ wordCountStats.totalCharacters }}
-                </span>
-                <span class="word-count-item">
-                  <i class="el-icon-edit"></i>
-                  单词数: {{ wordCountStats.wordCount }}
-                </span>
+              <div class="editor-toolbar">
+                <div class="word-count-display">
+                  <span class="word-count-item">
+                    <i class="el-icon-document"></i>
+                    字符数: {{ wordCountStats.totalCharacters }}
+                  </span>
+                  <span class="word-count-item">
+                    <i class="el-icon-edit"></i>
+                    单词数: {{ wordCountStats.wordCount }}
+                  </span>
+                </div>
               </div>
-            </div>
-            <div class="rich-editor">
-              <el-input
-                v-model="noteForm.content"
-                type="textarea"
-                :rows="15"
-                placeholder="开始创作您的笔记..."
-                @input="markAsModified"
-              />
+              <div class="rich-editor">
+                <el-input
+                  v-model="noteForm.content"
+                  type="textarea"
+                  :rows="15"
+                  placeholder="开始创作您的笔记..."
+                  @input="markAsModified"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -260,7 +264,7 @@
       </div>
       <div class="right-section">
         <el-button @click="saveDraft" :loading="savingDraft">保存草稿</el-button>
-        <el-button type="success" @click="publishNote" :disabled="!canPublish">完成沉淀</el-button>
+        <el-button type="success" @click="publishNote" :loading="publishing" :disabled="!canPublish">完成沉淀</el-button>
       </div>
     </div>
   </div>
@@ -270,7 +274,9 @@
 import { mapGetters } from 'vuex'
 import { collectApi } from '@/api/collect.js'
 import { noteApi } from '@/api/note.js'
-import { sanitizeHtml, escapeHtml } from '@/utils/sanitize'
+import { sanitizeHtml, escapeHtml, stripHtmlAndEscape } from '@/utils/sanitize'
+
+const PANEL_RATIO_STORAGE_KEY = 'creation:collection-note-panel-ratio'
 
 export default {
   name: 'CollectionNoteCreation',
@@ -300,15 +306,19 @@ export default {
       categories: [],
       selectedText: '',
       savingDraft: false,
+      publishing: false,
       lastSavedTime: null,
       lastSaveStatus: '尚未保存',
       modified: false,
       iframeLoading: false,
       iframeError: false,
+      iframeKey: 0,
       videoLoading: false,
       videoError: false,
       debugPanelExpanded: false,
       isResizing: false,
+      panelSplitRatio: 0.5,
+      minPanelWidth: 320,
       currentDraftId: null,
       drafts: [],
       saveInterval: null,
@@ -344,23 +354,65 @@ export default {
       const totalCharacters = content.length
       const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0
       return { totalCharacters, wordCount }
+    },
+    mainContentAreaStyle() {
+      const left = `${(this.panelSplitRatio * 100).toFixed(2)}%`
+      const right = `${((1 - this.panelSplitRatio) * 100).toFixed(2)}%`
+      return {
+        gridTemplateColumns: `minmax(${this.minPanelWidth}px, ${left}) 10px minmax(${this.minPanelWidth}px, ${right})`
+      }
     }
   },
   methods: {
+    restorePanelSplitRatio() {
+      try {
+        const storedRatio = window.localStorage.getItem(PANEL_RATIO_STORAGE_KEY)
+        if (!storedRatio) {
+          return
+        }
+        const parsedRatio = Number(storedRatio)
+        if (Number.isFinite(parsedRatio) && parsedRatio >= 0.2 && parsedRatio <= 0.8) {
+          this.panelSplitRatio = parsedRatio
+        }
+      } catch (error) {
+        console.warn('恢复分栏比例失败:', error)
+      }
+    },
+    persistPanelSplitRatio() {
+      try {
+        window.localStorage.setItem(PANEL_RATIO_STORAGE_KEY, String(this.panelSplitRatio))
+      } catch (error) {
+        console.warn('保存分栏比例失败:', error)
+      }
+    },
     async loadCollection() {
-      if (!this.routeCollectionId) return
+      if (!this.routeCollectionId) {
+        this.$message.error('缺少收藏项ID，无法进入笔记创作页')
+        this.goBack()
+        return
+      }
       try {
         const response = await collectApi.getCollectById(this.routeCollectionId)
-        this.collection = response?.data || response?.data?.data || {}
+        const payload = response?.data?.data || response?.data || {}
+        this.collection = payload
+        if (!this.collection?.id) {
+          throw new Error('未找到对应收藏项')
+        }
         if (!this.noteForm.title) {
           this.noteForm.title = this.collection.title ? `${this.collection.title} - 学习笔记` : ''
         }
         if (!this.noteForm.description) {
           this.noteForm.description = this.collection.coreAbstract || ''
         }
+        if (parseInt(this.collection.sourceType) === 1) {
+          this.iframeLoading = true
+          this.iframeError = false
+          this.iframeKey += 1
+        }
       } catch (error) {
         console.error('加载收藏项失败:', error)
-        this.$message.error('加载收藏项失败')
+        this.$message.error(error?.message || '加载收藏项失败')
+        this.goBack()
       }
     },
     async loadCategories() {
@@ -372,6 +424,9 @@ export default {
       }
     },
     async loadDrafts() {
+      if (!this.routeCollectionId) {
+        return
+      }
       try {
         const response = await noteApi.getDraftList({ collectionItemId: this.routeCollectionId, pageNum: 1, pageSize: 20 })
         if (response?.code === 200) {
@@ -420,6 +475,7 @@ export default {
     reloadIframe() {
       this.iframeLoading = true
       this.iframeError = false
+      this.iframeKey += 1
     },
     handleImageError() {
       this.$message.warning('图片加载失败')
@@ -436,10 +492,12 @@ export default {
       this.videoLoading = false
     },
     formatTextContent(content) {
-      return sanitizeHtml(String(content || '').replace(/\n/g, '<br>'))
+      const plainText = stripHtmlAndEscape(content || '暂无内容')
+      return plainText.replace(/\n/g, '<br>')
     },
     formatContent(content) {
-      return sanitizeHtml(String(content || '').replace(/\n/g, '<br>'))
+      const plainText = stripHtmlAndEscape(content || '暂无内容')
+      return plainText.replace(/\n/g, '<br>')
     },
     handleTextSelection() {
       const selection = window.getSelection()?.toString()?.trim()
@@ -508,20 +566,26 @@ export default {
         this.$message.warning('请填写完整的笔记信息')
         return
       }
+      this.publishing = true
       try {
         if (this.modified) {
           await this.saveDraft()
         }
-        if (this.currentDraftId) {
-          await noteApi.publishNote(this.currentDraftId)
-          this.$message.success('笔记沉淀完成')
-          this.$router.push('/creation/notes')
+        if (!this.currentDraftId) {
+          this.$message.warning('请先保存草稿后再完成沉淀')
           return
         }
-        this.$message.warning('请先保存草稿后再完成沉淀')
+        const response = await noteApi.publishNote(this.currentDraftId)
+        if (response?.code !== 200) {
+          throw new Error(response?.message || '发布失败')
+        }
+        this.$message.success('笔记沉淀完成')
+        this.$router.push('/creation/notes')
       } catch (error) {
         console.error('发布笔记失败:', error)
-        this.$message.error('完成沉淀失败')
+        this.$message.error(error?.message || '完成沉淀失败')
+      } finally {
+        this.publishing = false
       }
     },
     startAutoSave() {
@@ -537,16 +601,44 @@ export default {
         this.saveInterval = null
       }
     },
-    startResize() {},
+    startResize(event) {
+      event.preventDefault()
+      this.isResizing = true
+      document.body.classList.add('collection-note-resizing')
+      window.addEventListener('mousemove', this.handleResize)
+      window.addEventListener('mouseup', this.stopResize)
+    },
+    handleResize(event) {
+      if (!this.isResizing || !this.$refs.mainContentArea) {
+        return
+      }
+      const rect = this.$refs.mainContentArea.getBoundingClientRect()
+      const dividerWidth = 10
+      const availableWidth = rect.width - dividerWidth
+      if (availableWidth <= 0) {
+        return
+      }
+      const rawLeftWidth = event.clientX - rect.left
+      const minLeft = this.minPanelWidth
+      const maxLeft = availableWidth - this.minPanelWidth
+      const clampedLeftWidth = Math.min(Math.max(rawLeftWidth, minLeft), maxLeft)
+      this.panelSplitRatio = clampedLeftWidth / availableWidth
+    },
+    stopResize() {
+      if (!this.isResizing) {
+        return
+      }
+      this.isResizing = false
+      this.persistPanelSplitRatio()
+      document.body.classList.remove('collection-note-resizing')
+      window.removeEventListener('mousemove', this.handleResize)
+      window.removeEventListener('mouseup', this.stopResize)
+    },
     goToDrafts() {
       this.$router.push('/creation/drafts')
     },
     goBack() {
-      if (window.history.length > 1) {
-        this.$router.go(-1)
-      } else {
-        this.$router.push('/creation/processing')
-      }
+      this.$router.push('/creation')
     },
     handleOnline() {
       this.isOnline = true
@@ -560,6 +652,7 @@ export default {
     }
   },
   async mounted() {
+    this.restorePanelSplitRatio()
     await Promise.all([this.loadCollection(), this.loadCategories(), this.loadDrafts()])
     this.startAutoSave()
     window.addEventListener('online', this.handleOnline)
@@ -567,6 +660,7 @@ export default {
   },
   beforeDestroy() {
     this.stopAutoSave()
+    this.stopResize()
     window.removeEventListener('online', this.handleOnline)
     window.removeEventListener('offline', this.handleOffline)
   }
@@ -576,7 +670,11 @@ export default {
 <style scoped>
 .collection-note-creation-container {
   padding: var(--space-5);
-  height: 100%;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  box-sizing: border-box;
+  background: var(--bg-page, #f5f7fa);
 }
 
 .top-operation-bar,
@@ -644,9 +742,20 @@ export default {
 
 .main-content-area {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 10px minmax(0, 1fr);
+  grid-template-columns: minmax(320px, 1fr) 10px minmax(320px, 1fr);
   gap: var(--space-4);
-  min-height: calc(100vh - 280px);
+  height: calc(100vh - 260px);
+  min-height: calc(100vh - 260px);
+}
+
+.workbench-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .reference-panel,
@@ -665,6 +774,14 @@ export default {
   justify-content: space-between;
   gap: var(--space-4);
   margin-bottom: var(--space-4);
+  flex-shrink: 0;
+}
+
+.panel-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
 }
 
 .basic-info {
@@ -743,8 +860,6 @@ export default {
 
 .debug-content {
   padding: 0 var(--space-3) var(--space-3);
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
 }
 
 .rotated {
@@ -753,14 +868,31 @@ export default {
 
 .divider {
   display: flex;
-  align-items: stretch;
   justify-content: center;
+  align-items: stretch;
 }
 
 .divider-handle {
-  width: 4px;
+  width: 6px;
   border-radius: 999px;
-  background: var(--border-base);
+  background: linear-gradient(180deg, var(--primary-light), var(--border-base));
+  cursor: col-resize;
+  transition: background 0.2s ease;
+  height: 100%;
+}
+
+.divider-handle:hover {
+  background: linear-gradient(180deg, var(--primary-base), var(--primary-light));
+}
+
+.image-error,
+.unknown-content-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
+  color: var(--text-secondary);
 }
 
 .auto-save-status {
@@ -768,31 +900,5 @@ export default {
   align-items: center;
   gap: var(--space-2);
   color: var(--text-secondary);
-}
-
-.word-count-item {
-  color: var(--text-secondary);
-  font-size: var(--font-size-sm);
-}
-
-@media (max-width: 992px) {
-  .top-operation-bar,
-  .bottom-operation-bar,
-  .context-banner,
-  .left-section,
-  .right-section,
-  .panel-header,
-  .editor-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .main-content-area {
-    grid-template-columns: 1fr;
-  }
-
-  .divider {
-    display: none;
-  }
 }
 </style>

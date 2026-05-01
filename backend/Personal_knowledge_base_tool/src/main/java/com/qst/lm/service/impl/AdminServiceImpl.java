@@ -8,8 +8,6 @@ import com.qst.lm.dto.PageDTO;
 import com.qst.lm.dto.admin.AdminCreateUserDTO;
 import com.qst.lm.dto.admin.AdminEditUserDTO;
 import com.qst.lm.dto.announcement.AnnouncementDTO;
-import com.qst.lm.dto.auth.RegisterDTO;
-import com.qst.lm.dto.admin.AdminCreateUserDTO;
 import com.qst.lm.exception.BusinessException;
 import com.qst.lm.mapper.*;
 import com.qst.lm.pojo.*;
@@ -95,9 +93,7 @@ public class AdminServiceImpl implements IAdminService {
             map.put("nickname", user.getNickname());
             map.put("role", user.getRole());
             map.put("deleted", user.getDeleted());
-            // 修复：添加前端需要的status字段映射
-            // deleted=0(正常) -> status=1, deleted=1(禁用) -> status=0
-            map.put("status", user.getDeleted() == 0 ? 1 : 0);
+            map.put("status", user.getDeleted() == 0 ? "enabled" : "disabled");
             map.put("createdAt", user.getCreatedAt());
             map.put("lastLoginAt", user.getLastLoginAt());
             records.add(map);
@@ -340,15 +336,12 @@ public class AdminServiceImpl implements IAdminService {
         announcement.setContent(dto.getContent());
         announcement.setEffectiveAt(dto.getEffectiveAt() != null ? dto.getEffectiveAt() : LocalDateTime.now());
         announcement.setExpireAt(dto.getExpireAt());
-        // 修复：创建公告时为草稿状态（0），需执行发布操作才推送通知
         announcement.setStatus(0);
+        announcement.setType(StringUtils.hasText(dto.getType()) ? dto.getType() : "system");
+        announcement.setPriority(StringUtils.hasText(dto.getPriority()) ? dto.getPriority() : "medium");
         announcement.setCreatedBy(adminId);
         announcementMapper.insert(announcement);
 
-        // 修复：创建公告时不发送全站通知，只有发布时才发送
-        // sendAnnouncementToAllUsers(announcement);
-
-        // 记录操作日志
         saveOperationLog(adminId, "create_announcement", "announcement", announcement.getId(), "创建公告(草稿)");
 
         log.info("管理员[{}]创建公告[{}]成功(草稿)", adminId, announcement.getId());
@@ -408,6 +401,12 @@ public class AdminServiceImpl implements IAdminService {
         if (dto.getExpireAt() != null) {
             wrapper.set(Announcement::getExpireAt, dto.getExpireAt());
         }
+        if (StringUtils.hasText(dto.getType())) {
+            wrapper.set(Announcement::getType, dto.getType());
+        }
+        if (StringUtils.hasText(dto.getPriority())) {
+            wrapper.set(Announcement::getPriority, dto.getPriority());
+        }
 
         announcementMapper.update(null, wrapper);
 
@@ -418,9 +417,55 @@ public class AdminServiceImpl implements IAdminService {
         return R.success("更新公告成功");
     }
 
+    /**
+     * 下架公告（修改状态为已下架，可恢复）
+     * <p>将指定ID的公告状态更新为2（已下架状态），此操作可逆，可通过恢复操作重新上架。</p>
+     *
+     * @param adminId 执行操作的管理员ID，用于权限验证和操作日志记录
+     * @param id      需要下架的公告ID
+     * @return 操作结果
+     * @throws BusinessException 当公告不存在或管理员权限不足时抛出
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public R takeDownAnnouncement(Long adminId, Long id) {
+        if (adminId == null) {
+            throw new BusinessException("管理员ID不能为空");
+        }
+        Announcement announcement = announcementMapper.selectById(id);
+        if (announcement == null) {
+            throw new BusinessException("公告不存在");
+        }
+        if (announcement.getStatus() == 2) {
+            throw new BusinessException("公告已处于下架状态，无需重复操作");
+        }
+
+        LambdaUpdateWrapper<Announcement> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(Announcement::getId, id)
+                .set(Announcement::getStatus, 2);
+        announcementMapper.update(null, wrapper);
+
+        saveOperationLog(adminId, "take_down_announcement", "announcement", id, "下架公告");
+
+        log.info("管理员[{}]下架公告[{}]成功", adminId, id);
+        return R.success("公告已下架");
+    }
+
+    /**
+     * 删除公告（逻辑删除，不可恢复）
+     * <p>将指定ID的公告标记为已删除状态（status=-1），此操作不可逆。</p>
+     *
+     * @param adminId 执行操作的管理员ID，用于权限验证和操作日志记录
+     * @param id      需要删除的公告ID
+     * @return 操作结果
+     * @throws BusinessException 当公告不存在或已被删除时抛出
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public R deleteAnnouncement(Long adminId, Long id) {
+        if (adminId == null) {
+            throw new BusinessException("管理员ID不能为空");
+        }
         Announcement announcement = announcementMapper.selectById(id);
         if (announcement == null) {
             throw new BusinessException("公告不存在");
@@ -428,19 +473,27 @@ public class AdminServiceImpl implements IAdminService {
 
         LambdaUpdateWrapper<Announcement> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(Announcement::getId, id)
-                // 修复：使用状态2表示已下架（0=草稿,1=已发布,2=已下架,3=已过期）
-                .set(Announcement::getStatus, 2);
+                .set(Announcement::getStatus, -1);
         announcementMapper.update(null, wrapper);
 
-        // 记录操作日志
-        saveOperationLog(adminId, "delete_announcement", "announcement", id, "下架公告");
+        saveOperationLog(adminId, "delete_announcement", "announcement", id, "删除公告(不可恢复)");
 
-        log.info("管理员[{}]下架公告[{}]成功", adminId, id);
-        return R.success("下架公告成功");
+        log.info("管理员[{}]删除公告[{}]成功(不可恢复)", adminId, id);
+        return R.success("公告已删除");
     }
 
+    /**
+     * 获取公告列表（分页，支持状态和类型筛选）
+     * <p>根据状态和类型条件查询公告列表，结果按创建时间倒序排列。</p>
+     *
+     * @param page   页码，从1开始
+     * @param size   每页条数，最大100
+     * @param status 公告状态筛选条件，为null时不筛选（0=草稿,1=已发布,2=已下架,3=已过期）
+     * @param type   公告类型筛选条件，为null时不筛选（system=系统公告,activity=活动通知,maintenance=维护通知）
+     * @return 分页公告列表
+     */
     @Override
-    public R getAnnouncementList(Integer page, Integer size, Integer status) {
+    public R getAnnouncementList(Integer page, Integer size, Integer status, String type) {
         if (page == null || page < 1) {
             page = 1;
         }
@@ -455,6 +508,9 @@ public class AdminServiceImpl implements IAdminService {
         LambdaQueryWrapper<Announcement> wrapper = new LambdaQueryWrapper<>();
         if (status != null) {
             wrapper.eq(Announcement::getStatus, status);
+        }
+        if (StringUtils.hasText(type)) {
+            wrapper.eq(Announcement::getType, type);
         }
         wrapper.orderByDesc(Announcement::getCreatedAt);
 

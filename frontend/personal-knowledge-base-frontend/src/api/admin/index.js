@@ -73,7 +73,7 @@ export const adminApi = {
   // 管理员登录
   login(data) {
     return request({
-      url: '/user/login',
+      url: '/admin/login',
       method: 'post',
       data
     })
@@ -190,7 +190,14 @@ export const announcementApi = {
       data
     })
   },
-  // 下架公告
+  // 下架公告（修改状态为已下架，可恢复）
+  takeDownAnnouncement(id) {
+    return request({
+      url: `/admin/announcements/${id}/take-down`,
+      method: 'put'
+    })
+  },
+  // 删除公告（逻辑删除，不可恢复）
   deleteAnnouncement(id) {
     return request({
       url: `/admin/announcements/${id}`,
@@ -239,6 +246,110 @@ export const announcementApi = {
     return request({
       url: `/admin/announcements/templates/${templateId}`,
       method: 'delete'
+    })
+  }
+}
+
+// ==================== 角色管理 API ====================
+export const roleManageApi = {
+  // 获取角色列表
+  getRoleList(params) {
+    return request({
+      url: '/admin/roles',
+      method: 'get',
+      params
+    })
+  },
+  // 获取角色详情
+  getRoleDetail(id) {
+    return request({
+      url: `/admin/roles/${id}`,
+      method: 'get'
+    })
+  },
+  // 创建角色
+  createRole(data) {
+    return request({
+      url: '/admin/roles',
+      method: 'post',
+      data
+    })
+  },
+  // 更新角色
+  updateRole(id, data) {
+    return request({
+      url: `/admin/roles/${id}`,
+      method: 'put',
+      data
+    })
+  },
+  // 删除角色
+  deleteRole(id) {
+    return request({
+      url: `/admin/roles/${id}`,
+      method: 'delete'
+    })
+  },
+  // 获取角色权限
+  getRolePermissions(id) {
+    return request({
+      url: `/admin/roles/${id}/permissions`,
+      method: 'get'
+    })
+  },
+  // 分配权限
+  assignPermissions(id, data) {
+    return request({
+      url: `/admin/roles/${id}/permissions`,
+      method: 'put',
+      data
+    })
+  },
+  // 获取所有角色
+  getAllRoles() {
+    return request({
+      url: '/admin/roles/all',
+      method: 'get'
+    })
+  }
+}
+
+// ==================== 权限管理 API ====================
+export const permissionApi = {
+  // 获取权限列表
+  getPermissionList() {
+    return request({
+      url: '/admin/permissions',
+      method: 'get'
+    })
+  },
+  // 获取权限树
+  getPermissionTree() {
+    return request({
+      url: '/admin/permissions/tree',
+      method: 'get'
+    })
+  },
+  // 获取当前用户权限
+  getCurrentUserPermissions() {
+    return request({
+      url: '/admin/permissions/user',
+      method: 'get'
+    })
+  },
+  // 获取用户角色
+  getUserRoles(userId) {
+    return request({
+      url: `/admin/users/${userId}/roles`,
+      method: 'get'
+    })
+  },
+  // 分配用户角色
+  assignUserRole(userId, data) {
+    return request({
+      url: `/admin/users/${userId}/roles`,
+      method: 'put',
+      data
     })
   }
 }

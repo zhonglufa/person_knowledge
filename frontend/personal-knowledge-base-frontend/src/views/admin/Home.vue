@@ -13,7 +13,7 @@
     </div>
 
     <!-- 数据统计卡片 -->
-    <div class="stats-grid">
+    <div class="stats-grid" v-loading="loading">
       <div class="stat-card stat-card--users">
         <div class="stat-icon">
           <i class="el-icon-user"></i>
@@ -75,8 +75,8 @@
           <i class="el-icon-folder-opened"></i>
         </div>
         <div class="stat-info">
-          <div class="stat-value">{{ stats.collectCount }}</div>
-          <div class="stat-label">总收藏项数</div>
+          <div class="stat-value">{{ stats.totalCollectionItems || 0 }}</div>
+          <div class="stat-label">收藏项总数</div>
         </div>
         <div class="stat-action" @click="$router.push('/admin/content')">
           <span>查看详情</span>
@@ -137,8 +137,8 @@
           <i class="el-icon-collection"></i>
         </div>
         <div class="stat-info">
-          <div class="stat-value">{{ stats.totalInteractions || 0 }}</div>
-          <div class="stat-label">收藏总数</div>
+          <div class="stat-value">{{ stats.totalUserCollects || 0 }}</div>
+          <div class="stat-label">用户收藏数</div>
         </div>
       </div>
     </div>
@@ -255,7 +255,7 @@
             </el-radio-group>
           </div>
           <div class="trend-chart" v-loading="trendLoading">
-            <canvas ref="trendCanvas" width="800" height="300"></canvas>
+            <canvas ref="trendCanvas"></canvas>
           </div>
         </el-card>
       </el-col>
@@ -276,12 +276,12 @@ export default {
         todayNewUsers: 0,
         activeUsers: 0,
         totalCollections: 0,
-        collectCount: 0,
+        totalCollectionItems: 0,
         noteCount: 0,
         announcementCount: 0,
         totalLikes: 0,
         totalComments: 0,
-        totalInteractions: 0
+        totalUserCollects: 0
       },
       loading: false,
       recentActivities: [],
@@ -317,14 +317,11 @@ export default {
     this.loadStatsData()
     this.loadTrendData()
     this.loadHealthData()
-    // 每30秒自动刷新统计数据
-    this.refreshTimer = setInterval(() => {
-      this.loadStatsData()
-    }, 30000)
+    document.addEventListener('visibilitychange', this.handleVisibilityChange)
   },
 
   beforeDestroy() {
-    // 组件销毁时清除定时器
+    document.removeEventListener('visibilitychange', this.handleVisibilityChange)
     if (this.refreshTimer) {
       clearInterval(this.refreshTimer)
       this.refreshTimer = null
@@ -332,6 +329,12 @@ export default {
   },
 
   methods: {
+    handleVisibilityChange() {
+      if (!document.hidden) {
+        this.loadStatsData()
+      }
+    },
+
     async loadStatsData() {
       this.loading = true
       try {
@@ -344,24 +347,24 @@ export default {
             this.stats.userCount = data.userStats.totalUsers || 0
             this.stats.todayNewUsers = data.userStats.todayNewUsers || 0
             this.stats.activeUsers = data.userStats.activeUsers7d || 0
-            this.stats.collectCount = data.contentStats?.totalItems || 0
+            this.stats.totalCollectionItems = data.contentStats?.totalItems || 0
             this.stats.totalCollections = data.contentStats?.totalCollections || 0
             this.stats.noteCount = data.contentStats?.totalNotes || 0
             this.stats.totalLikes = data.interactionStats?.totalLikes || 0
             this.stats.totalComments = data.interactionStats?.totalComments || 0
-            this.stats.totalInteractions = data.interactionStats?.totalCollects || 0
+            this.stats.totalUserCollects = data.interactionStats?.totalCollects || 0
           } else {
             // 扁平结构（后端实际返回格式）
             this.stats.userCount = data?.totalUsers || 0
             this.stats.todayNewUsers = data?.todayNewUsers || 0
             this.stats.activeUsers = data?.activeUsers || 0
             this.stats.totalCollections = data?.totalCollections || 0
-            this.stats.collectCount = data?.totalItems || 0
+            this.stats.totalCollectionItems = data?.totalItems || 0
             this.stats.noteCount = data?.totalNotes || 0
             this.stats.announcementCount = data?.activeAnnouncements || 0
             this.stats.totalLikes = data?.totalLikes || 0
             this.stats.totalComments = data?.totalComments || 0
-            this.stats.totalInteractions = data?.totalCollects || 0
+            this.stats.totalUserCollects = data?.totalCollects || 0
           }
 
           // 如果有最近动态数据则展示
@@ -416,9 +419,13 @@ export default {
       const canvas = this.$refs.trendCanvas
       if (!canvas || this.trendData.length === 0) return
 
+      const container = canvas.parentElement
+      const width = container.clientWidth || 800
+      const height = 300
+      canvas.width = width
+      canvas.height = height
+
       const ctx = canvas.getContext('2d')
-      const width = canvas.width
-      const height = canvas.height
       const padding = 50
 
       ctx.clearRect(0, 0, width, height)
@@ -543,7 +550,7 @@ export default {
 /* ========== 数据统计卡片 ========== */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: var(--space-4);
   margin-bottom: var(--space-6);
 }
@@ -832,7 +839,7 @@ export default {
 /* ========== 响应式设计 ========== */
 @media (max-width: 1400px) {
   .stats-grid {
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 

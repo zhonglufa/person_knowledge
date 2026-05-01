@@ -139,6 +139,8 @@
 <script>
 import { sanitizeHtml, escapeHtml } from '@/utils/sanitize'
 import { debounce } from '@/utils/debounce'
+import { noteApi } from '@/api/note'
+import { searchNotes } from '@/api/search'
 
 export default {
   name: 'NoteSearch',
@@ -191,10 +193,28 @@ export default {
         this._handleSearch()
       }
     },
-    _handleSearch() {
+    async _handleSearch() {
       this.hasSearched = true
       this.currentPage = 1
       try {
+        const response = await searchNotes({ keyword: this.displayKeyword })
+        const records = response?.data?.data?.list || response?.data?.list || response?.data?.data || response?.data || []
+        if (Array.isArray(records) && records.length > 0) {
+          this.notes = records.map(item => ({
+            ...item,
+            title: item.title,
+            content: item.content || item.summary || '',
+            type: item.type || 'normal',
+            wordCount: item.wordCount || item.word_count || 0,
+            isPublic: item.isPublic !== false,
+            tags: item.tags || [],
+            updateTime: item.updateTime || item.updatedAt
+          }))
+          this.total = this.notes.length
+          this.applyFilters()
+          return
+        }
+
         this.notes = this.getMockNotes(this.displayKeyword)
         this.total = this.notes.length
       } catch (error) {

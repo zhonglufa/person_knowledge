@@ -64,7 +64,7 @@
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="50" align="center" />
-        <el-table-column prop="id" label="ID" width="80" align="center" />
+        <el-table-column type="index" label="序号" width="80" align="center" :index="indexMethod" />
         <el-table-column prop="title" label="标题" min-width="200" align="center">
           <template slot-scope="scope">
             <span class="title-text">{{ scope.row.title }}</span>
@@ -216,6 +216,23 @@
             value-format="yyyy-MM-dd HH:mm:ss"
             style="width: 100%;"
           />
+        </el-form-item>
+
+        <el-form-item label="公告类型" prop="type">
+          <el-select v-model="announcementForm.type" placeholder="请选择公告类型" style="width: 100%;">
+            <el-option label="系统公告" value="system"></el-option>
+            <el-option label="活动通知" value="activity"></el-option>
+            <el-option label="维护通知" value="maintenance"></el-option>
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="优先级" prop="priority">
+          <el-select v-model="announcementForm.priority" placeholder="请选择优先级" style="width: 100%;">
+            <el-option label="低" value="low"></el-option>
+            <el-option label="中" value="medium"></el-option>
+            <el-option label="高" value="high"></el-option>
+            <el-option label="紧急" value="urgent"></el-option>
+          </el-select>
         </el-form-item>
       </el-form>
 
@@ -380,7 +397,9 @@ export default {
         title: '',
         content: '',
         effectiveAt: '',
-        expireAt: ''
+        expireAt: '',
+        type: 'system',
+        priority: 'medium'
       },
 
       // 验证规则
@@ -392,6 +411,18 @@ export default {
         content: [
           { required: true, message: '请输入公告内容', trigger: 'blur' },
           { min: 10, message: '公告内容至少10个字符', trigger: 'blur' }
+        ],
+        expireAt: [
+          {
+            validator: (rule, value, callback) => {
+              if (value && this.announcementForm.effectiveAt && new Date(value) <= new Date(this.announcementForm.effectiveAt)) {
+                callback(new Error('失效时间必须晚于生效时间'))
+              } else {
+                callback()
+              }
+            },
+            trigger: 'change'
+          }
         ]
       }
     }
@@ -439,7 +470,9 @@ export default {
         if (this.queryParams.status !== '') {
           params.status = this.convertStatusToBackend(this.queryParams.status)
         }
-        // type参数：前端展示筛选器，但后端接口不支持type筛选，暂不传递
+        if (this.queryParams.type !== '') {
+          params.type = this.queryParams.type
+        }
 
         const response = await announcementApi.getAnnouncementList(params)
 
@@ -494,7 +527,9 @@ export default {
         title: '',
         content: '',
         effectiveAt: '',
-        expireAt: ''
+        expireAt: '',
+        type: 'system',
+        priority: 'medium'
       }
       this.dialogVisible = true
     },
@@ -510,7 +545,9 @@ export default {
         title: row.title,
         content: row.content,
         effectiveAt: row.effectiveAt || '',
-        expireAt: row.expireAt || ''
+        expireAt: row.expireAt || '',
+        type: row.type || 'system',
+        priority: row.priority || 'medium'
       }
       this.dialogVisible = true
     },
@@ -543,13 +580,13 @@ export default {
      * 下架公告（已发布 -> 已下架）
      */
     handleTakeDownAnnouncement(row) {
-      this.$confirm(`确定要下架公告 "${row.title}" 吗？下架后用户将不再看到该公告。`, '下架确认', {
+      this.$confirm(`确定要下架公告 "${row.title}" 吗？下架后用户将不再看到该公告，但可以恢复。`, '下架确认', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning'
       }).then(async () => {
         try {
-          const response = await announcementApi.deleteAnnouncement(row.id)
+          const response = await announcementApi.takeDownAnnouncement(row.id)
           if (response.code === 200) {
             this.$message.success('下架成功')
             this.loadAnnouncementList()
@@ -757,6 +794,9 @@ export default {
     /**
      * 格式化日期
      */
+    indexMethod(index) {
+      return (this.pagination.currentPage - 1) * this.pagination.pageSize + index + 1
+    },
     formatDate(date) {
       if (!date) return '-'
       return new Date(date).toLocaleString('zh-CN')

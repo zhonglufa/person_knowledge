@@ -1,17 +1,5 @@
 import request from './axios'
 
-// 通知类型枚举
-export const NotificationType = {
-  LEARNING_REMINDER: 1,    // 收藏项学习提醒
-  SYSTEM_ANNOUNCEMENT: 2, // 系统公告
-  NOTE_REMINDER: 3,       // 笔记提醒
-  PROGRESS_OVERDUE: 4,    // 学习进度逾期提醒
-  LIKE: 5,                // 点赞通知
-  COMMENT: 6,             // 评论通知
-  COLLECT: 7              // 收藏通知
-}
-
-// 获取通知列表
 export function getNotificationList(params) {
   return request({
     url: '/notification/list',
@@ -20,7 +8,6 @@ export function getNotificationList(params) {
   })
 }
 
-// 标记单条通知已读
 export function markNotificationRead(id) {
   return request({
     url: `/notification/${id}/read`,
@@ -28,7 +15,6 @@ export function markNotificationRead(id) {
   })
 }
 
-// 标记所有通知已读
 export function markAllNotificationRead() {
   return request({
     url: '/notification/read-all',
@@ -36,7 +22,6 @@ export function markAllNotificationRead() {
   })
 }
 
-// 删除通知
 export function deleteNotification(id) {
   return request({
     url: `/notification/${id}`,
@@ -44,7 +29,6 @@ export function deleteNotification(id) {
   })
 }
 
-// 获取未读通知数量
 export function getUnreadCount() {
   return request({
     url: '/notification/unread-count',
@@ -52,37 +36,56 @@ export function getUnreadCount() {
   })
 }
 
-// 获取互动中心统计
-export function getInteractionStats() {
+export function getInteractionStats(params) {
   return request({
-    url: '/notification/interaction/stats',
-    method: 'get'
+    url: '/interaction/messages/stats',
+    method: 'get',
+    params
   })
 }
 
-// 获取收到的点赞列表
 export function getReceivedLikes(params) {
   return request({
-    url: '/notification/interaction/likes',
+    url: '/interaction/messages',
     method: 'get',
-    params
+    params: { ...params, type: 'like' }
   })
 }
 
-// 获取收到的评论列表
 export function getReceivedComments(params) {
   return request({
-    url: '/notification/interaction/comments',
+    url: '/interaction/messages',
     method: 'get',
-    params
+    params: { ...params, type: 'comment' }
   })
 }
 
-// 获取收到的收藏列表
 export function getReceivedCollects(params) {
   return request({
-    url: '/notification/interaction/collects',
+    url: '/interaction/messages',
     method: 'get',
-    params
+    params: { ...params, type: 'collect' }
+  })
+}
+
+export function markInteractionRead(id) {
+  return request({
+    url: `/interaction/messages/${id}/read`,
+    method: 'put'
+  })
+}
+
+export function markAllInteractionsRead(type) {
+  return request({
+    url: '/interaction/messages/read-all',
+    method: 'put',
+    params: { type }
+  })
+}
+
+export function deleteInteraction(id) {
+  return request({
+    url: `/interaction/messages/${id}`,
+    method: 'delete'
   })
 }

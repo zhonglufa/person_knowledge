@@ -94,6 +94,8 @@
 </template>
 
 <script>
+import { getSearchHistory, deleteSearchHistory, clearSearchHistory } from '@/api/search'
+
 export default {
   name: 'SearchHistory',
   data() {
@@ -110,9 +112,22 @@ export default {
     }
   },
   methods: {
-    loadHistory() {
+    async loadHistory() {
       this.loading = true
       try {
+        const response = await getSearchHistory()
+        const records = response?.data?.data || response?.data || []
+        if (Array.isArray(records) && records.length > 0) {
+          this.historyList = records.map((item, index) => ({
+            id: item.id || index + 1,
+            keyword: item.keyword || item.content,
+            time: item.createTime || item.time || '',
+            source: item.source || ''
+          }))
+          localStorage.setItem('searchHistory', JSON.stringify(this.historyList))
+          return
+        }
+
         const stored = localStorage.getItem('searchHistory')
         if (stored) {
           this.historyList = JSON.parse(stored)
@@ -121,9 +136,29 @@ export default {
         }
       } catch (error) {
         console.error('加载搜索历史失败:', error)
-        this.historyList = []
+        const stored = localStorage.getItem('searchHistory')
+        this.historyList = stored ? JSON.parse(stored) : []
       } finally {
         this.loading = false
+      }
+    },
+    async loadHotKeywords() {
+      try {
+        const response = await getHotSearchKeywords()
+        const records = response?.data?.data || response?.data || []
+        if (Array.isArray(records) && records.length > 0) {
+          this.hotKeywords = records.map((item, index) => ({
+            rank: index + 1,
+            keyword: item.keyword || item.content || item,
+            count: item.count || item.searchCount || 0
+          }))
+          return
+        }
+
+        this.hotKeywords = this.getMockHotKeywords()
+      } catch (error) {
+        console.error('加载热门搜索失败:', error)
+        this.hotKeywords = this.getMockHotKeywords()
       }
     },
     handleSearchAgain(keyword) {
@@ -137,7 +172,10 @@ export default {
       try {
         this.$confirm('确定要删除这条搜索记录吗？', '提示', {
           type: 'warning'
-        }).then(() => {
+        }).then(async () => {
+          if (item.id) {
+            await deleteSearchHistory(item.id)
+          }
           this.historyList = this.historyList.filter(h => h.id !== item.id)
           this.saveHistory()
           this.$message.success('删除成功')
@@ -150,7 +188,8 @@ export default {
       try {
         this.$confirm('确定要清空所有搜索历史吗？此操作不可撤销。', '确认清空', {
           type: 'warning'
-        }).then(() => {
+        }).then(async () => {
+          await clearSearchHistory()
           this.historyList = []
           this.saveHistory()
           this.$message.success('已清空搜索历史')

@@ -24,7 +24,7 @@ export const logout = () => {
 
 // 获取用户信息接口
 export const getUserInfo = () => {
-  return apiClient.get('/user/user-info')
+  return apiClient.get('/user/info')
 }
 
 // 封装成 authApi 对象导出

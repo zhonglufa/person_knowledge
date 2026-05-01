@@ -37,7 +37,7 @@
                 <i class="fas fa-bookmark"></i>
                 <div class="stat-content">
                   <span class="stat-number">{{ userStats?.collections || 0 }}</span>
-                  <span class="stat-label">收藏项</span>
+                  <span class="stat-label">收藏集</span>
                 </div>
               </div>
               <div class="stat-item">
@@ -59,9 +59,14 @@
         </div>
       </div>
 
-      <!-- 快捷操作区 -->
+      <!-- 快捷入口区 -->
       <div class="quick-actions">
-        <h2 class="section-title">快捷操作</h2>
+        <div class="section-header-inline compact">
+          <div>
+            <h2 class="section-title">常用入口</h2>
+            <p class="section-subtitle">保留高价值入口，避免与主导航重复堆叠。</p>
+          </div>
+        </div>
         <div class="actions-grid">
           <div
             v-for="action in quickActions"
@@ -80,9 +85,17 @@
         </div>
       </div>
 
-      <!-- 数据概览 -->
+      <!-- 个人总览 -->
       <div class="data-overview">
-        <h2 class="section-title">数据概览</h2>
+        <div class="section-header-inline">
+          <div>
+            <h2 class="section-title">个人总览</h2>
+            <p class="section-subtitle">聚焦我的知识资产、学习状态与消息触达，不在这里堆叠所有工作页。</p>
+          </div>
+          <el-button type="text" @click="goToDashboard">
+            查看统计看板 <i class="fas fa-arrow-right"></i>
+          </el-button>
+        </div>
         <div class="overview-grid">
           <!-- 收藏统计 -->
           <div class="overview-card card">
@@ -254,70 +267,46 @@ export default {
         streak: 0
       },
 
-      // 快捷操作
+      // 快捷入口
       quickActions: [
         {
-          id: 'new-note',
-          title: '新建笔记',
-          description: '创建新的学习笔记或总结',
-          icon: 'fas fa-file-alt',
-          color: 'success',
-          route: '/personal/notes'
-        },
-        {
           id: 'view-collections',
-          title: '我的收藏集',
-          description: '管理和浏览所有收藏集',
+          title: '收藏中心',
+          description: '查看今日新增、整理收藏集与收藏项',
           icon: 'fas fa-folder-open',
           color: 'warning',
-          route: '/collection/list'
+          route: '/collect/center'
         },
         {
-          id: 'view-public',
-          title: '公开内容',
-          description: '管理我的公开分享内容',
-          icon: 'fas fa-globe',
-          color: 'info',
-          route: '/personal/public'
-        },
-        {
-          id: 'processing-tasks',
-          title: '待处理任务',
-          description: '查看和处理待消化的收藏项',
-          icon: 'fas fa-tasks',
-          color: 'danger',
-          route: '/personal/processing'
-        },
-        {
-          id: 'view-tags',
-          title: '标签管理',
-          description: '整理和管理所有标签',
-          icon: 'fas fa-tags',
-          color: 'primary',
-          route: '/personal/tags'
-        },
-        {
-          id: 'edit-profile',
-          title: '个人资料',
-          description: '完善个人信息和偏好设置',
-          icon: 'fas fa-user-edit',
-          color: 'warning',
-          route: '/personal/profile'
+          id: 'creation-workspace',
+          title: '创作工作台',
+          description: '继续加工收藏项并沉淀为笔记',
+          icon: 'fas fa-pen-nib',
+          color: 'success',
+          route: '/creation/workspace'
         },
         {
           id: 'notifications',
           title: '通知中心',
-          description: '查看系统通知和互动消息',
+          description: '查看学习提醒、系统通知与消息触达',
           icon: 'fas fa-bell',
           color: 'info',
           route: '/personal/notifications'
         },
         {
+          id: 'interaction-center',
+          title: '互动中心',
+          description: '查看收到的评论、点赞和收藏互动',
+          icon: 'fas fa-comments',
+          color: 'danger',
+          route: '/interaction/center'
+        },
+        {
           id: 'settings',
-          title: '系统设置',
-          description: '个性化配置和偏好设置',
-          icon: 'fas fa-cog',
-          color: 'success',
+          title: '个人设置',
+          description: '维护个人资料、偏好与系统设置',
+          icon: 'fas fa-user-cog',
+          color: 'primary',
           route: '/personal/settings'
         }
       ],
@@ -376,9 +365,36 @@ export default {
   created() {
     this.fetchNotificationCount()
     this.fetchUserStatistics()
+    this.updateActiveSidebarFromRoute()
+  },
+
+  watch: {
+    '$route.path': {
+      handler(newPath) {
+        this.updateActiveSidebarFromRoute()
+      },
+      immediate: false
+    }
   },
 
   methods: {
+    updateActiveSidebarFromRoute() {
+      const pathToSidebarMap = {
+        '/personal/center': 'personal-center',
+        '/personal/dashboard': 'personal-dashboard',
+        '/personal/profile': 'personal-profile',
+        '/personal/settings': 'personal-settings',
+        '/personal/public': 'personal-public',
+        '/personal/notifications': 'personal-notifications',
+        '/collections/manage': 'personal-collections',
+        '/creation/processing': 'personal-processing'
+      }
+      const matchedId = pathToSidebarMap[this.$route.path]
+      if (matchedId) {
+        this.activeSidebarItem = matchedId
+      }
+    },
+
     // 获取通知数量
     async fetchNotificationCount() {
       try {
@@ -409,17 +425,17 @@ export default {
     // 解析统计数据
     parseStatisticsData(data) {
       this.userStats = {
-        collections: data?.collections ?? this.userStats.collections,
-        notes: data?.notes ?? this.userStats.notes,
+        collections: data?.collectionCount ?? this.userStats.collections,
+        notes: data?.noteCount ?? this.userStats.notes,
         public: data?.publicContent ?? this.userStats.public
       }
 
       this.collectionStats = {
-        total: data?.collectionTotal ?? data?.collections ?? this.collectionStats.total,
-        undigest: data?.collectionUndigest ?? this.collectionStats.undigest,
-        digesting: data?.collectionDigesting ?? this.collectionStats.digesting,
-        digested: data?.collectionDigested ?? this.collectionStats.digested,
-        abandoned: data?.collectionAbandoned ?? this.collectionStats.abandoned
+        total: data?.collectionItemCount ?? this.collectionStats.total,
+        undigest: data?.digestStats?.undigest ?? this.collectionStats.undigest,
+        digesting: data?.digestStats?.digesting ?? this.collectionStats.digesting,
+        digested: data?.digestStats?.digested ?? this.collectionStats.digested,
+        abandoned: data?.digestStats?.abandoned ?? this.collectionStats.abandoned
       }
 
       this.noteStats = {
@@ -497,7 +513,7 @@ export default {
     handleNavClick(item) {
       const routeMap = {
         collect: '/collect/center',
-        creation: '/creation/center',
+        creation: '/creation/workspace',
         search: '/search/center',
         personal: '/personal/center'
       }
@@ -535,12 +551,14 @@ export default {
       this.activeSidebarItem = item?.id || ''
 
       const routeMap = {
+        'personal-center': '/personal/center',
         'personal-profile': '/personal/profile',
         'personal-settings': '/personal/settings',
         'personal-public': '/personal/public',
         'personal-dashboard': '/personal/dashboard',
-        'personal-collections': '/personal/collections',
-        'personal-processing': '/personal/processing'
+        'personal-collections': '/collections/manage',
+        'personal-processing': '/creation/processing',
+        'personal-notifications': '/personal/notifications'
       }
       const path = routeMap[item?.id]
       if (path) {

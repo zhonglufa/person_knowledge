@@ -10,15 +10,12 @@ import lombok.NoArgsConstructor;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
-/**
- * 用户实体类
- */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @TableName("users")
-@EqualsAndHashCode(callSuper = true)  //确保父类的字段也被纳入相等性比较，这对于数据库实体类尤其重要。
-public class User extends BasePojo implements Serializable{
+@EqualsAndHashCode(callSuper = true)
+public class User extends BasePojo implements Serializable {
 
     @TableId(type = IdType.AUTO)
     private Long id;
@@ -38,6 +35,7 @@ public class User extends BasePojo implements Serializable{
 
     @TableField("avatar")
     private String avatar;
+
     @TableField("role")
     private String role;
 
@@ -56,4 +54,9 @@ public class User extends BasePojo implements Serializable{
     @TableField("last_login_at")
     private LocalDateTime lastLoginAt;
 
+    @TableField("token_version")
+    private Long tokenVersion;
+
+    @TableField("status")
+    private String status;
 }

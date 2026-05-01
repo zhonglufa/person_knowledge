@@ -207,7 +207,6 @@ export default {
 
   },
   computed: {
-    // 实现menuVisible与showTagsFilter的相斥关系
     menuVisible() {
       return !this.showTagsFilter;
     },
@@ -319,7 +318,6 @@ export default {
     },
 
     getStatValue(key) {
-      // 根据键名返回对应的统计数据
       switch (key) {
         case 'totalCollects':
           return this.totalCollections;
@@ -329,6 +327,10 @@ export default {
           return this.totalTags;
         case 'unreadCollects':
           return this.unreadCollections;
+        case 'currentList': {
+          const item = this.statsConfig.items.find(i => i.key === 'currentList');
+          return item ? item.count : 0;
+        }
         default:
           return 0;
       }

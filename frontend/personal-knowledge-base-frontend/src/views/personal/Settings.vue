@@ -28,10 +28,6 @@
               class="settings-menu"
               @select="handleSettingSelect"
             >
-              <el-menu-item index="profile">
-                <i class="fas fa-user"></i>
-                <span slot="title">个人资料</span>
-              </el-menu-item>
               <el-menu-item index="account">
                 <i class="fas fa-lock"></i>
                 <span slot="title">账户安全</span>
@@ -40,13 +36,13 @@
                 <i class="fas fa-bell"></i>
                 <span slot="title">通知设置</span>
               </el-menu-item>
-              <el-menu-item index="privacy">
-                <i class="fas fa-shield-alt"></i>
-                <span slot="title">隐私设置</span>
-              </el-menu-item>
               <el-menu-item index="appearance">
                 <i class="fas fa-palette"></i>
                 <span slot="title">外观设置</span>
+              </el-menu-item>
+              <el-menu-item index="privacy">
+                <i class="fas fa-shield-alt"></i>
+                <span slot="title">隐私设置</span>
               </el-menu-item>
               <el-menu-item index="personal">
                 <i class="fas fa-sliders-h"></i>
@@ -57,61 +53,6 @@
 
           <!-- 设置面板 -->
           <div class="settings-panel">
-            <!-- 个人资料设置 -->
-            <div v-if="activeSetting === 'profile'" class="setting-section content-card">
-              <div class="content-card-header">
-                <h3 class="content-card-title">
-                  <i class="fas fa-user"></i>
-                  个人资料
-                </h3>
-              </div>
-              <div class="content-card-body">
-                <el-form :model="profileForm" label-width="120px" label-position="left">
-                  <el-form-item label="头像">
-                    <div class="avatar-upload">
-                      <el-upload
-                        class="avatar-uploader"
-                        action="#"
-                        :show-file-list="false"
-                        :before-upload="beforeAvatarUpload"
-                        :http-request="handleAvatarUpload"
-                      >
-                        <img v-if="profileForm?.avatar" :src="profileForm.avatar" class="avatar">
-                        <div v-else class="avatar-placeholder">
-                          <i class="fas fa-plus"></i>
-                        </div>
-                      </el-upload>
-                      <el-button size="small" @click="removeAvatar" :disabled="!profileForm.avatar">移除头像</el-button>
-                    </div>
-                  </el-form-item>
-
-                  <el-form-item label="昵称">
-                    <el-input v-model="profileForm.nickname" placeholder="请输入昵称" maxlength="20" show-word-limit></el-input>
-                  </el-form-item>
-
-                  <el-form-item label="邮箱">
-                    <el-input v-model="profileForm.email" placeholder="请输入邮箱地址"></el-input>
-                  </el-form-item>
-
-                  <el-form-item label="个人简介">
-                    <el-input
-                      v-model="profileForm.bio"
-                      type="textarea"
-                      :rows="4"
-                      placeholder="请输入个人简介"
-                      maxlength="200"
-                      show-word-limit
-                    ></el-input>
-                  </el-form-item>
-
-                  <el-form-item>
-                    <el-button type="primary" @click="saveProfile" :loading="saveLoading">保存更改</el-button>
-                    <el-button @click="resetProfile">重置</el-button>
-                  </el-form-item>
-                </el-form>
-              </div>
-            </div>
-
             <!-- 账户安全设置 -->
             <div v-if="activeSetting === 'account'" class="setting-section content-card">
               <div class="content-card-header">
@@ -328,7 +269,7 @@
 
 <script>
 import { mapGetters, mapActions } from 'vuex'
-import { getUserProfile, updateUserProfile, uploadAvatar, changePassword, getUserSettings, updateUserSettings } from '@/api/user'
+import { changePassword, getUserSettings, updateUserSettings } from '@/api/user'
 import SettingsForm from '@/components/common/SettingsForm.vue'
 
 export default {
@@ -338,17 +279,9 @@ export default {
   },
   data() {
     return {
-      pageLoading: false,
       saveLoading: false,
       passwordLoading: false,
-      activeSetting: 'profile',
-      profileForm: {
-        avatar: '',
-        nickname: '',
-        email: '',
-        bio: ''
-      },
-      originalProfileForm: {},
+      activeSetting: 'account',
       securityForm: {
         currentPassword: '',
         newPassword: '',
@@ -379,49 +312,11 @@ export default {
     ...mapGetters('user', ['getUserInfo'])
   },
   created() {
-    this.loadUserData()
     this.loadLocalSettings()
     this.loadPersonalSettings()
   },
   methods: {
     ...mapActions('user', ['updateUserInfo']),
-
-    // ==================== 加载用户数据 ====================
-    async loadUserData() {
-      this.pageLoading = true
-      try {
-        const res = await getUserProfile()
-        const data = res?.data || res || {}
-        const userInfo = this.getUserInfo || {}
-
-        this.profileForm = {
-          avatar: data?.avatar || userInfo?.avatar || '',
-          nickname: data?.nickname || userInfo?.nickname || userInfo?.username || '',
-          email: data?.email || userInfo?.email || '',
-          bio: data?.bio || userInfo?.bio || ''
-        }
-
-        // 保存原始表单数据用于重置
-        this.originalProfileForm = { ...this.profileForm }
-      } catch (error) {
-        console.error('加载用户数据失败:', error)
-        this.initFromVuex()
-      } finally {
-        this.pageLoading = false
-      }
-    },
-
-    // 从 Vuex 初始化
-    initFromVuex() {
-      const userInfo = this.getUserInfo || {}
-      this.profileForm = {
-        avatar: userInfo?.avatar || '',
-        nickname: userInfo?.nickname || userInfo?.username || '',
-        email: userInfo?.email || '',
-        bio: userInfo?.bio || ''
-      }
-      this.originalProfileForm = { ...this.profileForm }
-    },
 
     // 加载设置（优先从服务器获取，失败则使用本地缓存）
     async loadLocalSettings() {
@@ -532,80 +427,6 @@ export default {
       this.activeSetting = key
     },
 
-    // 头像上传前验证
-    beforeAvatarUpload(file) {
-      const isJPG = file?.type === 'image/jpeg' || file?.type === 'image/png'
-      const isLt2M = file?.size / 1024 / 1024 < 2
-
-      if (!isJPG) {
-        this.$message.error('头像图片只能是 JPG 或 PNG 格式!')
-        return false
-      }
-      if (!isLt2M) {
-        this.$message.error('头像图片大小不能超过 2MB!')
-        return false
-      }
-      return true
-    },
-
-    // 上传头像
-    async handleAvatarUpload(options) {
-      if (!options?.file) return
-
-      try {
-        const formData = new FormData()
-        formData.append('avatar', options.file)
-
-        const response = await uploadAvatar(formData)
-        const data = response?.data || response || {}
-        const avatarUrl = data?.avatarUrl || data?.avatar || data?.url || ''
-
-        if (avatarUrl) {
-          this.profileForm.avatar = avatarUrl
-          this.$message.success('头像上传成功')
-        } else {
-          this.$message.error('头像上传失败')
-        }
-      } catch (error) {
-        console.error('头像上传失败:', error)
-        this.$message.error('头像上传失败')
-      }
-    },
-
-    // 移除头像
-    removeAvatar() {
-      this.profileForm.avatar = ''
-    },
-
-    // 保存个人资料
-    async saveProfile() {
-      if (!this.profileForm?.nickname?.trim()) {
-        this.$message.warning('昵称不能为空')
-        return
-      }
-
-      this.saveLoading = true
-      try {
-        await updateUserProfile(this.profileForm)
-        this.$message.success('个人资料保存成功')
-        this.originalProfileForm = { ...this.profileForm }
-
-        // 更新 Vuex 中的用户信息
-        const userInfo = { ...(this.getUserInfo || {}), ...this.profileForm }
-        this.$store.commit('user/SET_USER_INFO', userInfo)
-      } catch (error) {
-        console.error('保存失败:', error)
-        this.$message.error('保存失败，请稍后重试')
-      } finally {
-        this.saveLoading = false
-      }
-    },
-
-    // 重置个人资料
-    resetProfile() {
-      this.profileForm = { ...this.originalProfileForm }
-    },
-
     // 修改密码
     async changePassword() {
       if (!this.securityForm?.currentPassword) {
@@ -634,12 +455,14 @@ export default {
           oldPassword: this.securityForm.currentPassword,
           newPassword: this.securityForm.newPassword
         })
-        this.$message.success('密码修改成功')
+        this.$message.success('密码修改成功，请重新登录')
         this.securityForm = {
           currentPassword: '',
           newPassword: '',
           confirmPassword: ''
         }
+        await this.$store.dispatch('user/logout')
+        this.$router.push('/login')
       } catch (error) {
         console.error('密码修改失败:', error)
         this.$message.error('密码修改失败，请检查当前密码是否正确')
@@ -817,6 +640,20 @@ export default {
   margin-bottom: 0;
 }
 
+/* 卡片样式 */
+.content-card {
+  background: var(--bg-canvas);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.content-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-base);
+}
+
 /* 卡片标题 */
 .content-card-header {
   display: flex;
@@ -845,46 +682,18 @@ export default {
 }
 
 .content-card-body .el-form-item {
-  margin-bottom: var(--space-5);
+  margin-bottom: var(--space-4);
 }
 
-/* 头像上传 */
-.avatar-upload {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
+.content-card-body .el-form-item:last-child {
+  margin-bottom: 0;
 }
 
-.avatar-uploader .el-upload {
-  border: 2px dashed var(--border-base);
-  border-radius: var(--radius-lg);
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-  transition: all var(--transition-normal);
-}
-
-.avatar-uploader .el-upload:hover {
-  border-color: var(--primary-color);
-}
-
-.avatar-placeholder {
-  width: 120px;
-  height: 120px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--bg-canvas);
-  color: var(--text-secondary);
-  font-size: var(--font-size-3xl);
-}
-
-.avatar {
-  width: 120px;
-  height: 120px;
-  display: block;
-  border-radius: var(--radius-lg);
-  object-fit: cover;
+/* 表单操作按钮区域 */
+.form-actions {
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px dashed var(--border-light);
 }
 
 /* 安全信息 */
@@ -972,12 +781,6 @@ export default {
 
   .content-card-body {
     padding: var(--space-3);
-  }
-
-  .avatar-placeholder,
-  .avatar {
-    width: 100px;
-    height: 100px;
   }
 }
 </style>

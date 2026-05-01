@@ -32,7 +32,7 @@ router.beforeEach(async (to, from, next) => {
   if (to.path === '/') {
     const token = localStorage.getItem('token');
     if (token) {
-      next('/personal/dashboard');
+      next('/personal/center');
     } else {
       next('/guest/home');
     }
@@ -47,11 +47,8 @@ router.beforeEach(async (to, from, next) => {
         const userInfo = store.state.user.userInfo;
         if (!userInfo || !userInfo.id) {
           await store.dispatch('user/fetchUserInfo');
-          if (to.path !== router.currentRoute.path) {
-            return;
-          }
         }
-        next('/personal/dashboard');
+        next('/personal/center');
       } catch (error) {
         console.warn('游客首页登录态校验失败:', error);
         store.commit('user/CLEAR_USER_STATE');
@@ -80,13 +77,41 @@ router.beforeEach(async (to, from, next) => {
         }
       }
 
-      if (!token) {
+      if (!token || !userInfo || userInfo.role !== 'admin') {
+        localStorage.removeItem('adminToken')
+        localStorage.removeItem('adminInfo')
         next({
           path: '/admin/login',
           query: { redirect: to.fullPath }
         })
         return;
       }
+
+      try {
+        const permissions = store.state.permission.permissions
+        if (!permissions || permissions.length === 0) {
+          await store.dispatch('permission/fetchUserPermissions')
+        }
+      } catch (error) {
+        console.warn('获取用户权限失败:', error);
+      }
+
+      const requiredPermission = to.meta.permission
+      if (requiredPermission) {
+        const userPermissions = store.state.permission.permissions || []
+        const hasPermission = userPermissions.includes(requiredPermission)
+
+        if (!hasPermission) {
+          console.warn('权限不足，无法访问:', to.path, '需要权限:', requiredPermission)
+          next({
+            path: '/admin/home',
+            replace: true
+          })
+          return
+        }
+      }
+
+      next();
     } else {
       token = localStorage.getItem('token');
 
@@ -103,9 +128,6 @@ router.beforeEach(async (to, from, next) => {
       if (!userInfo || !userInfo.id) {
         try {
           await store.dispatch('user/fetchUserInfo');
-          if (to.path !== router.currentRoute.path) {
-            return;
-          }
           next();
         } catch (error) {
           console.warn('Token验证失败:', error);
@@ -122,9 +144,9 @@ router.beforeEach(async (to, from, next) => {
         }
         return;
       }
-    }
 
-    next();
+      next();
+    }
   }
   else {
     next();

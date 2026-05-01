@@ -120,10 +120,47 @@ export const collectApi = {
     });
   },
 
-  markAsRead(id) {
+  getUserCollections(params) {
     return request({
-      url: `/collect/${id}/read`,
-      method: 'put'
+      url: '/collect/list',
+      method: 'get',
+      params
+    });
+  },
+
+  getRecentCollectItems(params) {
+    return request({
+      url: '/collect/list',
+      method: 'get',
+      params: { ...params, sortBy: 'latest' }
+    });
+  },
+
+  updateCollectionItemStatus(id, status) {
+    return request({
+      url: `/collect/${id}/digest-status`,
+      method: 'put',
+      data: { status }
+    });
+  },
+
+  updateCollectionItemDigest(id, data) {
+    return this.updateCollect(id, data);
+  },
+
+  async batchUpdateCollectionItemStatus(data) {
+    const { itemIds, digestStatus } = data
+    const results = await Promise.all(
+      itemIds.map(id => this.updateCollectionItemStatus(id, digestStatus))
+    )
+    return results
+  },
+
+  updateStudyProgress(id, progress) {
+    return request({
+      url: `/collect/${id}/study-progress`,
+      method: 'put',
+      data: { progress }
     });
   },
 
@@ -135,11 +172,10 @@ export const collectApi = {
     });
   },
 
-  updateStudyProgress(id, progress) {
+  markAsRead(id) {
     return request({
-      url: `/collect/${id}/study-progress`,
-      method: 'put',
-      data: { progress }
+      url: `/collect/${id}/read`,
+      method: 'put'
     });
   },
 

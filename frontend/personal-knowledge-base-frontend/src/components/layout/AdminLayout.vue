@@ -56,6 +56,11 @@
             <i class="el-icon-bell"></i>
             <span slot="title">公告管理</span>
           </el-menu-item>
+
+          <el-menu-item index="/admin/content-logs">
+            <i class="el-icon-s-order"></i>
+            <span slot="title">操作日志</span>
+          </el-menu-item>
         </el-menu>
 
         <!-- 折叠按钮 -->
