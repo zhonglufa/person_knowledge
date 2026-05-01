@@ -19,7 +19,27 @@ public class SearchDTO extends PageDTO {
     private String keyword;
 
     /**
-     * 搜索范围：all-全部, collection-收藏集, item-收藏项, note-笔记
+     * 搜索范围：all-全部, collection-收藏集, item-收藏项, note-笔记, tag-标签
      */
     private String searchType = "all";
+
+    /**
+     * 时间范围：today/week/month/quarter
+     */
+    private String timeRange;
+
+    /**
+     * 消化状态
+     */
+    private String digestStatus;
+
+    /**
+     * 笔记类型
+     */
+    private String noteType;
+
+    /**
+     * 排序字段：relevance/createTime/updateTime/hot
+     */
+    private String sortBy = "relevance";
 }

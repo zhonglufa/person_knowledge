@@ -1,4 +1,4 @@
-// 个人中心路由配置
+// 个人中心正式主页面
 export default [
   {
     path: '/personal/center',
@@ -47,21 +47,11 @@ export default [
   },
   {
     path: '/personal/collections',
-    name: 'CollectionManagement',
-    component: () => import('@/views/personal/CollectionManagement.vue'),
-    meta: {
-      requiresAuth: true,
-      title: '收藏管理'
-    }
+    redirect: '/collections/manage'
   },
   {
     path: '/personal/processing',
-    name: 'ProcessingManagement',
-    component: () => import('@/views/personal/ProcessingManagement.vue'),
-    meta: {
-      requiresAuth: true,
-      title: '加工管理'
-    }
+    redirect: '/creation/processing'
   },
   {
     path: '/personal/notifications',

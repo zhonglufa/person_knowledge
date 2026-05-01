@@ -32,7 +32,7 @@ router.beforeEach(async (to, from, next) => {
   if (to.path === '/') {
     const token = localStorage.getItem('token');
     if (token) {
-      next('/personal/dashboard');
+      next('/personal/center');
     } else {
       next('/guest/home');
     }
@@ -51,7 +51,7 @@ router.beforeEach(async (to, from, next) => {
             return;
           }
         }
-        next('/personal/dashboard');
+        next('/personal/center');
       } catch (error) {
         console.warn('游客首页登录态校验失败:', error);
         store.commit('user/CLEAR_USER_STATE');

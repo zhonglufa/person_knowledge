@@ -1,22 +1,22 @@
 // 导航配置文件
 export const NAV_ITEMS = [
   { 
-    id: 'dashboard', 
+    id: 'personal', 
     text: '个人中心',
     icon: 'fas fa-compass', 
-    url: '/dashboard' 
+    url: '/personal/center' 
   },
   { 
     id: 'creation', 
     text: '创作', 
     icon: 'fas fa-pen', 
-    url: '/creation' 
+    url: '/creation/workspace' 
   },
   { 
     id: 'search', 
     text: '搜索', 
     icon: 'fas fa-search', 
-    url: '/search' 
+    url: '/search/center' 
   },
   { 
     id: 'collect', 

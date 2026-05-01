@@ -615,8 +615,8 @@ export default {
               localStorage.removeItem('username');
             }
 
-            // 登录成功后跳转到Dashboard（工作台）
-            const redirect = this.$route.query.redirect || '/personal/dashboard';
+            // 登录成功后跳转到个人中心
+            const redirect = this.$route.query.redirect || '/personal/center';
             this.$router.push(redirect);
 
 

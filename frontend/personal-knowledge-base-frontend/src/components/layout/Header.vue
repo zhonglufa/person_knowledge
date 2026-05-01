@@ -325,9 +325,9 @@ export default {
     },
     handleNavSelect(index) {
       const routeMap = {
-        'home': '/personal/dashboard',
+        'home': '/personal/center',
         'collect': '/collect/center',
-        'creation': '/creation/center',
+        'creation': '/creation/workspace',
         'search': '/search/center'
       };
 
@@ -382,10 +382,10 @@ export default {
           this.$router.push('/personal/center');
           break;
         case 'collections':
-          this.$router.push('/personal/collections');
+          this.$router.push('/collections/manage');
           break;
         case 'creations':
-          this.$router.push('/creation/center');
+          this.$router.push('/creation/workspace');
           break;
         case 'settings':
           this.$router.push('/personal/settings');

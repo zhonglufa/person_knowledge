@@ -1,6 +1,5 @@
 <template>
   <div class="collection-management-page">
-    <!-- 页面头部 -->
     <div class="page-header">
       <div class="header-content">
         <div class="header-left">
@@ -11,10 +10,12 @@
             </el-breadcrumb>
           </div>
           <h1 class="page-title">收藏管理</h1>
-          <p class="page-subtitle">管理您的收藏集和收藏项</p>
+          <p class="page-subtitle">这是收藏中心的过渡工作页，后续会进一步回归收藏域主入口与统一布局。</p>
         </div>
         <div class="header-right">
-          <!-- 导入浏览器收藏夹 -->
+          <el-button type="text" @click="$router.push('/collect/center')">
+            前往收藏中心 <i class="fas fa-arrow-right"></i>
+          </el-button>
           <el-button @click="showImportDialog = true">
             <i class="fas fa-download"></i>
             导入收藏夹
@@ -27,9 +28,7 @@
       </div>
     </div>
 
-    <!-- 主要内容区域 -->
     <div class="main-content">
-      <!-- 工具栏 -->
       <div class="toolbar">
         <div class="toolbar-left">
           <el-input
@@ -59,7 +58,6 @@
             <el-option label="更新时间" value="updateTime"></el-option>
             <el-option label="名称" value="title"></el-option>
           </el-select>
-          <!-- 回收站查看按钮 -->
           <el-button
             :type="showTrash ? 'warning' : 'default'"
             @click="toggleTrashView"
@@ -70,14 +68,12 @@
         </div>
       </div>
 
-      <!-- 批量操作栏 -->
       <div v-if="selectedItems.length > 0" class="batch-bar">
         <div class="batch-info">
           <i class="fas fa-check-circle"></i>
           <span>已选择 {{ selectedItems.length }} 项</span>
         </div>
         <div class="batch-actions">
-          <!-- 正常视图下的批量操作 -->
           <template v-if="!showTrash">
             <el-button size="small" type="danger" @click="handleBatchDelete">
               <i class="fas fa-trash"></i> 批量删除
@@ -86,7 +82,6 @@
               <i class="fas fa-bomb"></i> 批量永久删除
             </el-button>
           </template>
-          <!-- 回收站视图下的批量操作 -->
           <template v-else>
             <el-button size="small" type="success" @click="handleBatchRecover">
               <i class="fas fa-trash-restore"></i> 批量恢复
@@ -99,7 +94,6 @@
         </div>
       </div>
 
-      <!-- 收藏统计 -->
       <div class="collection-stats">
         <div class="stat-card">
           <div class="stat-icon">
@@ -148,7 +142,6 @@
         </div>
       </div>
 
-      <!-- 回收站提示 -->
       <el-alert
         v-if="showTrash"
         title="当前为回收站视图"
@@ -162,7 +155,6 @@
         </template>
       </el-alert>
 
-      <!-- 收藏集列表 -->
       <div class="collections-section">
         <div class="section-header">
           <h3>{{ showTrash ? '回收站 - 收藏集' : '我的收藏集' }}</h3>
@@ -202,7 +194,6 @@
                 </div>
               </div>
               <div class="collection-actions" @click.stop>
-                <!-- 星标按钮 -->
                 <el-button
                   type="text"
                   size="small"
@@ -247,7 +238,6 @@
                   <i class="fas fa-check-circle"></i>
                   <span>{{ collection.processedCount || 0 }} 已加工</span>
                 </div>
-                <!-- 星标显示 -->
                 <div v-if="collection.isStarred" class="meta-item starred">
                   <i class="fas fa-star"></i>
                   <span>星标</span>
@@ -271,7 +261,6 @@
         </div>
       </div>
 
-      <!-- 最近收藏项 -->
       <div class="items-section">
         <div class="section-header">
           <h3>{{ showTrash ? '回收站 - 收藏项' : '最近收藏项' }}</h3>
@@ -302,7 +291,6 @@
               <template slot-scope="scope">
                 <div class="item-title-cell">
                   <i :class="getItemIcon(scope.row.type)" class="item-icon"></i>
-                  <!-- 星标显示 -->
                   <i
                     v-if="scope.row.isStarred"
                     class="fas fa-star item-star"
@@ -342,7 +330,6 @@
                   >
                     编辑
                   </el-button>
-                  <!-- 星标切换 -->
                   <el-button
                     type="text"
                     size="small"
@@ -386,7 +373,6 @@
       </div>
     </div>
 
-    <!-- 编辑收藏集对话框 -->
     <el-dialog
       :visible.sync="editCollectionDialogVisible"
       :title="editingCollection ? '编辑收藏集' : '创建收藏集'"
@@ -432,7 +418,6 @@
       </div>
     </el-dialog>
 
-    <!-- 导入浏览器收藏夹对话框 -->
     <bookmark-import-dialog
       :visible.sync="showImportDialog"
       @import-complete="handleImportComplete"
@@ -457,17 +442,9 @@ export default {
       searchKeyword: '',
       filterType: 'all',
       sortBy: 'updateTime',
-
-      // 回收站视图
       showTrash: false,
-
-      // 批量选择
       selectedItems: [],
-
-      // 导入对话框
       showImportDialog: false,
-
-      // 统计数据
       stats: {
         collections: 0,
         items: 0,
@@ -475,14 +452,8 @@ export default {
         processed: 0,
         pending: 0
       },
-
-      // 收藏集列表
       collections: [],
-
-      // 收藏项列表
       items: [],
-
-      // 编辑对话框相关
       editCollectionDialogVisible: false,
       editingCollection: null,
       collectionForm: {
@@ -490,131 +461,78 @@ export default {
         description: '',
         tags: []
       },
-
-      // 可用标签
       availableTags: [
         '前端开发', '后端开发', '设计', '产品', '运营', '工具', '教程', '文章'
       ]
     }
   },
-
   created() {
-    this.loadCollectionStats()
+    this.loadStats()
     this.loadCollections()
     this.loadItems()
   },
-
   methods: {
-    // ==================== 加载数据 ====================
-    // 加载收藏统计
-    async loadCollectionStats() {
+    async loadStats() {
       try {
-        const response = await collectApi.getStatistics()
-        if (response?.data?.code === 200) {
-          this.stats = { ...this.stats, ...response.data.data }
-        } else {
-          // 暂时使用模拟数据
-          this.stats = {
-            collections: 12,
-            items: 45,
-            starred: 8,
-            processed: 28,
-            pending: 17
-          }
+        const [collections, items] = await Promise.all([
+          collectionsApi.getUserCollections(),
+          collectApi.getRecentCollectItems({ pageNum: 1, pageSize: 100 })
+        ])
+
+        const collectionList = collections.data || collections || []
+        const itemList = items.rows || items.data || items || []
+
+        this.stats = {
+          collections: collectionList.length,
+          items: itemList.length,
+          starred: itemList.filter(item => item.isStarred).length,
+          processed: itemList.filter(item => item.digestStatus === 'digested').length,
+          pending: itemList.filter(item => item.digestStatus === 'undigest').length
         }
       } catch (error) {
-        console.error('加载统计失败:', error)
-        // 使用模拟数据
-        this.stats = {
-          collections: 12,
-          items: 45,
-          starred: 8,
-          processed: 28,
-          pending: 17
-        }
+        console.error('加载统计数据失败:', error)
       }
     },
-
-    // 加载收藏集列表
     async loadCollections() {
       this.loading = true
       try {
-        const params = { trash: this.showTrash ? 1 : 0 }
         const response = await collectionsApi.getUserCollections()
-        this.collections = response?.data || []
+        this.collections = response.data || response || []
       } catch (error) {
         console.error('加载收藏集失败:', error)
-        this.$message.error('加载收藏集列表失败')
+        this.$message.error('加载收藏集失败')
       } finally {
         this.loading = false
       }
     },
-
-    // 加载收藏项列表
     async loadItems() {
       this.loadingItems = true
       try {
-        const params = { trash: this.showTrash ? 1 : 0 }
-        // 这里应该调用后端API获取收藏项列表
-        // 暂时使用模拟数据
-        this.items = [
-          {
-            id: 1,
-            title: 'Vue.js 3.0 新特性详解',
-            source: 'vuejs.org',
-            digestStatus: 'digested',
-            type: 'article',
-            isStarred: true,
-            createTime: '2024-01-20T10:30:00Z'
-          },
-          {
-            id: 2,
-            title: 'React Hooks 最佳实践',
-            source: 'reactjs.org',
-            digestStatus: 'digesting',
-            type: 'article',
-            isStarred: false,
-            createTime: '2024-01-19T15:45:00Z'
-          },
-          {
-            id: 3,
-            title: 'JavaScript 异步编程指南',
-            source: 'javascript.info',
-            digestStatus: 'undigest',
-            type: 'tutorial',
-            isStarred: false,
-            createTime: '2024-01-18T09:20:00Z'
-          }
-        ]
+        const response = await collectApi.getRecentCollectItems({
+          pageNum: 1,
+          pageSize: 10
+        })
+        this.items = response.rows || response.data || response || []
       } catch (error) {
         console.error('加载收藏项失败:', error)
+        this.$message.error('加载收藏项失败')
       } finally {
         this.loadingItems = false
       }
     },
-
-    // ==================== 搜索和筛选 ====================
     handleSearch() {
       console.log('搜索:', this.searchKeyword)
     },
-
     handleFilterChange() {
       console.log('筛选:', this.filterType)
     },
-
     handleSortChange() {
       console.log('排序:', this.sortBy)
     },
-
-    // ==================== 回收站视图 ====================
     toggleTrashView() {
       this.showTrash = !this.showTrash
       this.clearSelection()
-      this.loadCollections()
-      this.loadItems()
     },
-
-    // ==================== 批量选择 ====================
     toggleSelect(id) {
       const index = this.selectedItems.indexOf(id)
       if (index > -1) {
@@ -623,200 +541,24 @@ export default {
         this.selectedItems.push(id)
       }
     },
-
-    clearSelection() {
-      this.selectedItems = []
-    },
-
     handleTableSelectionChange(selection) {
       this.selectedItems = selection.map(item => item.id)
     },
-
-    // ==================== 星标功能 ====================
-    async toggleStar(collection) {
-      try {
-        // 乐观更新
-        collection.isStarred = !collection.isStarred
-        await collectApi.toggleStar(collection.id)
-        this.$message.success(collection.isStarred ? '已添加星标' : '已取消星标')
-        this.loadCollectionStats()
-      } catch (error) {
-        // 回滚
-        collection.isStarred = !collection.isStarred
-        console.error('切换星标失败:', error)
-        this.$message.error('操作失败')
-      }
+    clearSelection() {
+      this.selectedItems = []
     },
-
-    async toggleItemStar(item) {
-      try {
-        // 乐观更新
-        item.isStarred = !item.isStarred
-        await collectApi.toggleStar(item.id)
-        this.$message.success(item.isStarred ? '已添加星标' : '已取消星标')
-        this.loadCollectionStats()
-      } catch (error) {
-        // 回滚
-        item.isStarred = !item.isStarred
-        console.error('切换星标失败:', error)
-        this.$message.error('操作失败')
-      }
+    calculateProgress(processedCount, itemCount) {
+      if (!itemCount) return 0
+      return Math.round((processedCount || 0) / itemCount * 100)
     },
-
-    // ==================== 批量操作 ====================
-    // 批量删除（软删除到回收站）
-    async handleBatchDelete() {
-      if (this.selectedItems.length === 0) {
-        this.$message.warning('请先选择要删除的项')
-        return
-      }
-
-      try {
-        await this.$confirm(`确定要删除选中的 ${this.selectedItems.length} 项吗？删除后可在回收站恢复。`, '批量删除确认', {
-          type: 'warning'
-        })
-
-        const loading = this.$loading({ text: '正在批量删除...' })
-        await collectApi.batchDelete(this.selectedItems)
-        loading.close()
-
-        this.$message.success('批量删除成功')
-        this.clearSelection()
-        this.loadItems()
-        this.loadCollectionStats()
-      } catch (error) {
-        if (error !== 'cancel') {
-          console.error('批量删除失败:', error)
-          this.$message.error('批量删除失败')
-        }
-      }
+    getProgressStatus(processedCount, itemCount) {
+      const progress = this.calculateProgress(processedCount, itemCount)
+      if (progress === 100) return 'success'
+      if (progress >= 50) return ''
+      return 'exception'
     },
-
-    // 批量恢复（从回收站恢复）
-    async handleBatchRecover() {
-      if (this.selectedItems.length === 0) {
-        this.$message.warning('请先选择要恢复的项')
-        return
-      }
-
-      try {
-        await this.$confirm(`确定要恢复选中的 ${this.selectedItems.length} 项吗？`, '批量恢复确认', {
-          type: 'info'
-        })
-
-        const loading = this.$loading({ text: '正在批量恢复...' })
-        await collectApi.batchRecover(this.selectedItems)
-        loading.close()
-
-        this.$message.success('批量恢复成功')
-        this.clearSelection()
-        this.loadItems()
-        this.loadCollectionStats()
-      } catch (error) {
-        if (error !== 'cancel') {
-          console.error('批量恢复失败:', error)
-          this.$message.error('批量恢复失败')
-        }
-      }
-    },
-
-    // 批量永久删除
-    async handleBatchPermanentDelete() {
-      if (this.selectedItems.length === 0) {
-        this.$message.warning('请先选择要永久删除的项')
-        return
-      }
-
-      try {
-        await this.$confirm(`确定要永久删除选中的 ${this.selectedItems.length} 项吗？此操作不可恢复！`, '永久删除确认', {
-          type: 'error',
-          confirmButtonText: '确认永久删除',
-          cancelButtonText: '取消'
-        })
-
-        const loading = this.$loading({ text: '正在永久删除...' })
-        await collectApi.batchPermanentDelete(this.selectedItems)
-        loading.close()
-
-        this.$message.success('批量永久删除成功')
-        this.clearSelection()
-        this.loadItems()
-        this.loadCollectionStats()
-      } catch (error) {
-        if (error !== 'cancel') {
-          console.error('批量永久删除失败:', error)
-          this.$message.error('批量永久删除失败')
-        }
-      }
-    },
-
-    // ==================== 单个操作 ====================
-    async deleteItem(item) {
-      try {
-        await this.$confirm(`确定要删除 "${item.title}" 吗？删除后可在回收站恢复。`, '删除确认', {
-          type: 'warning'
-        })
-
-        await collectApi.deleteCollect(item.id)
-        this.$message.success('删除成功')
-        this.loadItems()
-        this.loadCollectionStats()
-      } catch (error) {
-        if (error !== 'cancel') {
-          console.error('删除失败:', error)
-          this.$message.error('删除失败')
-        }
-      }
-    },
-
-    async recoverItem(item) {
-      try {
-        await this.$confirm(`确定要恢复 "${item.title}" 吗？`, '恢复确认', {
-          type: 'info'
-        })
-
-        await collectApi.recoverCollect(item.id)
-        this.$message.success('恢复成功')
-        this.loadItems()
-        this.loadCollectionStats()
-      } catch (error) {
-        console.error('恢复失败:', error)
-        this.$message.error('恢复失败')
-      }
-    },
-
-    async permanentDeleteItem(item) {
-      try {
-        await this.$confirm(`确定要永久删除 "${item.title}" 吗？此操作不可恢复！`, '永久删除确认', {
-          type: 'error',
-          confirmButtonText: '确认永久删除',
-          cancelButtonText: '取消'
-        })
-
-        await collectApi.permanentDeleteCollect(item.id)
-        this.$message.success('永久删除成功')
-        this.loadItems()
-        this.loadCollectionStats()
-      } catch (error) {
-        if (error !== 'cancel') {
-          console.error('永久删除失败:', error)
-          this.$message.error('永久删除失败')
-        }
-      }
-    },
-
-    // ==================== 导入处理 ====================
-    handleImportComplete() {
-      this.showImportDialog = false
-      this.$message.success('导入完成')
-      this.loadCollections()
-      this.loadItems()
-      this.loadCollectionStats()
-    },
-
-    // ==================== 工具方法 ====================
-    // 格式化日期
     formatDate(dateString) {
+      if (!dateString) return '-'
       const date = new Date(dateString)
       return date.toLocaleDateString('zh-CN', {
         year: 'numeric',
@@ -824,23 +566,6 @@ export default {
         day: 'numeric'
       })
     },
-
-    // 计算进度
-    calculateProgress(processed, total) {
-      if (!total || total === 0) return 0
-      return Math.round((processed / total) * 100)
-    },
-
-    // 获取进度状态
-    getProgressStatus(processed, total) {
-      if (!total || total === 0) return ''
-      const percentage = this.calculateProgress(processed, total)
-      if (percentage >= 80) return 'success'
-      if (percentage >= 50) return 'warning'
-      return ''
-    },
-
-    // 获取项目图标
     getItemIcon(type) {
       const iconMap = {
         article: 'fas fa-file-alt',
@@ -852,8 +577,6 @@ export default {
       }
       return iconMap[type] || 'fas fa-bookmark'
     },
-
-    // 获取状态类型
     getStatusType(status) {
       const typeMap = {
         undigest: 'info',
@@ -863,8 +586,6 @@ export default {
       }
       return typeMap[status] || 'info'
     },
-
-    // 获取状态文本
     getStatusText(status) {
       const textMap = {
         undigest: '未加工',
@@ -874,186 +595,160 @@ export default {
       }
       return textMap[status] || '未知'
     },
-
-    // 查看收藏集
-    viewCollection(collection) {
-      this.$router.push(`/collections/${collection.id}`)
+    createCollection() {
+      this.editingCollection = null
+      this.resetCollectionForm()
+      this.editCollectionDialogVisible = true
     },
-
-    // 查看全部收藏集
-    viewAllCollections() {
-      this.$router.push('/collection/center')
-    },
-
-    // 查看全部收藏项
-    viewAllItems() {
-      this.$router.push('/collect/center')
-    },
-
-    // 处理收藏集操作
-    handleCollectionAction(command, collection) {
-      switch(command) {
-        case 'edit':
-          this.editCollection(collection)
-          break
-        case 'process':
-          this.processCollection(collection)
-          break
-        case 'share':
-          this.shareCollection(collection)
-          break
-        case 'delete':
-          this.deleteCollection(collection)
-          break
-        case 'recover':
-          this.recoverCollection(collection)
-          break
-        case 'permanentDelete':
-          this.permanentDeleteCollection(collection)
-          break
-      }
-    },
-
-    // 编辑收藏集
     editCollection(collection) {
       this.editingCollection = collection
       this.collectionForm = {
-        title: collection.title,
-        description: collection.description,
+        title: collection.title || '',
+        description: collection.description || '',
         tags: collection.tags || []
       }
       this.editCollectionDialogVisible = true
     },
+    resetCollectionForm() {
+      this.collectionForm = {
+        title: '',
+        description: '',
+        tags: []
+      }
+    },
+    async saveCollection() {
+      if (!this.collectionForm.title.trim()) {
+        this.$message.warning('请输入收藏集标题')
+        return
+      }
 
-    // 处理收藏集
+      try {
+        if (this.editingCollection) {
+          await collectionsApi.updateCollection(this.editingCollection.id, this.collectionForm)
+          this.$message.success('收藏集更新成功')
+        } else {
+          await collectionsApi.createCollection(this.collectionForm)
+          this.$message.success('收藏集创建成功')
+        }
+        this.editCollectionDialogVisible = false
+        this.resetCollectionForm()
+        await this.loadStats()
+        await this.loadCollections()
+      } catch (error) {
+        console.error('保存收藏集失败:', error)
+        this.$message.error('保存收藏集失败')
+      }
+    },
+    async toggleStar(collection) {
+      try {
+        await collectionsApi.toggleCollectionStar(collection.id)
+        collection.isStarred = !collection.isStarred
+        await this.loadStats()
+      } catch (error) {
+        console.error('切换星标失败:', error)
+        this.$message.error('操作失败')
+      }
+    },
+    async toggleItemStar(item) {
+      try {
+        await collectApi.toggleStar(item.id)
+        item.isStarred = !item.isStarred
+        await this.loadStats()
+      } catch (error) {
+        console.error('切换收藏项星标失败:', error)
+        this.$message.error('操作失败')
+      }
+    },
+    handleCollectionAction(command, collection) {
+      const actionMap = {
+        edit: () => this.editCollection(collection),
+        process: () => this.processCollection(collection),
+        share: () => this.shareCollection(collection),
+        delete: () => this.deleteCollection(collection),
+        recover: () => this.recoverCollection(collection),
+        permanentDelete: () => this.permanentDeleteCollection(collection)
+      }
+      const action = actionMap[command]
+      if (action) {
+        action()
+      }
+    },
     processCollection(collection) {
-      this.$router.push(`/collections/${collection.id}`)
+      this.$router.push(`/creation/processing/tasks?collectionId=${collection.id}`)
     },
-
-    // 分享收藏集
-    shareCollection(collection) {
-      console.log('分享收藏集:', collection)
+    shareCollection() {
+      this.$message.info('分享功能开发中')
     },
-
-    // 删除收藏集
     async deleteCollection(collection) {
       try {
-        await this.$confirm(`确定要删除收藏集 "${collection.title}" 吗？`, '确认删除', {
+        await this.$confirm(`确定删除收藏集「${collection.title}」吗？`, '删除确认', {
           type: 'warning'
         })
-
-        // 这里应该调用后端API删除收藏集
-        // 暂时只是模拟删除
-        this.collections = this.collections.filter(c => c.id !== collection.id)
+        await collectionsApi.deleteCollection(collection.id)
         this.$message.success('删除成功')
+        await this.loadStats()
+        await this.loadCollections()
       } catch (error) {
         if (error !== 'cancel') {
+          console.error('删除收藏集失败:', error)
           this.$message.error('删除失败')
         }
       }
     },
-
-    // 恢复收藏集
-    async recoverCollection(collection) {
-      try {
-        await collectApi.recoverCollect(collection.id)
-        this.$message.success('恢复成功')
-        this.loadCollections()
-        this.loadCollectionStats()
-      } catch (error) {
-        console.error('恢复失败:', error)
-        this.$message.error('恢复失败')
-      }
+    recoverCollection() {
+      this.$message.info('恢复功能开发中')
     },
-
-    // 永久删除收藏集
-    async permanentDeleteCollection(collection) {
+    permanentDeleteCollection() {
+      this.$message.info('永久删除功能开发中')
+    },
+    processItem(item) {
+      this.$router.push(`/creation/processing/tasks?itemId=${item.id}`)
+    },
+    editItem(item) {
+      this.$router.push(`/collection/item/${item.id}`)
+    },
+    async deleteItem(item) {
       try {
-        await this.$confirm(`确定要永久删除收藏集 "${collection.title}" 吗？此操作不可恢复！`, '永久删除确认', {
-          type: 'error',
-          confirmButtonText: '确认永久删除',
-          cancelButtonText: '取消'
+        await this.$confirm(`确定删除收藏项「${item.title}」吗？`, '删除确认', {
+          type: 'warning'
         })
-
-        await collectApi.permanentDeleteCollect(collection.id)
-        this.$message.success('永久删除成功')
-        this.loadCollections()
-        this.loadCollectionStats()
+        await collectApi.deleteCollect(item.id)
+        this.$message.success('删除成功')
+        await this.loadStats()
+        await this.loadItems()
       } catch (error) {
         if (error !== 'cancel') {
-          console.error('永久删除失败:', error)
-          this.$message.error('永久删除失败')
+          console.error('删除收藏项失败:', error)
+          this.$message.error('删除失败')
         }
       }
     },
-
-    // 创建收藏集
-    createCollection() {
-      this.editingCollection = null
-      this.collectionForm = {
-        title: '',
-        description: '',
-        tags: []
-      }
-      this.editCollectionDialogVisible = true
+    recoverItem() {
+      this.$message.info('恢复功能开发中')
     },
-
-    // 处理收藏项
-    processItem(item) {
-      this.$router.push({
-        name: 'CollectionProcessing',
-        params: { id: item.collectionId },
-        query: { itemId: item.id }
-      })
+    permanentDeleteItem() {
+      this.$message.info('永久删除功能开发中')
     },
-
-    // 编辑收藏项
-    editItem(item) {
-      this.$router.push({
-        name: 'CollectionItemEdit',
-        params: { id: item.id }
-      })
+    handleBatchDelete() {
+      this.$message.info('批量删除功能开发中')
     },
-
-    // 保存收藏集
-    async saveCollection() {
-      try {
-        if (this.editingCollection) {
-          // 更新现有收藏集
-          this.editingCollection.title = this.collectionForm.title
-          this.editingCollection.description = this.collectionForm.description
-          this.editingCollection.tags = this.collectionForm.tags
-
-          this.$message.success('更新成功')
-        } else {
-          // 创建新收藏集
-          const newCollection = {
-            id: Date.now(),
-            ...this.collectionForm,
-            itemCount: 0,
-            processedCount: 0,
-            isStarred: false,
-            updateTime: new Date().toISOString()
-          }
-
-          this.collections.unshift(newCollection)
-          this.$message.success('创建成功')
-        }
-
-        this.editCollectionDialogVisible = false
-      } catch (error) {
-        this.$message.error('保存失败')
-      }
+    handleBatchRecover() {
+      this.$message.info('批量恢复功能开发中')
     },
-
-    // 重置收藏集表单
-    resetCollectionForm() {
-      this.editingCollection = null
-      this.collectionForm = {
-        title: '',
-        description: '',
-        tags: []
-      }
+    handleBatchPermanentDelete() {
+      this.$message.info('批量永久删除功能开发中')
+    },
+    viewAllCollections() {
+      this.$router.push('/collect/center')
+    },
+    viewAllItems() {
+      this.$router.push('/collect/center')
+    },
+    handleImportComplete() {
+      this.loadStats()
+      this.loadCollections()
+      this.loadItems()
+      this.$message.success('导入完成')
     }
   }
 }
@@ -1061,71 +756,64 @@ export default {
 
 <style scoped>
 .collection-management-page {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
+  min-height: 100vh;
+  background: #f5f7fa;
 }
 
 .page-header {
-  padding: var(--space-6);
-  border-bottom: 1px solid var(--border-light);
-  background-color: var(--bg-container);
+  background: white;
+  border-bottom: 1px solid #e4e7ed;
+  padding: 24px 32px;
 }
 
 .header-content {
-  max-width: 1200px;
-  margin: 0 auto;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: var(--space-6);
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 .header-left {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
 }
 
 .breadcrumb {
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
+  margin-bottom: 12px;
 }
 
 .page-title {
-  font-size: var(--font-size-3xl);
+  margin: 0 0 8px 0;
+  font-size: 28px;
   font-weight: 600;
-  color: var(--text-primary);
-  margin: 0;
+  color: #303133;
 }
 
 .page-subtitle {
-  font-size: var(--font-size-sm);
-  color: var(--text-regular);
   margin: 0;
+  font-size: 14px;
+  color: #606266;
+  line-height: 1.5;
 }
 
 .header-right {
   display: flex;
-  gap: var(--space-3);
+  gap: 12px;
+  align-items: center;
 }
 
 .main-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: var(--space-6);
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px;
 }
 
 .toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--space-6);
-  padding: var(--space-4) var(--space-6);
-  background-color: var(--bg-container);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
+  margin-bottom: 24px;
+  gap: 16px;
 }
 
 .toolbar-left {
@@ -1133,84 +821,67 @@ export default {
   max-width: 400px;
 }
 
+.toolbar-right {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
 .search-input {
   width: 100%;
 }
 
-.toolbar-right {
-  display: flex;
-  gap: var(--space-3);
-}
-
-/* 批量操作栏 */
 .batch-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--space-3) var(--space-5);
-  margin-bottom: var(--space-5);
-  background-color: var(--primary-bg);
-  border: 1px solid var(--primary-color);
-  border-radius: var(--radius-lg);
-  animation: slideDown var(--transition-slow) ease;
-}
-
-@keyframes slideDown {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
+  background: #ecf5ff;
+  border: 1px solid #b3d8ff;
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
 }
 
 .batch-info {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 8px;
+  color: #409eff;
   font-weight: 500;
-  color: var(--primary-color);
 }
 
 .batch-actions {
   display: flex;
-  gap: var(--space-2);
-}
-
-/* 回收站提示 */
-.trash-alert {
-  margin-bottom: var(--space-5);
+  gap: 8px;
 }
 
 .collection-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: var(--space-4);
-  margin-bottom: var(--space-6);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 20px;
+  margin-bottom: 24px;
 }
 
 .stat-card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
   display: flex;
   align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-5);
-  background-color: var(--bg-container);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  transition: all var(--transition-normal);
-}
-
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
+  gap: 16px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
 }
 
 .stat-icon {
   width: 48px;
   height: 48px;
-  border-radius: var(--radius-lg);
-  background: var(--gradient-primary);
+  border-radius: 12px;
+  background: linear-gradient(135deg, #409eff, #66b1ff);
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
-  font-size: var(--font-size-xl);
+  font-size: 20px;
 }
 
 .stat-info {
@@ -1218,285 +889,205 @@ export default {
 }
 
 .stat-number {
-  font-size: var(--font-size-3xl);
+  font-size: 24px;
   font-weight: 700;
-  color: var(--text-primary);
-  line-height: 1.2;
+  color: #303133;
+  line-height: 1;
+  margin-bottom: 4px;
 }
 
 .stat-label {
-  font-size: var(--font-size-sm);
-  color: var(--text-regular);
-  margin-top: var(--space-1);
+  font-size: 14px;
+  color: #909399;
+}
+
+.trash-alert {
+  margin-bottom: 24px;
+}
+
+.collections-section,
+.items-section {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
 }
 
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--space-4);
-  padding-bottom: var(--space-2);
-  border-bottom: 1px solid var(--border-light);
+  margin-bottom: 20px;
 }
 
 .section-header h3 {
-  font-size: var(--font-size-lg);
-  font-weight: 600;
-  color: var(--text-primary);
   margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #303133;
 }
 
-.collections-section,
-.items-section {
-  margin-bottom: var(--space-6);
-  background-color: var(--bg-container);
-  border-radius: var(--radius-lg);
-  padding: var(--space-6);
-  box-shadow: var(--shadow-sm);
-}
-
-.loading-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-16) var(--space-5);
-  color: var(--text-regular);
-}
-
-.loading-container i {
-  font-size: var(--font-size-3xl);
-  margin-bottom: var(--space-3);
-}
-
+.loading-container,
 .empty-state {
   text-align: center;
-  padding: var(--space-16) var(--space-5);
+  padding: 48px 20px;
+  color: #909399;
 }
 
 .empty-icon {
   font-size: 48px;
-  color: var(--text-secondary);
-  margin-bottom: var(--space-4);
-}
-
-.empty-state h3 {
-  font-size: var(--font-size-xl);
-  color: var(--text-primary);
-  margin: 0 0 var(--space-2) 0;
-}
-
-.empty-state p {
-  color: var(--text-regular);
-  margin: 0 0 var(--space-6) 0;
+  margin-bottom: 16px;
+  color: #c0c4cc;
 }
 
 .collections-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: var(--space-5);
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
 }
 
 .collection-card {
-  background-color: var(--bg-page);
-  border-radius: var(--radius-lg);
-  padding: var(--space-5);
+  border: 1px solid #ebeef5;
+  border-radius: 12px;
+  padding: 20px;
   cursor: pointer;
-  transition: all var(--transition-normal);
-  border: 2px solid var(--border-light);
+  transition: all 0.3s ease;
 }
 
 .collection-card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-md);
-  border-color: var(--primary-color);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
-/* 选中状态 */
 .collection-card.is-selected {
-  border-color: var(--primary-color);
-  background-color: var(--primary-bg);
+  border-color: #409eff;
+  background: #f0f9ff;
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: var(--space-4);
+  margin-bottom: 16px;
 }
 
 .collection-info {
   display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
+  gap: 12px;
   flex: 1;
 }
 
 .collection-icon {
-  font-size: var(--font-size-3xl);
-  color: var(--primary-color);
+  font-size: 24px;
+  color: #409eff;
   margin-top: 2px;
 }
 
 .collection-text {
   flex: 1;
+  min-width: 0;
 }
 
 .collection-title {
-  font-size: var(--font-size-base);
+  margin: 0 0 6px 0;
+  font-size: 18px;
   font-weight: 600;
-  color: var(--text-primary);
-  margin: 0 0 var(--space-1) 0;
-  line-height: 1.3;
+  color: #303133;
 }
 
 .collection-desc {
-  font-size: var(--font-size-sm);
-  color: var(--text-regular);
   margin: 0;
+  font-size: 14px;
+  color: #606266;
   line-height: 1.4;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 .collection-actions {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
-}
-
-/* 星标样式 */
-.collection-actions .is-starred,
-.is-starred {
-  color: var(--warning-color) !important;
-}
-
-.item-star {
-  color: var(--warning-color);
-  font-size: var(--font-size-xs);
-  margin-right: var(--space-1);
-  cursor: pointer;
-}
-
-.card-body {
-  margin-bottom: var(--space-4);
+  gap: 8px;
 }
 
 .collection-meta {
   display: flex;
-  gap: var(--space-4);
-  margin-bottom: var(--space-3);
+  gap: 16px;
+  margin-bottom: 16px;
   flex-wrap: wrap;
 }
 
 .meta-item {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
-  font-size: var(--font-size-xs);
-  color: var(--text-secondary);
+  gap: 6px;
+  font-size: 13px;
+  color: #606266;
 }
 
-.meta-item i {
-  font-size: var(--font-size-sm);
-}
-
-.meta-item.starred {
-  color: var(--warning-color);
+.meta-item.starred,
+.is-starred {
+  color: #e6a23c;
 }
 
 .collection-progress {
-  margin-top: var(--space-2);
+  margin-bottom: 16px;
 }
 
 .card-footer {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-top: 1px solid var(--border-light);
-  padding-top: var(--space-4);
+  justify-content: flex-end;
 }
 
 .collection-date {
-  font-size: var(--font-size-xs);
-  color: var(--text-secondary);
-}
-
-.items-list {
-  background-color: var(--bg-page);
-  border-radius: var(--radius-lg);
-  padding: var(--space-4);
+  font-size: 12px;
+  color: #909399;
 }
 
 .item-title-cell {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 8px;
 }
 
 .item-icon {
-  color: var(--primary-color);
-  font-size: var(--font-size-sm);
+  color: #409eff;
 }
 
-/* 文字颜色工具类 */
+.item-star {
+  color: #e6a23c;
+  cursor: pointer;
+}
+
 .text-danger {
-  color: var(--danger-color) !important;
+  color: #f56c6c;
 }
 
 .text-success {
-  color: var(--success-color) !important;
+  color: #67c23a;
 }
 
-/* 响应式设计 */
 @media (max-width: 768px) {
-  .header-content {
+  .page-header,
+  .main-content {
+    padding: 20px;
+  }
+
+  .header-content,
+  .toolbar,
+  .batch-bar,
+  .section-header {
     flex-direction: column;
-    gap: var(--space-4);
+    align-items: stretch;
   }
 
-  .header-right {
-    width: 100%;
-  }
-
-  .toolbar {
-    flex-direction: column;
-    gap: var(--space-4);
-  }
-
-  .toolbar-right {
-    width: 100%;
+  .header-right,
+  .toolbar-right,
+  .batch-actions {
     flex-wrap: wrap;
-  }
-
-  .collection-stats {
-    grid-template-columns: 1fr 1fr;
   }
 
   .collections-grid {
     grid-template-columns: 1fr;
-  }
-
-  .batch-bar {
-    flex-direction: column;
-    gap: var(--space-3);
-  }
-}
-
-@media (max-width: 576px) {
-  .page-header,
-  .main-content {
-    padding: var(--space-4);
-  }
-
-  .collection-stats {
-    grid-template-columns: 1fr;
-  }
-
-  .collection-card {
-    padding: var(--space-4);
   }
 }
 </style>

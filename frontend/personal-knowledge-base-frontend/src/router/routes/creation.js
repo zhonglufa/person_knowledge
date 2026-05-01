@@ -1,4 +1,4 @@
-// 创作中心路由配置
+// 创作中心正式主入口与工作台路由配置
 import CreationLayout from '@/views/creation/CreationLayout.vue'
 
 export default [
@@ -24,12 +24,21 @@ export default [
         }
       },
       {
-        path: 'processing',
-        name: 'CreationProcessing',
+        path: 'processing/tasks',
+        name: 'CreationProcessingTasks',
         component: () => import('@/views/creation/CollectionProcessing.vue'),
         meta: {
           requiresAuth: true,
           title: '待加工内容'
+        }
+      },
+      {
+        path: 'processing',
+        name: 'CreationProcessingManagement',
+        component: () => import('@/views/creation/ProcessingManagement.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '加工管理'
         }
       },
       {
@@ -39,6 +48,24 @@ export default [
         meta: {
           requiresAuth: true,
           title: '我的笔记'
+        }
+      },
+      {
+        path: 'notes/create',
+        name: 'CreationNoteCreate',
+        component: () => import('@/views/creation/NoteDetailPage.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '新建笔记'
+        }
+      },
+      {
+        path: 'notes/:id',
+        name: 'CreationNoteDetail',
+        component: () => import('@/views/creation/NoteDetailPage.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '笔记详情'
         }
       },
       {
@@ -65,7 +92,7 @@ export default [
     redirect: '/taxonomy/tags'
   },
   {
-    path: '/collection-item/:id/note/create',
+    path: '/collections/items/:id/note/create',
     name: 'CollectionNoteCreation',
     component: () => import('@/views/creation/CollectionNoteCreation.vue'),
     props: true,
@@ -73,5 +100,9 @@ export default [
       requiresAuth: true,
       title: '收藏项笔记创作'
     }
+  },
+  {
+    path: '/collection-item/:id/note/create',
+    redirect: to => `/collections/items/${to.params.id}/note/create`
   }
 ]

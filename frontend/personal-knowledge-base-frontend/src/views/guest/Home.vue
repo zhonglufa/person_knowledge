@@ -107,13 +107,13 @@ export default {
     },
 
     goToDashboard() { 
-      this.$router.push('/personal/dashboard'); 
+      this.$router.push('/personal/center'); 
     },
     goToLogin() { 
       this.$router.push('/login'); 
     },
     goToSearchCenter() { 
-      this.$router.push('/search'); 
+      this.$router.push('/search/center'); 
     },
     goToCollections() { 
       this.$router.push('/collections'); 
@@ -140,7 +140,7 @@ export default {
     performSearchAction(query) {
       if (query?.trim()) {
         this.$router.push({
-          path: '/search',
+          path: '/search/center',
           query: { q: query.trim() }
         });
       }
@@ -148,7 +148,7 @@ export default {
 
     searchByTag(tagName) {
       this.$router.push({
-        path: '/search',
+        path: '/search/center',
         query: { tag: tagName }
       });
     },

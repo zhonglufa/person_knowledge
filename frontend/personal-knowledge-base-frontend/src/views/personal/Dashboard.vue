@@ -11,9 +11,12 @@
             </el-breadcrumb>
           </div>
           <h1 class="page-title">统计看板</h1>
-          <p class="page-subtitle">查看您的知识管理数据统计和分析</p>
+          <p class="page-subtitle">用于查看更完整的收藏、笔记、分类与学习进度分析，避免与个人中心首页重复堆叠。</p>
         </div>
         <div class="header-right">
+          <el-button type="text" @click="$router.push('/personal/center')">
+            返回个人中心 <i class="fas fa-arrow-right"></i>
+          </el-button>
           <el-date-picker
             v-model="dateRange"
             type="daterange"

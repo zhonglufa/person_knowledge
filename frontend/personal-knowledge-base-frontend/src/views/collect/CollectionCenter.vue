@@ -588,7 +588,7 @@ export default {
         this.$router.push(`/collections/${collection.id}`);
         return;
       }
-      this.$router.push(`/collection-item/${collection.id}`);
+      this.$router.push(`/collections/${collection.id}/workspace`);
     },
     async refreshAfterMutation() {
       await this.loadCollectionByCategory(this.activeSidebarItem);

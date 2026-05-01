@@ -226,7 +226,7 @@ export default {
       if (!item?.id) {
         return
       }
-      this.$router.push(`/collection-item/${item.id}`)
+      this.$router.push(`/collections/${item.id}/workspace`)
     },
     openEditDialog() {
       this.showEditDialog = true

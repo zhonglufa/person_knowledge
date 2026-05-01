@@ -2,15 +2,21 @@ package com.qst.lm.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.qst.lm.common.BusinessException;
 import com.qst.lm.common.R;
-import com.qst.lm.dto.collect.*;
-import com.qst.lm.entity.CollectionItem;
-import com.qst.lm.entity.CollectionItemTag;
+import com.qst.lm.dto.collect.BatchOperationDTO;
+import com.qst.lm.dto.collect.BookmarkImportDTO;
+import com.qst.lm.dto.collect.CollectionItemDTO;
+import com.qst.lm.dto.collect.CollectionItemQueryDTO;
+import com.qst.lm.dto.collect.UrlMetadataRequestDTO;
+import com.qst.lm.dto.collect.UrlMetadataResponseDTO;
+import com.qst.lm.exception.BusinessException;
 import com.qst.lm.mapper.CollectionItemMapper;
 import com.qst.lm.mapper.CollectionItemTagMapper;
+import com.qst.lm.mapper.ImportRecordMapper;
+import com.qst.lm.pojo.CollectionItem;
+import com.qst.lm.pojo.CollectionItemTag;
+import com.qst.lm.pojo.ImportRecord;
 import com.qst.lm.service.ICollectionItemService;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Connection;
@@ -26,54 +32,36 @@ import org.springframework.util.StringUtils;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeParseException;
-import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-/**
- * 收藏项服务实现类
- */
 @Slf4j
 @Service
 public class CollectionItemServiceImpl implements ICollectionItemService {
 
-    private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36";
-    private static final Pattern OG_TITLE_PATTERN = Pattern.compile("<meta[^>]+property=['\"]og:title['\"][^>]+content=['\"]([^'\"]+)['\"]", Pattern.CASE_INSENSITIVE);
-    private static final Pattern OG_DESCRIPTION_PATTERN = Pattern.compile("<meta[^>]+property=['\"]og:description['\"][^>]+content=['\"]([^'\"]+)['\"]", Pattern.CASE_INSENSITIVE);
-    private static final Pattern OG_IMAGE_PATTERN = Pattern.compile("<meta[^>]+property=['\"]og:image['\"][^>]+content=['\"]([^'\"]+)['\"]", Pattern.CASE_INSENSITIVE);
-    private static final int MAX_PREVIEW_TITLE_LENGTH = 120;
-    private static final int MAX_PREVIEW_SUMMARY_LENGTH = 300;
+    private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
     private final CollectionItemMapper collectionItemMapper;
     private final CollectionItemTagMapper collectionItemTagMapper;
+    private final ImportRecordMapper importRecordMapper;
 
     public CollectionItemServiceImpl(CollectionItemMapper collectionItemMapper,
-                                     CollectionItemTagMapper collectionItemTagMapper) {
+                                     CollectionItemTagMapper collectionItemTagMapper,
+                                     ImportRecordMapper importRecordMapper) {
         this.collectionItemMapper = collectionItemMapper;
         this.collectionItemTagMapper = collectionItemTagMapper;
+        this.importRecordMapper = importRecordMapper;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public R createItem(Long userId, CollectionItemDTO dto) {
-        if (dto == null) {
-            throw new BusinessException("请求参数不能为空");
-        }
-        if (dto.getSourceType() == null) {
-            throw new BusinessException("来源类型不能为空");
-        }
-        if (!StringUtils.hasText(dto.getSourceUrl()) && !StringUtils.hasText(dto.getTitle())) {
-            throw new BusinessException("收藏链接或标题至少填写一项");
-        }
-        String normalizedUrl = normalizeUrl(dto.getSourceUrl());
-        if (StringUtils.hasText(normalizedUrl)) {
-            CollectionItem existingItem = findExistingByUrl(userId, normalizedUrl);
+        String normalizedSourceUrl = normalizeUrl(dto.getSourceUrl());
+        if (dto.getSourceType() != null && dto.getSourceType() == 1 && StringUtils.hasText(normalizedSourceUrl)) {
+            CollectionItem existingItem = findExistingByUrl(userId, normalizedSourceUrl);
             if (existingItem != null) {
                 throw new BusinessException("该链接已被收藏");
             }
@@ -81,68 +69,65 @@ public class CollectionItemServiceImpl implements ICollectionItemService {
 
         CollectionItem item = new CollectionItem();
         item.setUserId(userId);
-        item.setCollectionId(dto.getCollectionId());
-        item.setTitle(StringUtils.hasText(dto.getTitle()) ? dto.getTitle().trim() : deriveTitleFromUrl(normalizedUrl));
+        item.setTitle(dto.getTitle());
         item.setSourceType(dto.getSourceType());
-        item.setSourceUrl(normalizedUrl);
-        item.setSource(StringUtils.hasText(dto.getSource()) ? dto.getSource() : extractSource(normalizedUrl));
-        item.setCoverImage(dto.getCoverImage());
-        item.setKeywords(dto.getKeywords());
+        item.setCollectionId(dto.getCollectionId());
         item.setCoreAbstract(dto.getCoreAbstract());
         item.setDigestStatus(StringUtils.hasText(dto.getDigestStatus()) ? dto.getDigestStatus() : "undigest");
-        item.setStudyProgress(StringUtils.hasText(dto.getStudyProgress()) ? dto.getStudyProgress() : "0%");
+        item.setStudyProgress(dto.getStudyProgress());
+        item.setStudyGoal(dto.getStudyGoal());
         item.setCategoryId(dto.getCategoryId());
-        item.setIsRead(Boolean.TRUE.equals(dto.getIsRead()));
-        item.setVisitCount(dto.getVisitCount() == null ? 0 : dto.getVisitCount());
-        item.setDeleted(0);
-        item.setStarred(Boolean.TRUE.equals(dto.getStarred()));
-        item.setAllowShare(Boolean.TRUE.equals(dto.getAllowShare()));
-        item.setCreatedAt(LocalDateTime.now());
-        item.setUpdatedAt(LocalDateTime.now());
+        item.setKeywords(dto.getKeywords());
+        item.setSource(dto.getSource());
+        item.setSourceUrl(normalizedSourceUrl);
+        item.setNoteId(dto.getNoteId());
+        item.setRelatedNoteId(dto.getRelatedNoteId());
+        item.setNoteSourceLabel(dto.getNoteSourceLabel());
         collectionItemMapper.insert(item);
+
         saveItemTags(userId, item.getId(), dto.getTagIds());
+
         log.info("用户[{}]创建收藏项[{}]成功", userId, item.getId());
-        return R.success(item);
+        return R.success("创建收藏项成功", item);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public R updateItem(Long userId, Long id, CollectionItemDTO dto) {
-        CollectionItem existing = getAndCheckOwnership(userId, id);
-        if (dto == null) {
-            throw new BusinessException("请求参数不能为空");
-        }
-        String normalizedUrl = normalizeUrl(dto.getSourceUrl());
-        if (StringUtils.hasText(normalizedUrl)) {
-            CollectionItem duplicate = findExistingByUrl(userId, normalizedUrl);
-            if (duplicate != null && !duplicate.getId().equals(id)) {
+        CollectionItem currentItem = getAndCheckOwnership(userId, id);
+        String normalizedSourceUrl = normalizeUrl(dto.getSourceUrl());
+        if (dto.getSourceType() != null && dto.getSourceType() == 1 && StringUtils.hasText(normalizedSourceUrl)) {
+            CollectionItem existingItem = findExistingByUrl(userId, normalizedSourceUrl);
+            if (existingItem != null && !existingItem.getId().equals(currentItem.getId())) {
                 throw new BusinessException("该链接已被收藏");
             }
         }
+
         LambdaUpdateWrapper<CollectionItem> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(CollectionItem::getId, id)
-                .set(dto.getCollectionId() != null, CollectionItem::getCollectionId, dto.getCollectionId())
-                .set(StringUtils.hasText(dto.getTitle()), CollectionItem::getTitle, dto.getTitle().trim())
-                .set(dto.getSourceType() != null, CollectionItem::getSourceType, dto.getSourceType())
-                .set(StringUtils.hasText(normalizedUrl), CollectionItem::getSourceUrl, normalizedUrl)
-                .set(StringUtils.hasText(dto.getSource()), CollectionItem::getSource, dto.getSource())
-                .set(dto.getCoverImage() != null, CollectionItem::getCoverImage, dto.getCoverImage())
-                .set(dto.getKeywords() != null, CollectionItem::getKeywords, dto.getKeywords())
-                .set(dto.getCoreAbstract() != null, CollectionItem::getCoreAbstract, dto.getCoreAbstract())
-                .set(dto.getDigestStatus() != null, CollectionItem::getDigestStatus, dto.getDigestStatus())
-                .set(dto.getStudyProgress() != null, CollectionItem::getStudyProgress, dto.getStudyProgress())
-                .set(dto.getCategoryId() != null, CollectionItem::getCategoryId, dto.getCategoryId())
-                .set(dto.getIsRead() != null, CollectionItem::getIsRead, dto.getIsRead())
-                .set(dto.getStarred() != null, CollectionItem::getStarred, dto.getStarred())
-                .set(dto.getAllowShare() != null, CollectionItem::getAllowShare, dto.getAllowShare())
-                .set(CollectionItem::getUpdatedAt, LocalDateTime.now());
-        collectionItemMapper.update(null, updateWrapper);
-        if (!CollectionUtils.isEmpty(dto.getTagIds())) {
-            LambdaQueryWrapper<CollectionItemTag> tagWrapper = new LambdaQueryWrapper<>();
-            tagWrapper.eq(CollectionItemTag::getCollectionItemId, id);
-            collectionItemTagMapper.delete(tagWrapper);
-            saveItemTags(userId, id, dto.getTagIds());
+                .eq(CollectionItem::getUserId, userId)
+                .eq(CollectionItem::getDeleted, 0)
+                .set(CollectionItem::getTitle, dto.getTitle())
+                .set(CollectionItem::getSourceType, dto.getSourceType())
+                .set(CollectionItem::getCollectionId, dto.getCollectionId())
+                .set(CollectionItem::getCoreAbstract, dto.getCoreAbstract())
+                .set(CollectionItem::getStudyProgress, dto.getStudyProgress())
+                .set(CollectionItem::getStudyGoal, dto.getStudyGoal())
+                .set(CollectionItem::getCategoryId, dto.getCategoryId())
+                .set(CollectionItem::getKeywords, dto.getKeywords())
+                .set(CollectionItem::getSource, dto.getSource())
+                .set(CollectionItem::getSourceUrl, normalizedSourceUrl)
+                .set(CollectionItem::getNoteId, dto.getNoteId())
+                .set(CollectionItem::getRelatedNoteId, dto.getRelatedNoteId())
+                .set(CollectionItem::getNoteSourceLabel, dto.getNoteSourceLabel());
+        if (StringUtils.hasText(dto.getDigestStatus())) {
+            updateWrapper.set(CollectionItem::getDigestStatus, dto.getDigestStatus());
         }
+        collectionItemMapper.update(null, updateWrapper);
+
+        collectionItemTagMapper.deleteByCollectionItemId(id);
+        saveItemTags(userId, id, dto.getTagIds());
+
         log.info("用户[{}]更新收藏项[{}]成功", userId, id);
         return R.success("更新收藏项成功");
     }
@@ -159,12 +144,39 @@ public class CollectionItemServiceImpl implements ICollectionItemService {
 
     @Override
     public R getItemList(Long userId, CollectionItemQueryDTO query) {
-        return queryItemsByDeleted(userId, query, 0);
-    }
+        Page<CollectionItem> page = new Page<>(query.getPageNum(), query.getPageSize());
+        LambdaQueryWrapper<CollectionItem> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(CollectionItem::getUserId, userId).eq(CollectionItem::getDeleted, 0);
 
-    @Override
-    public R getRecycleBin(Long userId, CollectionItemQueryDTO query) {
-        return queryItemsByDeleted(userId, query, 1);
+        if (query.getCollectionId() != null) {
+            wrapper.eq(CollectionItem::getCollectionId, query.getCollectionId());
+        }
+        if (StringUtils.hasText(query.getKeyword())) {
+            wrapper.and(w -> w.like(CollectionItem::getTitle, query.getKeyword())
+                    .or().like(CollectionItem::getKeywords, query.getKeyword())
+                    .or().like(CollectionItem::getCoreAbstract, query.getKeyword()));
+        }
+        if (query.getSourceType() != null) {
+            wrapper.eq(CollectionItem::getSourceType, query.getSourceType());
+        }
+        if (StringUtils.hasText(query.getDigestStatus())) {
+            wrapper.eq(CollectionItem::getDigestStatus, query.getDigestStatus());
+        }
+        if (StringUtils.hasText(query.getStudyProgress())) {
+            wrapper.eq(CollectionItem::getStudyProgress, query.getStudyProgress());
+        }
+        if (query.getCategoryId() != null) {
+            wrapper.eq(CollectionItem::getCategoryId, query.getCategoryId());
+        }
+        if (query.getIsRead() != null) {
+            wrapper.eq(CollectionItem::getIsRead, query.getIsRead() == 1);
+        }
+        if (query.getTagId() != null) {
+            wrapper.inSql(CollectionItem::getId, "SELECT collection_item_id FROM collection_item_tag WHERE tag_id = " + query.getTagId());
+        }
+
+        handleSort(wrapper, query.getSortBy(), query.getSortOrder());
+        return R.success(collectionItemMapper.selectPage(page, wrapper));
     }
 
     @Override
@@ -295,6 +307,45 @@ public class CollectionItemServiceImpl implements ICollectionItemService {
         return R.success(statistics);
     }
 
+    private void saveItemTags(Long userId, Long itemId, List<Long> tagIds) {
+        if (CollectionUtils.isEmpty(tagIds)) {
+            return;
+        }
+        for (Long tagId : tagIds) {
+            CollectionItemTag itemTag = new CollectionItemTag();
+            itemTag.setUserId(userId);
+            itemTag.setCollectionItemId(itemId);
+            itemTag.setTagId(tagId);
+            collectionItemTagMapper.insert(itemTag);
+        }
+    }
+
+    private CollectionItem getAndCheckOwnership(Long userId, Long id) {
+        LambdaQueryWrapper<CollectionItem> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(CollectionItem::getId, id).eq(CollectionItem::getDeleted, 0);
+        CollectionItem item = collectionItemMapper.selectOne(wrapper);
+        if (item == null) {
+            throw new BusinessException("收藏项不存在");
+        }
+        if (!item.getUserId().equals(userId)) {
+            throw new BusinessException(403, "无权操作该收藏项");
+        }
+        return item;
+    }
+
+    private void handleSort(LambdaQueryWrapper<CollectionItem> wrapper, String sortBy, String sortOrder) {
+        boolean isAsc = "asc".equalsIgnoreCase(sortOrder);
+        if (!StringUtils.hasText(sortBy)) {
+            wrapper.orderByDesc(CollectionItem::getCreatedAt);
+            return;
+        }
+        switch (sortBy) {
+            case "updatedAt" -> wrapper.orderBy(true, isAsc, CollectionItem::getUpdatedAt);
+            case "visitCount" -> wrapper.orderBy(true, isAsc, CollectionItem::getVisitCount);
+            default -> wrapper.orderBy(true, isAsc, CollectionItem::getCreatedAt);
+        }
+    }
+
     @Override
     public R previewImport(Long userId, BookmarkImportDTO dto) {
         if (dto == null || !StringUtils.hasText(dto.getHtmlContent())) {
@@ -347,10 +398,9 @@ public class CollectionItemServiceImpl implements ICollectionItemService {
             throw new BusinessException("导入内容不能为空");
         }
 
-        List<Map<String, Object>> importedItems = new ArrayList<>();
         int successCount = 0;
         int failCount = 0;
-
+        List<String> errors = new ArrayList<>();
         try {
             Document doc = Jsoup.parse(dto.getHtmlContent());
             Elements links = doc.select("a[href]");
@@ -358,105 +408,72 @@ public class CollectionItemServiceImpl implements ICollectionItemService {
                 try {
                     String href = link.attr("href");
                     String title = link.text();
-                    if (StringUtils.hasText(href) && !href.startsWith("#") && !href.startsWith("javascript:")) {
-                        CollectionItemDTO itemDTO = new CollectionItemDTO();
-                        itemDTO.setSourceUrl(href);
-                        itemDTO.setTitle(StringUtils.hasText(title) ? title : href);
-                        itemDTO.setSourceType(1);
-                        itemDTO.setCollectionId(dto.getCollectionId());
-                        if (dto.getTagIds() != null) {
-                            itemDTO.setTagIds(dto.getTagIds());
-                        }
-
-                        createItem(userId, itemDTO);
-                        successCount++;
-
-                        Map<String, Object> importedItem = new HashMap<>(4);
-                        importedItem.put("title", itemDTO.getTitle());
-                        importedItem.put("url", itemDTO.getSourceUrl());
-                        importedItem.put("status", "success");
-                        importedItems.add(importedItem);
+                    if (!StringUtils.hasText(href) || href.startsWith("#") || href.startsWith("javascript:")) {
+                        continue;
                     }
+                    CollectionItem item = new CollectionItem();
+                    item.setUserId(userId);
+                    item.setTitle(StringUtils.hasText(title) ? title : href);
+                    item.setSourceUrl(href);
+                    item.setSourceType(1);
+                    item.setCollectionId(dto.getTargetCollectionId());
+                    item.setDigestStatus("undigest");
+                    item.setIsRead(false);
+                    item.setIsStar(false);
+                    item.setVisitCount(0);
+                    collectionItemMapper.insert(item);
+                    successCount++;
                 } catch (Exception e) {
+                    log.error("导入收藏项失败", e);
                     failCount++;
-                    Map<String, Object> failItem = new HashMap<>(4);
-                    failItem.put("title", link.text());
-                    failItem.put("url", link.attr("href"));
-                    failItem.put("status", "failed");
-                    failItem.put("reason", e.getMessage());
-                    importedItems.add(failItem);
-                }
-            }
-
-            Elements images = doc.select("img[src]");
-            for (Element img : images) {
-                try {
-                    String src = img.attr("src");
-                    String alt = img.attr("alt");
-                    if (StringUtils.hasText(src)) {
-                        CollectionItemDTO itemDTO = new CollectionItemDTO();
-                        itemDTO.setSourceUrl(src);
-                        itemDTO.setTitle(StringUtils.hasText(alt) ? alt : "图片");
-                        itemDTO.setSourceType(2);
-                        itemDTO.setCollectionId(dto.getCollectionId());
-                        if (dto.getTagIds() != null) {
-                            itemDTO.setTagIds(dto.getTagIds());
-                        }
-
-                        createItem(userId, itemDTO);
-                        successCount++;
-
-                        Map<String, Object> importedItem = new HashMap<>(4);
-                        importedItem.put("title", itemDTO.getTitle());
-                        importedItem.put("url", itemDTO.getSourceUrl());
-                        importedItem.put("status", "success");
-                        importedItems.add(importedItem);
-                    }
-                } catch (Exception e) {
-                    failCount++;
-                    Map<String, Object> failItem = new HashMap<>(4);
-                    failItem.put("title", img.attr("alt"));
-                    failItem.put("url", img.attr("src"));
-                    failItem.put("status", "failed");
-                    failItem.put("reason", e.getMessage());
-                    importedItems.add(failItem);
+                    errors.add("导入失败: " + e.getMessage());
                 }
             }
         } catch (Exception e) {
-            log.error("执行HTML导入失败", e);
-            throw new BusinessException("执行HTML导入失败");
+            log.error("解析HTML内容失败", e);
+            throw new BusinessException("解析HTML内容失败");
         }
 
-        Map<String, Object> result = new HashMap<>(6);
+        ImportRecord record = new ImportRecord();
+        record.setUserId(userId);
+        record.setSourceType("browser");
+        record.setSuccessCount(successCount);
+        record.setFailCount(failCount);
+        record.setTotalCount(successCount + failCount);
+        importRecordMapper.insert(record);
+
+        Map<String, Object> result = new HashMap<>(8);
         result.put("successCount", successCount);
         result.put("failCount", failCount);
         result.put("totalCount", successCount + failCount);
-        result.put("items", importedItems);
-        result.put("message", String.format("成功导入%d项，失败%d项", successCount, failCount));
-        return R.success(result);
+        result.put("errors", errors);
+        return R.success("导入完成", result);
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public R recoverItem(Long userId, Long id) {
-        CollectionItem item = getAndCheckDeletedOwnership(userId, id);
+        LambdaQueryWrapper<CollectionItem> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(CollectionItem::getId, id).eq(CollectionItem::getUserId, userId).eq(CollectionItem::getDeleted, 1);
+        if (collectionItemMapper.selectOne(wrapper) == null) {
+            throw new BusinessException("回收站中不存在该收藏项");
+        }
         LambdaUpdateWrapper<CollectionItem> updateWrapper = new LambdaUpdateWrapper<>();
-        updateWrapper.eq(CollectionItem::getId, id)
-                .set(CollectionItem::getDeleted, 0)
-                .set(CollectionItem::getUpdatedAt, LocalDateTime.now());
+        updateWrapper.eq(CollectionItem::getId, id).set(CollectionItem::getDeleted, 0);
         collectionItemMapper.update(null, updateWrapper);
-        log.info("用户[{}]恢复收藏项[{}]成功", userId, item.getId());
-        return R.success("恢复收藏成功");
+        return R.success("恢复成功");
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public R permanentDeleteItem(Long userId, Long id) {
-        CollectionItem item = getAndCheckDeletedOwnership(userId, id);
-        LambdaQueryWrapper<CollectionItemTag> tagWrapper = new LambdaQueryWrapper<>();
-        tagWrapper.eq(CollectionItemTag::getCollectionItemId, id);
-        collectionItemTagMapper.delete(tagWrapper);
+        LambdaQueryWrapper<CollectionItem> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(CollectionItem::getId, id).eq(CollectionItem::getUserId, userId).eq(CollectionItem::getDeleted, 1);
+        if (collectionItemMapper.selectOne(wrapper) == null) {
+            throw new BusinessException("回收站中不存在该收藏项");
+        }
+        collectionItemTagMapper.deleteByCollectionItemId(id);
         collectionItemMapper.deleteById(id);
-        log.info("用户[{}]永久删除收藏项[{}]成功", userId, item.getId());
         return R.success("永久删除成功");
     }
 
@@ -464,11 +481,14 @@ public class CollectionItemServiceImpl implements ICollectionItemService {
     @Transactional(rollbackFor = Exception.class)
     public R batchDelete(Long userId, BatchOperationDTO dto) {
         if (dto == null || CollectionUtils.isEmpty(dto.getIds())) {
-            throw new BusinessException("请选择要删除的收藏项");
+            throw new BusinessException("请选择要操作的数据");
         }
         for (Long id : dto.getIds()) {
-            deleteItem(userId, id);
+            getAndCheckOwnership(userId, id);
         }
+        LambdaUpdateWrapper<CollectionItem> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.in(CollectionItem::getId, dto.getIds()).set(CollectionItem::getDeleted, 1);
+        collectionItemMapper.update(null, updateWrapper);
         return R.success("批量删除成功");
     }
 
@@ -476,11 +496,18 @@ public class CollectionItemServiceImpl implements ICollectionItemService {
     @Transactional(rollbackFor = Exception.class)
     public R batchRecover(Long userId, BatchOperationDTO dto) {
         if (dto == null || CollectionUtils.isEmpty(dto.getIds())) {
-            throw new BusinessException("请选择要恢复的收藏项");
+            throw new BusinessException("请选择要操作的数据");
         }
         for (Long id : dto.getIds()) {
-            recoverItem(userId, id);
+            LambdaQueryWrapper<CollectionItem> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(CollectionItem::getId, id).eq(CollectionItem::getUserId, userId).eq(CollectionItem::getDeleted, 1);
+            if (collectionItemMapper.selectOne(wrapper) == null) {
+                throw new BusinessException("回收站中存在无效收藏项");
+            }
         }
+        LambdaUpdateWrapper<CollectionItem> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.in(CollectionItem::getId, dto.getIds()).set(CollectionItem::getDeleted, 0);
+        collectionItemMapper.update(null, updateWrapper);
         return R.success("批量恢复成功");
     }
 
@@ -488,192 +515,123 @@ public class CollectionItemServiceImpl implements ICollectionItemService {
     @Transactional(rollbackFor = Exception.class)
     public R batchPermanentDelete(Long userId, BatchOperationDTO dto) {
         if (dto == null || CollectionUtils.isEmpty(dto.getIds())) {
-            throw new BusinessException("请选择要永久删除的收藏项");
+            throw new BusinessException("请选择要操作的数据");
         }
         for (Long id : dto.getIds()) {
-            permanentDeleteItem(userId, id);
+            LambdaQueryWrapper<CollectionItem> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(CollectionItem::getId, id).eq(CollectionItem::getUserId, userId).eq(CollectionItem::getDeleted, 1);
+            if (collectionItemMapper.selectOne(wrapper) == null) {
+                throw new BusinessException("回收站中存在无效收藏项");
+            }
+            collectionItemTagMapper.deleteByCollectionItemId(id);
         }
+        collectionItemMapper.deleteBatchIds(dto.getIds());
         return R.success("批量永久删除成功");
     }
 
     @Override
     public R toggleStar(Long userId, Long id) {
         CollectionItem item = getAndCheckOwnership(userId, id);
-        boolean targetStarred = !Boolean.TRUE.equals(item.getStarred());
+        boolean newStatus = !Boolean.TRUE.equals(item.getIsStar());
         LambdaUpdateWrapper<CollectionItem> updateWrapper = new LambdaUpdateWrapper<>();
-        updateWrapper.eq(CollectionItem::getId, id)
-                .set(CollectionItem::getStarred, targetStarred)
-                .set(CollectionItem::getUpdatedAt, LocalDateTime.now());
+        updateWrapper.eq(CollectionItem::getId, id).set(CollectionItem::getIsStar, newStatus);
         collectionItemMapper.update(null, updateWrapper);
-        item.setStarred(targetStarred);
-        return R.success(item);
+        Map<String, Object> result = new HashMap<>(1);
+        result.put("isStar", newStatus);
+        return R.success("切换星标成功", result);
     }
 
     @Override
     public R setRemind(Long userId, Long id, LocalDateTime remindAt) {
-        CollectionItem item = getAndCheckOwnership(userId, id);
+        getAndCheckOwnership(userId, id);
         LambdaUpdateWrapper<CollectionItem> updateWrapper = new LambdaUpdateWrapper<>();
-        updateWrapper.eq(CollectionItem::getId, id)
-                .set(CollectionItem::getRemindAt, remindAt)
-                .set(CollectionItem::getUpdatedAt, LocalDateTime.now());
+        updateWrapper.eq(CollectionItem::getId, id).set(CollectionItem::getRemindAt, remindAt);
         collectionItemMapper.update(null, updateWrapper);
-        item.setRemindAt(remindAt);
-        return R.success(item);
+        return R.success("设置提醒成功");
     }
 
     @Override
     public R cancelRemind(Long userId, Long id) {
-        CollectionItem item = getAndCheckOwnership(userId, id);
+        getAndCheckOwnership(userId, id);
         LambdaUpdateWrapper<CollectionItem> updateWrapper = new LambdaUpdateWrapper<>();
-        updateWrapper.eq(CollectionItem::getId, id)
-                .set(CollectionItem::getRemindAt, null)
-                .set(CollectionItem::getUpdatedAt, LocalDateTime.now());
+        updateWrapper.eq(CollectionItem::getId, id).set(CollectionItem::getRemindAt, null);
         collectionItemMapper.update(null, updateWrapper);
-        item.setRemindAt(null);
-        return R.success(item);
+        return R.success("取消提醒成功");
     }
 
-    private R queryItemsByDeleted(Long userId, CollectionItemQueryDTO query, int deletedFlag) {
-        long pageNum = query != null && query.getPageNum() != null ? query.getPageNum() : 1L;
-        long pageSize = query != null && query.getPageSize() != null ? query.getPageSize() : 10L;
-        Page<CollectionItem> page = new Page<>(pageNum, pageSize);
-        LambdaQueryWrapper<CollectionItem> wrapper = buildItemQueryWrapper(userId, query, deletedFlag);
-        return R.success(collectionItemMapper.selectPage(page, wrapper));
-    }
 
-    private LambdaQueryWrapper<CollectionItem> buildItemQueryWrapper(Long userId, CollectionItemQueryDTO query, int deletedFlag) {
+    @Override
+    public R getRecycleBin(Long userId, CollectionItemQueryDTO query) {
+        Page<CollectionItem> pageRequest = new Page<>(query.getPageNum(), query.getPageSize());
+
         LambdaQueryWrapper<CollectionItem> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(CollectionItem::getUserId, userId)
-                .eq(CollectionItem::getDeleted, deletedFlag);
+            .eq(CollectionItem::getDeleted, 1);
 
-        if (query == null) {
-            wrapper.orderByDesc(CollectionItem::getCreatedAt);
-            return wrapper;
-        }
-
-        if (query.getCollectionId() != null) {
-            wrapper.eq(CollectionItem::getCollectionId, query.getCollectionId());
-        }
         if (StringUtils.hasText(query.getKeyword())) {
             wrapper.and(w -> w.like(CollectionItem::getTitle, query.getKeyword())
-                    .or().like(CollectionItem::getKeywords, query.getKeyword())
-                    .or().like(CollectionItem::getCoreAbstract, query.getKeyword()));
+                .or().like(CollectionItem::getKeywords, query.getKeyword())
+                .or().like(CollectionItem::getCoreAbstract, query.getKeyword()));
         }
+
         if (query.getSourceType() != null) {
             wrapper.eq(CollectionItem::getSourceType, query.getSourceType());
         }
-        if (StringUtils.hasText(query.getDigestStatus())) {
-            wrapper.eq(CollectionItem::getDigestStatus, query.getDigestStatus());
-        }
-        if (StringUtils.hasText(query.getStudyProgress())) {
-            wrapper.eq(CollectionItem::getStudyProgress, query.getStudyProgress());
-        }
+
         if (query.getCategoryId() != null) {
             wrapper.eq(CollectionItem::getCategoryId, query.getCategoryId());
         }
-        if (query.getIsRead() != null) {
-            wrapper.eq(CollectionItem::getIsRead, query.getIsRead() == 1);
-        }
+
         if (query.getTagId() != null) {
             wrapper.inSql(CollectionItem::getId,
-                    "SELECT collection_item_id FROM collection_item_tag WHERE tag_id = " + query.getTagId());
-        }
-        if (!CollectionUtils.isEmpty(query.getTagIds())) {
-            String joinedTagIds = query.getTagIds().stream()
-                    .filter(Objects::nonNull)
-                    .map(String::valueOf)
-                    .distinct()
-                    .reduce((left, right) -> left + "," + right)
-                    .orElse(null);
-            if (StringUtils.hasText(joinedTagIds)) {
-                wrapper.inSql(CollectionItem::getId,
-                        "SELECT collection_item_id FROM collection_item_tag WHERE tag_id IN (" + joinedTagIds + ") GROUP BY collection_item_id");
-            }
-        }
-        if (StringUtils.hasText(query.getStartDate())) {
-            LocalDateTime startDateTime = parseStartOfDay(query.getStartDate());
-            if (startDateTime != null) {
-                wrapper.ge(CollectionItem::getCreatedAt, startDateTime);
-            }
-        }
-        if (StringUtils.hasText(query.getEndDate())) {
-            LocalDateTime endDateTime = parseEndOfDay(query.getEndDate());
-            if (endDateTime != null) {
-                wrapper.le(CollectionItem::getCreatedAt, endDateTime);
-            }
+                "SELECT collection_item_id FROM collection_item_tag WHERE tag_id = " + query.getTagId());
         }
 
         handleSort(wrapper, query.getSortBy(), query.getSortOrder());
-        return wrapper;
+
+        return R.success(collectionItemMapper.selectPage(pageRequest, wrapper));
     }
 
-    private void saveItemTags(Long userId, Long itemId, List<Long> tagIds) {
-        if (CollectionUtils.isEmpty(tagIds)) {
-            return;
-        }
-        for (Long tagId : tagIds) {
-            CollectionItemTag itemTag = new CollectionItemTag();
-            itemTag.setUserId(userId);
-            itemTag.setCollectionItemId(itemId);
-            itemTag.setTagId(tagId);
-            collectionItemTagMapper.insert(itemTag);
-        }
+ /*   @Override
+    public R getRecycleBinStatistics(Long userId) {
+        Map<String, Object> statistics = new HashMap<>(4);
+
+        LambdaQueryWrapper<CollectionItem> totalWrapper = new LambdaQueryWrapper<>();
+        totalWrapper.eq(CollectionItem::getUserId, userId)
+            .eq(CollectionItem::getDeleted, 1);
+        long totalCount = collectionItemMapper.selectCount(totalWrapper);
+        statistics.put("totalCount", totalCount);
+
+        LambdaQueryWrapper<CollectionItem> recentWrapper = new LambdaQueryWrapper<>();
+        recentWrapper.eq(CollectionItem::getUserId, userId)
+            .eq(CollectionItem::getDeleted, 1)
+            .ge(CollectionItem::getUpdatedAt, LocalDateTime.now().minusDays(30));
+        long recentCount = collectionItemMapper.selectCount(recentWrapper);
+        statistics.put("recentDeletedCount", recentCount);
+
+        return R.success(statistics);
     }
 
-    private CollectionItem getAndCheckOwnership(Long userId, Long id) {
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public R clearRecycleBin(Long userId) {
         LambdaQueryWrapper<CollectionItem> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(CollectionItem::getId, id).eq(CollectionItem::getDeleted, 0);
-        CollectionItem item = collectionItemMapper.selectOne(wrapper);
-        if (item == null) {
-            throw new BusinessException("收藏项不存在");
-        }
-        if (!item.getUserId().equals(userId)) {
-            throw new BusinessException(403, "无权操作该收藏项");
-        }
-        return item;
-    }
+        wrapper.eq(CollectionItem::getUserId, userId)
+            .eq(CollectionItem::getDeleted, 1);
+        List<CollectionItem> deletedItems = collectionItemMapper.selectList(wrapper);
 
-    private CollectionItem getAndCheckDeletedOwnership(Long userId, Long id) {
-        LambdaQueryWrapper<CollectionItem> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(CollectionItem::getId, id).eq(CollectionItem::getDeleted, 1);
-        CollectionItem item = collectionItemMapper.selectOne(wrapper);
-        if (item == null) {
-            throw new BusinessException("回收站中不存在该收藏项");
+        for (CollectionItem item : deletedItems) {
+            collectionItemTagMapper.deleteByCollectionItemId(item.getId());
         }
-        if (!item.getUserId().equals(userId)) {
-            throw new BusinessException(403, "无权操作该收藏项");
-        }
-        return item;
-    }
 
-    private void handleSort(LambdaQueryWrapper<CollectionItem> wrapper, String sortBy, String sortOrder) {
-        boolean isAsc = "asc".equalsIgnoreCase(sortOrder);
-        if (!StringUtils.hasText(sortBy)) {
-            wrapper.orderByDesc(CollectionItem::getCreatedAt);
-            return;
-        }
-        switch (sortBy) {
-            case "updatedAt" -> wrapper.orderBy(true, isAsc, CollectionItem::getUpdatedAt);
-            case "visitCount" -> wrapper.orderBy(true, isAsc, CollectionItem::getVisitCount);
-            default -> wrapper.orderBy(true, isAsc, CollectionItem::getCreatedAt);
-        }
-    }
+        collectionItemMapper.delete(wrapper);
 
-    private LocalDateTime parseStartOfDay(String dateStr) {
-        try {
-            return LocalDate.parse(dateStr).atStartOfDay();
-        } catch (DateTimeParseException e) {
-            return null;
-        }
+        log.info("用户[{}]清空回收站，共删除[{}]项", userId, deletedItems.size());
+        return R.success("清空回收站成功");
     }
+*/
 
-    private LocalDateTime parseEndOfDay(String dateStr) {
-        try {
-            return LocalDate.parse(dateStr).atTime(LocalTime.MAX);
-        } catch (DateTimeParseException e) {
-            return null;
-        }
-    }
+
 
     private CollectionItem findExistingByUrl(Long userId, String normalizedUrl) {
         if (!StringUtils.hasText(normalizedUrl)) {
@@ -687,185 +645,127 @@ public class CollectionItemServiceImpl implements ICollectionItemService {
         return collectionItemMapper.selectOne(wrapper);
     }
 
-    private String normalizeUrl(String rawUrl) {
-        if (!StringUtils.hasText(rawUrl)) {
-            return null;
-        }
-        String url = rawUrl.trim();
+    private String normalizeUrl(String url) {
         if (!StringUtils.hasText(url)) {
-            return null;
-        }
-        if (!url.matches("^[a-zA-Z][a-zA-Z0-9+.-]*://.*")) {
-            url = "https://" + url;
+            return url;
         }
         try {
-            URI uri = new URI(url).normalize();
-            String scheme = uri.getScheme() == null ? "https" : uri.getScheme().toLowerCase();
-            String host = uri.getHost();
-            if (!StringUtils.hasText(host) && StringUtils.hasText(uri.getAuthority())) {
-                host = uri.getAuthority();
+            URI uri = new URI(url.trim());
+            String scheme = uri.getScheme() != null ? uri.getScheme().toLowerCase() : null;
+            String host = uri.getHost() != null ? uri.getHost().toLowerCase() : null;
+            String path = uri.getPath();
+            if (StringUtils.hasText(path) && path.length() > 1 && path.endsWith("/")) {
+                path = path.substring(0, path.length() - 1);
             }
-            if (!StringUtils.hasText(host)) {
-                return url;
-            }
-            host = host.toLowerCase();
-            int port = uri.getPort();
-            String path = StringUtils.hasText(uri.getPath()) ? uri.getPath() : "/";
-            String query = uri.getQuery();
-            String normalized = scheme + "://" + host;
-            if (port > 0 && port != 80 && port != 443) {
-                normalized += ":" + port;
-            }
-            normalized += path;
-            if (StringUtils.hasText(query)) {
-                normalized += "?" + query;
-            }
-            return normalized;
+            URI normalizedUri = new URI(
+                    scheme,
+                    uri.getUserInfo(),
+                    host,
+                    uri.getPort(),
+                    path,
+                    uri.getQuery(),
+                    uri.getFragment()
+            );
+            return normalizedUri.toString();
         } catch (URISyntaxException e) {
-            return url;
+            throw new BusinessException("链接地址格式不正确");
         }
     }
 
-    private String extractSource(String normalizedUrl) {
-        if (!StringUtils.hasText(normalizedUrl)) {
-            return null;
+    private Integer detectSourceType(String url) {
+        String lowerUrl = url.toLowerCase();
+        if (lowerUrl.matches(".*\\.(jpg|jpeg|png|gif|webp|svg|bmp)(\\?.*)?$")) {
+            return 2;
         }
+        if (lowerUrl.matches(".*\\.(mp4|avi|mov|mkv|flv|webm|m3u8)(\\?.*)?$")) {
+            return 4;
+        }
+        if (lowerUrl.matches(".*\\.(txt|md|doc|docx|pdf)(\\?.*)?$")) {
+            return 3;
+        }
+        return 1;
+    }
+
+    private String extractSource(String url) {
         try {
-            URI uri = new URI(normalizedUrl);
+            URI uri = new URI(url);
             return uri.getHost();
         } catch (URISyntaxException e) {
             return null;
         }
     }
 
-    private String deriveTitleFromUrl(String normalizedUrl) {
-        if (!StringUtils.hasText(normalizedUrl)) {
-            return "未命名收藏";
-        }
-        try {
-            URI uri = new URI(normalizedUrl);
-            String host = uri.getHost();
-            return StringUtils.hasText(host) ? host : normalizedUrl;
-        } catch (URISyntaxException e) {
-            return normalizedUrl;
-        }
-    }
-
-    private Integer detectSourceType(String normalizedUrl) {
-        if (!StringUtils.hasText(normalizedUrl)) {
-            return 1;
-        }
-        String lowerUrl = normalizedUrl.toLowerCase();
-        if (lowerUrl.matches(".*\\.(png|jpg|jpeg|gif|bmp|webp|svg)(\\?.*)?$")) {
-            return 2;
-        }
-        if (lowerUrl.matches(".*\\.(mp4|mov|avi|mkv|wmv|flv|webm)(\\?.*)?$")) {
-            return 4;
-        }
-        if (lowerUrl.matches(".*\\.(txt|md|pdf|doc|docx)(\\?.*)?$")) {
-            return 3;
-        }
-        return 1;
-    }
-
-    private void fillNonHtmlMetadata(UrlMetadataResponseDTO responseDTO, String url, String contentType) {
-        responseDTO.setTitle(deriveTitleFromUrl(url));
-        responseDTO.setSummary(contentType);
+    private void fillNonHtmlMetadata(UrlMetadataResponseDTO responseDTO, String finalUrl, String contentType) {
+        responseDTO.setTitle(defaultTitleFromUrl(finalUrl));
         if (responseDTO.getSourceType() == 2) {
-            responseDTO.setCoverImage(url);
+            responseDTO.setThumbnail(finalUrl);
+            responseDTO.setDescription("检测到图片资源");
+            return;
+        }
+        if (responseDTO.getSourceType() == 4) {
+            responseDTO.setDescription("检测到视频资源");
+            return;
+        }
+        if (responseDTO.getSourceType() == 3) {
+            responseDTO.setDescription("检测到文档资源");
+            return;
+        }
+        if (StringUtils.hasText(contentType)) {
+            responseDTO.setDescription("资源类型：" + contentType);
         }
     }
 
-    private void fillHtmlMetadata(UrlMetadataResponseDTO responseDTO, Document document, String fallbackUrl) {
-        String html = document.outerHtml();
-        responseDTO.setTitle(extractTitle(document, html, fallbackUrl));
-        responseDTO.setSummary(extractDescription(document, html));
-        responseDTO.setCoverImage(extractImage(document, html));
+    private void fillHtmlMetadata(UrlMetadataResponseDTO responseDTO, Document document, String finalUrl) {
+        String title = firstNonBlank(
+                document.select("meta[property=og:title]").attr("content"),
+                document.title(),
+                defaultTitleFromUrl(finalUrl)
+        );
+        String description = firstNonBlank(
+                document.select("meta[property=og:description]").attr("content"),
+                document.select("meta[name=description]").attr("content")
+        );
+        String thumbnail = firstNonBlank(
+                document.select("meta[property=og:image]").attr("content"),
+                document.select("meta[name=twitter:image]").attr("content")
+        );
+        if (StringUtils.hasText(thumbnail)) {
+            thumbnail = resolveUrl(finalUrl, thumbnail);
+        }
+
+        responseDTO.setTitle(title);
+        responseDTO.setDescription(description);
+        responseDTO.setThumbnail(thumbnail);
     }
 
-    private String extractTitle(Document document, String html, String fallbackUrl) {
-        String title = metaContent(document, "meta[property=og:title]");
-        if (!StringUtils.hasText(title)) {
-            title = metaContent(document, "meta[name=twitter:title]");
+    private String defaultTitleFromUrl(String url) {
+        try {
+            URI uri = new URI(url);
+            String host = uri.getHost();
+            String path = uri.getPath();
+            if (!StringUtils.hasText(path) || "/".equals(path)) {
+                return host;
+            }
+            return host + path;
+        } catch (URISyntaxException e) {
+            return url;
         }
-        if (!StringUtils.hasText(title)) {
-            Matcher matcher = OG_TITLE_PATTERN.matcher(html);
-            if (matcher.find()) {
-                title = matcher.group(1);
+    }
+
+    private String resolveUrl(String baseUrl, String targetUrl) {
+        try {
+            return new URI(baseUrl).resolve(targetUrl).toString();
+        } catch (URISyntaxException e) {
+            return targetUrl;
+        }
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (StringUtils.hasText(value)) {
+                return value.trim();
             }
         }
-        if (!StringUtils.hasText(title)) {
-            title = document.title();
-        }
-        if (!StringUtils.hasText(title)) {
-            title = deriveTitleFromUrl(fallbackUrl);
-        }
-        return truncate(title, MAX_PREVIEW_TITLE_LENGTH);
-    }
-
-    private String extractDescription(Document document, String html) {
-        String description = metaContent(document, "meta[property=og:description]");
-        if (!StringUtils.hasText(description)) {
-            description = metaContent(document, "meta[name=description]");
-        }
-        if (!StringUtils.hasText(description)) {
-            description = metaContent(document, "meta[name=twitter:description]");
-        }
-        if (!StringUtils.hasText(description)) {
-            Matcher matcher = OG_DESCRIPTION_PATTERN.matcher(html);
-            if (matcher.find()) {
-                description = matcher.group(1);
-            }
-        }
-        if (!StringUtils.hasText(description)) {
-            String bodyText = document.body() != null ? document.body().text() : null;
-            if (StringUtils.hasText(bodyText)) {
-                description = bodyText;
-            }
-        }
-        return truncate(description, MAX_PREVIEW_SUMMARY_LENGTH);
-    }
-
-    private String extractImage(Document document, String html) {
-        String image = metaContent(document, "meta[property=og:image]");
-        if (!StringUtils.hasText(image)) {
-            image = metaContent(document, "meta[name=twitter:image]");
-        }
-        if (!StringUtils.hasText(image)) {
-            Matcher matcher = OG_IMAGE_PATTERN.matcher(html);
-            if (matcher.find()) {
-                image = matcher.group(1);
-            }
-        }
-        if (!StringUtils.hasText(image)) {
-            Element firstImage = document.selectFirst("img[src]");
-            if (firstImage != null) {
-                image = firstImage.absUrl("src");
-                if (!StringUtils.hasText(image)) {
-                    image = firstImage.attr("src");
-                }
-            }
-        }
-        return image;
-    }
-
-    private String metaContent(Document document, String cssQuery) {
-        Element element = document.selectFirst(cssQuery);
-        if (element == null) {
-            return null;
-        }
-        String content = element.attr("content");
-        return StringUtils.hasText(content) ? content.trim() : null;
-    }
-
-    private String truncate(String value, int maxLength) {
-        if (!StringUtils.hasText(value)) {
-            return null;
-        }
-        String trimmed = value.trim();
-        if (trimmed.length() <= maxLength) {
-            return trimmed;
-        }
-        return trimmed.substring(0, maxLength);
+        return null;
     }
 }

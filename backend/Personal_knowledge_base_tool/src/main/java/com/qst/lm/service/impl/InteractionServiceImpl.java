@@ -29,15 +29,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-/**
- * 互动服务实现类
- * 提供点赞、评论、收藏等互动功能
- * 包含防刷机制(使用Redis,1秒间隔限制)和敏感词过滤
- */
 @Slf4j
 @Service
 public class InteractionServiceImpl implements IInteractionService {
@@ -52,29 +50,10 @@ public class InteractionServiceImpl implements IInteractionService {
     private final CollectionItemMapper collectionItemMapper;
     private final UserMapper userMapper;
 
-    /**
-     * Redis防刷key前缀 - 点赞
-     */
     private static final String LIKE_RATE_LIMIT_KEY = "interaction:like:limit:";
-
-    /**
-     * Redis防刷key前缀 - 评论
-     */
     private static final String COMMENT_RATE_LIMIT_KEY = "interaction:comment:limit:";
-
-    /**
-     * Redis防刷key前缀 - 收藏
-     */
     private static final String COLLECT_RATE_LIMIT_KEY = "interaction:collect:limit:";
-
-    /**
-     * 防刷间隔时间(秒)
-     */
     private static final long RATE_LIMIT_SECONDS = 1;
-
-    /**
-     * 评论防刷间隔时间(秒)
-     */
     private static final long COMMENT_RATE_LIMIT_SECONDS = 5;
 
     public InteractionServiceImpl(InteractionLikeMapper interactionLikeMapper,
@@ -100,19 +79,16 @@ public class InteractionServiceImpl implements IInteractionService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public R like(Long userId, Object dto) {
-        // 参数校验
         if (dto == null) {
             throw new BusinessException("请求参数不能为空");
         }
 
-        // 防刷检查
         String rateLimitKey = LIKE_RATE_LIMIT_KEY + userId;
         Boolean exists = redisTemplate.hasKey(rateLimitKey);
         if (Boolean.TRUE.equals(exists)) {
             throw new BusinessException("操作过于频繁,请稍后再试");
         }
 
-        // 从dto中解析参数(使用Map兼容不同DTO类型)
         Map<String, Object> params = parseDto(dto);
         Long targetId = getLongParam(params, "targetId");
         String targetType = getStringParam(params, "targetType");
@@ -121,23 +97,19 @@ public class InteractionServiceImpl implements IInteractionService {
             throw new BusinessException("参数不完整");
         }
 
-        // 检查是否已点赞
         InteractionLike existing = interactionLikeMapper.existsByUserAndTarget(userId, targetId, targetType);
         if (existing != null) {
             throw new BusinessException("已点赞");
         }
 
-        // 执行点赞
         InteractionLike like = new InteractionLike();
         like.setUserId(userId);
         like.setTargetId(targetId);
         like.setTargetType(targetType);
         interactionLikeMapper.insert(like);
 
-        // 设置防刷标记
         redisTemplate.opsForValue().set(rateLimitKey, "1", RATE_LIMIT_SECONDS, TimeUnit.SECONDS);
 
-        // 发送点赞通知
         try {
             Long targetUserId = findTargetContentUserId(targetId, targetType);
             if (targetUserId != null && !targetUserId.equals(userId)) {
@@ -148,7 +120,6 @@ public class InteractionServiceImpl implements IInteractionService {
             log.warn("发送点赞通知失败", e);
         }
 
-        // 如果是笔记点赞，更新笔记热度评分
         if ("note".equals(targetType)) {
             try {
                 incrementNoteLikes(targetId);
@@ -168,7 +139,6 @@ public class InteractionServiceImpl implements IInteractionService {
             throw new BusinessException("请求参数不能为空");
         }
 
-        // 防刷检查
         String rateLimitKey = LIKE_RATE_LIMIT_KEY + userId;
         Boolean exists = redisTemplate.hasKey(rateLimitKey);
         if (Boolean.TRUE.equals(exists)) {
@@ -183,22 +153,18 @@ public class InteractionServiceImpl implements IInteractionService {
             throw new BusinessException("参数不完整");
         }
 
-        // 查找点赞记录
         InteractionLike like = interactionLikeMapper.existsByUserAndTarget(userId, targetId, targetType);
         if (like == null) {
             throw new BusinessException("未找到点赞记录");
         }
 
-        // 逻辑删除点赞记录
         LambdaUpdateWrapper<InteractionLike> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(InteractionLike::getId, like.getId())
                 .set(InteractionLike::getDeleted, 1);
         interactionLikeMapper.update(null, wrapper);
 
-        // 设置防刷标记
         redisTemplate.opsForValue().set(rateLimitKey, "1", RATE_LIMIT_SECONDS, TimeUnit.SECONDS);
 
-        // 如果是笔记取消点赞，更新笔记热度评分
         if ("note".equals(targetType)) {
             try {
                 decrementNoteLikes(targetId);
@@ -218,7 +184,6 @@ public class InteractionServiceImpl implements IInteractionService {
             throw new BusinessException("请求参数不能为空");
         }
 
-        // 防刷检查
         String rateLimitKey = COMMENT_RATE_LIMIT_KEY + userId;
         Boolean exists = redisTemplate.hasKey(rateLimitKey);
         if (Boolean.TRUE.equals(exists)) {
@@ -235,10 +200,8 @@ public class InteractionServiceImpl implements IInteractionService {
             throw new BusinessException("参数不完整");
         }
 
-        // 敏感词过滤
         String filteredContent = SensitiveWordFilter.filterSensitiveWord(content);
 
-        // 检查评论嵌套层级
         if (parentId != null) {
             int depth = 0;
             Long currentParentId = parentId;
@@ -253,7 +216,6 @@ public class InteractionServiceImpl implements IInteractionService {
             }
         }
 
-        // 发表评论
         InteractionComment comment = new InteractionComment();
         comment.setUserId(userId);
         comment.setTargetId(targetId);
@@ -262,10 +224,8 @@ public class InteractionServiceImpl implements IInteractionService {
         comment.setParentId(parentId);
         interactionCommentMapper.insert(comment);
 
-        // 设置防刷标记
         redisTemplate.opsForValue().set(rateLimitKey, "1", COMMENT_RATE_LIMIT_SECONDS, TimeUnit.SECONDS);
 
-        // 发送评论通知
         try {
             Long targetUserId = findTargetContentUserId(targetId, targetType);
             if (targetUserId != null && !targetUserId.equals(userId)) {
@@ -302,7 +262,6 @@ public class InteractionServiceImpl implements IInteractionService {
                 .eq(InteractionComment::getTargetType, targetType)
                 .eq(InteractionComment::getDeleted, 0);
 
-        // 如果指定了parentId,则查询该评论下的回复;否则查询一级评论
         if (parentId != null) {
             wrapper.eq(InteractionComment::getParentId, parentId);
         } else {
@@ -311,7 +270,6 @@ public class InteractionServiceImpl implements IInteractionService {
 
         wrapper.orderByAsc(InteractionComment::getCreatedAt);
         Page<InteractionComment> result = interactionCommentMapper.selectPage(pageObj, wrapper);
-
         return R.success(result);
     }
 
@@ -322,7 +280,6 @@ public class InteractionServiceImpl implements IInteractionService {
             throw new BusinessException("请求参数不能为空");
         }
 
-        // 防刷检查
         String rateLimitKey = COLLECT_RATE_LIMIT_KEY + userId;
         Boolean exists = redisTemplate.hasKey(rateLimitKey);
         if (Boolean.TRUE.equals(exists)) {
@@ -337,23 +294,19 @@ public class InteractionServiceImpl implements IInteractionService {
             throw new BusinessException("参数不完整");
         }
 
-        // 检查是否已收藏
         InteractionCollect existing = interactionCollectMapper.existsByUserAndTarget(userId, targetId, targetType);
         if (existing != null) {
             throw new BusinessException("已收藏");
         }
 
-        // 执行收藏
         InteractionCollect collect = new InteractionCollect();
         collect.setUserId(userId);
         collect.setTargetId(targetId);
         collect.setTargetType(targetType);
         interactionCollectMapper.insert(collect);
 
-        // 设置防刷标记
         redisTemplate.opsForValue().set(rateLimitKey, "1", RATE_LIMIT_SECONDS, TimeUnit.SECONDS);
 
-        // 发送收藏通知
         try {
             Long targetUserId = findTargetContentUserId(targetId, targetType);
             if (targetUserId != null && !targetUserId.equals(userId)) {
@@ -383,13 +336,11 @@ public class InteractionServiceImpl implements IInteractionService {
             throw new BusinessException("参数不完整");
         }
 
-        // 查找收藏记录
         InteractionCollect collect = interactionCollectMapper.existsByUserAndTarget(userId, targetId, targetType);
         if (collect == null) {
             throw new BusinessException("未找到收藏记录");
         }
 
-        // 逻辑删除收藏记录
         LambdaUpdateWrapper<InteractionCollect> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(InteractionCollect::getId, collect.getId())
                 .set(InteractionCollect::getDeleted, 1);
@@ -459,18 +410,101 @@ public class InteractionServiceImpl implements IInteractionService {
         return R.success(result);
     }
 
-    /**
-     * 将DTO解析为Map(兼容不同DTO类型)
-     *
-     * @param dto DTO对象
-     * @return Map形式的参数
-     */
+    @Override
+    public R getInteractionMessages(Long userId, String type, Integer isRead, Integer pageNum, Integer pageSize) {
+        Integer notifyType = resolveNotifyType(type);
+        if (notifyType == null) {
+            throw new BusinessException("互动类型不支持");
+        }
+
+        int currentPage = pageNum == null || pageNum < 1 ? 1 : pageNum;
+        int currentSize = pageSize == null || pageSize < 1 ? 10 : pageSize;
+        int offset = (currentPage - 1) * currentSize;
+
+        LambdaQueryWrapper<Notification> wrapper = new LambdaQueryWrapper<Notification>()
+                .eq(Notification::getUserId, userId)
+                .eq(Notification::getNotifyType, notifyType)
+                .orderByAsc(Notification::getIsRead)
+                .orderByDesc(Notification::getCreatedAt);
+        if (isRead != null) {
+            wrapper.eq(Notification::getIsRead, isRead);
+        }
+
+        List<Notification> notifications = notificationMapper.selectList(wrapper);
+        List<Map<String, Object>> list = new ArrayList<>();
+        int end = Math.min(offset + currentSize, notifications.size());
+        for (int i = offset; i < end; i++) {
+            list.add(convertInteractionNotification(notifications.get(i), type));
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("list", list);
+        result.put("pageNum", currentPage);
+        result.put("pageSize", currentSize);
+        result.put("total", notifications.size());
+        return R.success(result);
+    }
+
+    @Override
+    public R markInteractionMessageRead(Long userId, Long id) {
+        Notification notification = notificationMapper.selectOne(new LambdaQueryWrapper<Notification>()
+                .eq(Notification::getId, id)
+                .eq(Notification::getUserId, userId)
+                .in(Notification::getNotifyType, 5, 6, 7));
+        if (notification == null) {
+            throw new BusinessException("互动消息不存在或无权限");
+        }
+        if (notification.getIsRead() == null || notification.getIsRead() == 0) {
+            notification.setIsRead(1);
+            notificationMapper.updateById(notification);
+        }
+        return R.success("标记已读成功");
+    }
+
+    @Override
+    public R markAllInteractionMessagesRead(Long userId, String type) {
+        Integer notifyType = resolveNotifyType(type);
+        if (notifyType == null) {
+            throw new BusinessException("互动类型不支持");
+        }
+        LambdaUpdateWrapper<Notification> wrapper = new LambdaUpdateWrapper<Notification>()
+                .eq(Notification::getUserId, userId)
+                .eq(Notification::getNotifyType, notifyType)
+                .eq(Notification::getIsRead, 0)
+                .set(Notification::getIsRead, 1);
+        notificationMapper.update(null, wrapper);
+        return R.success("全部已读成功");
+    }
+
+    @Override
+    public R deleteInteractionMessage(Long userId, Long id) {
+        int rows = notificationMapper.delete(new LambdaQueryWrapper<Notification>()
+                .eq(Notification::getId, id)
+                .eq(Notification::getUserId, userId)
+                .in(Notification::getNotifyType, 5, 6, 7));
+        if (rows <= 0) {
+            throw new BusinessException("互动消息不存在或无权限");
+        }
+        return R.success("删除成功");
+    }
+
+    @Override
+    public R getInteractionStats(Long userId) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("commentUnread", countUnread(userId, 6));
+        result.put("likeUnread", countUnread(userId, 5));
+        result.put("collectUnread", countUnread(userId, 7));
+        result.put("commentTotal", countTotal(userId, 6));
+        result.put("likeTotal", countTotal(userId, 5));
+        result.put("collectTotal", countTotal(userId, 7));
+        return R.success(result);
+    }
+
     @SuppressWarnings("unchecked")
     private Map<String, Object> parseDto(Object dto) {
         if (dto instanceof Map) {
             return (Map<String, Object>) dto;
         }
-        // 对于非Map类型,尝试通过反射获取属性
         Map<String, Object> params = new HashMap<>(8);
         try {
             java.lang.reflect.Field[] fields = dto.getClass().getDeclaredFields();
@@ -485,9 +519,6 @@ public class InteractionServiceImpl implements IInteractionService {
         return params;
     }
 
-    /**
-     * 从Map中获取Long类型参数
-     */
     private Long getLongParam(Map<String, Object> params, String key) {
         Object value = params.get(key);
         if (value == null) {
@@ -502,9 +533,6 @@ public class InteractionServiceImpl implements IInteractionService {
         return Long.parseLong(value.toString());
     }
 
-    /**
-     * 从Map中获取String类型参数
-     */
     private String getStringParam(Map<String, Object> params, String key) {
         Object value = params.get(key);
         if (value == null) {
@@ -513,9 +541,6 @@ public class InteractionServiceImpl implements IInteractionService {
         return value.toString();
     }
 
-    /**
-     * 根据目标类型查找内容所属用户ID
-     */
     private Long findTargetContentUserId(Long targetId, String targetType) {
         try {
             if ("collection".equalsIgnoreCase(targetType)) {
@@ -534,9 +559,6 @@ public class InteractionServiceImpl implements IInteractionService {
         return null;
     }
 
-    /**
-     * 获取用户昵称
-     */
     private String getUserNickname(Long userId) {
         try {
             User user = userMapper.selectById(userId);
@@ -547,18 +569,8 @@ public class InteractionServiceImpl implements IInteractionService {
         }
     }
 
-    /**
-     * 创建互动通知
-     *
-     * @param targetUserId   目标内容所属用户ID
-     * @param actorId        执行操作的用户ID
-     * @param actorNickname  执行操作的用户昵称
-     * @param targetId       目标内容ID
-     * @param targetType     目标内容类型
-     * @param notifyType     通知类型 (5=点赞, 6=评论, 7=收藏)
-     */
     private void createInteractionNotification(Long targetUserId, Long actorId, String actorNickname,
-                                                Long targetId, String targetType, int notifyType) {
+                                               Long targetId, String targetType, int notifyType) {
         try {
             String typeDesc;
             switch (notifyType) {
@@ -575,8 +587,9 @@ public class InteractionServiceImpl implements IInteractionService {
                     typeDesc = "互动了";
             }
 
-            String title = actorNickname + typeDesc + "您的" + targetType;
-            String content = actorNickname + typeDesc + "您的" + targetType + "(ID:" + targetId + ")";
+            String readableType = readableTargetType(targetType);
+            String title = actorNickname + typeDesc + "您的" + readableType;
+            String content = actorNickname + typeDesc + "您的" + readableType + "(ID:" + targetId + ")";
 
             Notification notification = new Notification();
             notification.setUserId(targetUserId);
@@ -592,10 +605,142 @@ public class InteractionServiceImpl implements IInteractionService {
         }
     }
 
-    /**
-     * 增加笔记点赞数并更新热度评分
-     * @param noteId 笔记ID
-     */
+    private String readableTargetType(String targetType) {
+        if ("note".equalsIgnoreCase(targetType)) {
+            return "笔记";
+        }
+        if ("collection".equalsIgnoreCase(targetType)) {
+            return "收藏集";
+        }
+        if ("collection_item".equalsIgnoreCase(targetType) || "item".equalsIgnoreCase(targetType)) {
+            return "收藏项";
+        }
+        return targetType;
+    }
+
+    private Integer resolveNotifyType(String type) {
+        if ("like".equalsIgnoreCase(type)) {
+            return 5;
+        }
+        if ("comment".equalsIgnoreCase(type)) {
+            return 6;
+        }
+        if ("collect".equalsIgnoreCase(type)) {
+            return 7;
+        }
+        return null;
+    }
+
+    private Map<String, Object> convertInteractionNotification(Notification notification, String type) {
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("id", notification.getId());
+        item.put("interactionType", type);
+        item.put("isRead", notification.getIsRead());
+        item.put("createdAt", notification.getCreatedAt());
+        item.put("summary", notification.getContent());
+        item.put("targetId", parseTargetId(notification.getContent()));
+        item.put("targetType", parseTargetType(notification.getTitle()));
+        item.put("targetUrl", buildTargetUrl(parseTargetType(notification.getTitle()), parseTargetId(notification.getContent())));
+        item.put("targetTitle", loadTargetTitle(parseTargetType(notification.getTitle()), parseTargetId(notification.getContent())));
+        item.put("actorName", parseActorName(notification.getTitle()));
+        item.put("actorAvatar", null);
+        item.put("actorId", null);
+        return item;
+    }
+
+    private String parseActorName(String title) {
+        if (!StringUtils.hasText(title)) {
+            return "用户";
+        }
+        int index = title.indexOf("点赞了");
+        if (index < 0) index = title.indexOf("评论了");
+        if (index < 0) index = title.indexOf("收藏了");
+        if (index < 0) {
+            return title;
+        }
+        return title.substring(0, index);
+    }
+
+    private Long parseTargetId(String content) {
+        if (!StringUtils.hasText(content)) {
+            return null;
+        }
+        int start = content.indexOf("(ID:");
+        int end = content.indexOf(")", start);
+        if (start < 0 || end < 0) {
+            return null;
+        }
+        try {
+            return Long.parseLong(content.substring(start + 4, end));
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private String parseTargetType(String title) {
+        if (!StringUtils.hasText(title)) {
+            return null;
+        }
+        if (title.contains("笔记")) {
+            return "note";
+        }
+        if (title.contains("收藏集")) {
+            return "collection";
+        }
+        if (title.contains("收藏项")) {
+            return "collection_item";
+        }
+        return null;
+    }
+
+    private String buildTargetUrl(String targetType, Long targetId) {
+        if (targetId == null || targetType == null) {
+            return null;
+        }
+        if ("note".equals(targetType)) {
+            return "/creation/notes/" + targetId + "#comments";
+        }
+        if ("collection".equals(targetType)) {
+            return "/collections/" + targetId;
+        }
+        if ("collection_item".equals(targetType)) {
+            return "/collections/" + targetId + "/workspace";
+        }
+        return null;
+    }
+
+    private String loadTargetTitle(String targetType, Long targetId) {
+        if (targetId == null || targetType == null) {
+            return null;
+        }
+        if ("note".equals(targetType)) {
+            Note note = noteMapper.selectById(targetId);
+            return note != null ? note.getTitle() : null;
+        }
+        if ("collection".equals(targetType)) {
+            Collection collection = collectionMapper.selectById(targetId);
+            return collection != null ? collection.getName() : null;
+        }
+        if ("collection_item".equals(targetType)) {
+            CollectionItem item = collectionItemMapper.selectById(targetId);
+            return item != null ? item.getTitle() : null;
+        }
+        return null;
+    }
+
+    private Long countUnread(Long userId, Integer notifyType) {
+        return notificationMapper.selectCount(new LambdaQueryWrapper<Notification>()
+                .eq(Notification::getUserId, userId)
+                .eq(Notification::getNotifyType, notifyType)
+                .eq(Notification::getIsRead, 0));
+    }
+
+    private Long countTotal(Long userId, Integer notifyType) {
+        return notificationMapper.selectCount(new LambdaQueryWrapper<Notification>()
+                .eq(Notification::getUserId, userId)
+                .eq(Notification::getNotifyType, notifyType));
+    }
+
     private void incrementNoteLikes(Long noteId) {
         try {
             Note note = noteMapper.selectById(noteId);
@@ -603,31 +748,14 @@ public class InteractionServiceImpl implements IInteractionService {
                 log.warn("笔记[{}]不存在，无法更新热度", noteId);
                 return;
             }
-
-            // 增加点赞数
-            Integer currentLikes = note.getLikes() != null ? note.getLikes() : 0;
-            note.setLikes(currentLikes + 1);
-
-            // 重新计算热度评分
-            Integer views = note.getViews() != null ? note.getViews() : 0;
-            Integer likes = note.getLikes();
-            double hotScore = (views * 0.6) + (likes * 0.4);
-            note.setHotScore(hotScore);
-
-            // 更新数据库
+            Integer likes = note.getLikes() == null ? 0 : note.getLikes();
+            note.setLikes(likes + 1);
             noteMapper.updateById(note);
-
-            log.debug("笔记[{}]点赞数更新: {} -> {}, 热度评分: {}",
-                    noteId, currentLikes, note.getLikes(), note.getHotScore());
         } catch (Exception e) {
-            log.error("更新笔记[{}]热度评分失败", noteId, e);
+            log.warn("更新笔记点赞数失败, noteId={}", noteId, e);
         }
     }
 
-    /**
-     * 减少笔记点赞数并更新热度评分（取消点赞时调用）
-     * @param noteId 笔记ID
-     */
     private void decrementNoteLikes(Long noteId) {
         try {
             Note note = noteMapper.selectById(noteId);
@@ -635,24 +763,11 @@ public class InteractionServiceImpl implements IInteractionService {
                 log.warn("笔记[{}]不存在，无法更新热度", noteId);
                 return;
             }
-
-            // 减少点赞数（确保不小于0）
-            Integer currentLikes = note.getLikes() != null ? note.getLikes() : 0;
-            note.setLikes(Math.max(0, currentLikes - 1));
-
-            // 重新计算热度评分
-            Integer views = note.getViews() != null ? note.getViews() : 0;
-            Integer likes = note.getLikes();
-            double hotScore = (views * 0.6) + (likes * 0.4);
-            note.setHotScore(hotScore);
-
-            // 更新数据库
+            Integer likes = note.getLikes() == null ? 0 : note.getLikes();
+            note.setLikes(Math.max(likes - 1, 0));
             noteMapper.updateById(note);
-
-            log.debug("笔记[{}]点赞数减少: {} -> {}, 热度评分: {}",
-                    noteId, currentLikes, note.getLikes(), note.getHotScore());
         } catch (Exception e) {
-            log.error("更新笔记[{}]热度评分失败", noteId, e);
+            log.warn("更新笔记点赞数失败, noteId={}", noteId, e);
         }
     }
 }
