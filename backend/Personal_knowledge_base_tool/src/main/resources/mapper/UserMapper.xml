@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.qst.lm.mapper.UserMapper">
+
+    <!-- 用户统计信息查询（跨表聚合） -->
+    <select id="selectUserStatistics" resultType="map">
+        SELECT
+            (SELECT COUNT(*) FROM collection WHERE user_id = #{userId} AND deleted = 0) AS collection_count,
+            (SELECT COUNT(*) FROM collection_item WHERE user_id = #{userId} AND deleted = 0) AS item_count,
+            (SELECT COUNT(*) FROM note WHERE user_id = #{userId} AND deleted = 0) AS note_count,
+            (SELECT COUNT(*) FROM notification WHERE user_id = #{userId} AND is_read = 0 AND deleted = 0) AS unread_notify_count
+    </select>
+
+</mapper>

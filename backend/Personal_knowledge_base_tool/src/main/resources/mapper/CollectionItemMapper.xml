@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.qst.lm.mapper.CollectionItemMapper">
+
+    <!-- 收藏项带标签联合查询 -->
+    <select id="selectItemWithTags" resultType="map">
+        SELECT
+            ci.id,
+            ci.user_id,
+            ci.collection_id,
+            ci.source_type,
+            ci.title,
+            ci.source_url,
+            ci.note_id,
+            ci.related_note_id,
+            ci.note_source_label,
+            ci.core_abstract,
+            ci.keywords,
+            ci.study_goal,
+            ci.digest_status,
+            ci.is_read,
+            ci.visit_count,
+            ci.category_id,
+            ci.source,
+            ci.study_progress,
+            ci.created_at,
+            ci.updated_at,
+            t.id AS tag_id,
+            t.name AS tag_name,
+            t.color AS tag_color
+        FROM collection_item ci
+        LEFT JOIN collection_item_tag cit ON ci.id = cit.collection_item_id
+        LEFT JOIN tag t ON cit.tag_id = t.id AND t.deleted = 0
+        WHERE ci.user_id = #{userId}
+          AND ci.deleted = 0
+        <if test="collectionId != null">
+            AND ci.collection_id = #{collectionId}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (ci.title LIKE CONCAT('%', #{keyword}, '%')
+                 OR ci.core_abstract LIKE CONCAT('%', #{keyword}, '%')
+                 OR ci.keywords LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="digestStatus != null and digestStatus != ''">
+            AND ci.digest_status = #{digestStatus}
+        </if>
+        <if test="studyProgress != null and studyProgress != ''">
+            AND ci.study_progress = #{studyProgress}
+        </if>
+        <if test="categoryId != null">
+            AND ci.category_id = #{categoryId}
+        </if>
+        <if test="sourceType != null">
+            AND ci.source_type = #{sourceType}
+        </if>
+        <if test="isRead != null">
+            AND ci.is_read = #{isRead}
+        </if>
+        ORDER BY ci.updated_at DESC
+    </select>
+
+    <!-- 收藏项统计查询 -->
+    <select id="selectStatistics" resultType="map">
+        SELECT
+            COUNT(*) AS total,
+            SUM(CASE WHEN digest_status = 'undigest' THEN 1 ELSE 0 END) AS undigest_count,
+            SUM(CASE WHEN digest_status = 'digesting' THEN 1 ELSE 0 END) AS digesting_count,
+            SUM(CASE WHEN digest_status = 'digested' THEN 1 ELSE 0 END) AS digested_count,
+            SUM(CASE WHEN digest_status = 'abandoned' THEN 1 ELSE 0 END) AS abandoned_count,
+            SUM(CASE WHEN is_read = 0 THEN 1 ELSE 0 END) AS unread_count
+        FROM collection_item
+        WHERE user_id = #{userId} AND deleted = 0
+    </select>
+
+</mapper>

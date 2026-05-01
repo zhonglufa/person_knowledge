@@ -1,0 +1,115 @@
+spring:
+  # 邮件配置
+  mail:
+    host: smtp.qq.com
+    port: 587
+    username: 1836553412@qq.com
+    password: qzieqhwlxwdobife
+    from: 1836553412@qq.com
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          socketFactory:
+            class: javax.net.ssl.SSLSocketFactory
+            port: 465
+          ssl:
+            enable: true
+
+  # 数据库配置
+  datasource:
+    url: jdbc:mysql://localhost:3306/knowledge_base?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  # MyBatis-Plus配置
+  mybatis-plus:
+    # XML映射文件路径
+    mapper-locations: classpath*:mapper/**/*.xml
+    # 实体类扫描包路径
+    type-aliases-package: com.qst.lm.pojo
+    # 配置日志级别
+    configuration:
+      log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+      # 驼峰命名映射
+      map-underscore-to-camel-case: true
+    global-config:
+      db-config:
+        logic-delete-field: deleted
+        logic-delete-value: 1
+        logic-not-delete-value: 0
+
+  # Redis配置
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+      database: 0
+      timeout: 60000ms
+      jedis:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+  # Elasticsearch配置
+  elasticsearch:
+    uris: http://localhost:9200
+    username: elastic
+    password: changeme
+
+  # MinIO配置
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+  # 允许bean定义覆盖
+  main:
+    allow-bean-definition-overriding: true
+    # 允许循环引用
+    allow-circular-references: true
+  # Spring MVC路径匹配配置，解决Springfox兼容性问题
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+
+
+# 应用配置
+server:
+  port: 9000
+
+# JWT配置
+jwt:
+  secret: knowledgeBaseSecretKey2024ThisIsAStrongSecretKeyThatIsAtLeast64BytesLongForHS512Algorithm
+  expiration: 86400000  # 24小时
+  tokenHeader: Authorization
+  tokenPrefix: Bearer
+
+
+
+
+# 阿里云OSS配置
+oss:
+  endpoint: https://oss-cn-hangzhou.aliyuncs.com
+  accessKeyId: your-access-key-id
+  accessKeySecret: your-access-key-secret
+  bucketName: your-bucket-name
+
+# Knife4j配置
+knife4j:
+  enable: true #启用 Knife4j 功能
+  setting:
+    language: zh_cn   #中文
+    swagger-model-name: 实体类列表   #重命名SwaggerModel名称,默认

@@ -1,0 +1,76 @@
+NEW_FILE_CODE
+# ==================== 操作系统文件 ====================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ==================== IDE 配置文件 ====================
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Eclipse
+.classpath
+.project
+.settings/
+.factorypath
+
+# VS Code
+.vscode/
+!.vscode/extensions.json
+
+# NetBeans
+nbproject/private/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+# ==================== 构建输出目录 ====================
+# Maven
+target/
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# Node.js
+node_modules/
+dist/
+dist-ssr/
+build/
+
+# ==================== 日志文件 ====================
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ==================== 环境变量和敏感信息 ====================
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# ==================== 临时文件 ====================
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+*.bak
+
+# ==================== 文档和测试文件（可选） ====================
+docs/
+测试用例/
+*.md
+!README.md
+
+# ==================== 其他 ====================
+nul
+package-lock.json
+.qoder/
+.trae/

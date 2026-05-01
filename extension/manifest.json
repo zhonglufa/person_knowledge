@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "个人知识库收藏助手",
+  "version": "1.0",
+  "description": "一键将网页、图片、文本、视频等内容保存至个人知识库",
+  "permissions": [
+    "activeTab",
+    "contextMenus",
+    "storage"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup/index.html",
+    "default_title": "收藏到个人知识库"
+  },
+  "options_page": "options.html",
+  "icons": {
+    "49": "icons/icon49.png"
+  }
+}

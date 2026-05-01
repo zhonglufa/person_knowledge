@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Encoding" native2AsciiForPropertiesFiles="true" defaultCharsetForPropertiesFiles="UTF-8">
+    <file url="file://$PROJECT_DIR$/backend/Personal_knowledge_base_tool/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/backend/Personal_knowledge_base_tool/src/main/java/com/qst/lm/config/WebMvcConfig.java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/backend/Personal_knowledge_base_tool/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/frontend/personal-knowledge-base-frontend/src" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/frontend/personal-knowledge-base-frontend/src/views/creation/TagManagement.vue" charset="UTF-8" />
+    <file url="PROJECT" charset="UTF-8" />
+  </component>
+</project>

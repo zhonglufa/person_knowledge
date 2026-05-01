@@ -1,0 +1,98 @@
+/* assets/styles/dashboard.css */
+/* 仪表盘通用样式 */
+.dashboard-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.dashboard-card:hover {
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+/* 卡片头部统一样式 */
+.dashboard-card .card-header {
+    padding: 24px 24px 16px;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.dashboard-card .card-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dashboard-card .card-title .title-icon {
+    font-size: 20px;
+}
+
+.dashboard-card .card-body {
+    padding: 20px 24px;
+}
+
+/* 空状态统一样式 */
+.dashboard-card .empty-state {
+    padding: 40px 20px;
+    text-align: center;
+}
+
+.dashboard-card .empty-text {
+    color: #909399;
+    font-size: 14px;
+    margin-bottom: 16px;
+}
+
+.dashboard-card .empty-action {
+    margin-top: 12px;
+}
+
+/* 加载状态统一样式 */
+.dashboard-card .loading-state {
+    padding: 40px 20px;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .dashboard-card .card-header {
+        padding: 20px 16px 16px;
+    }
+
+    .dashboard-card .card-title {
+        font-size: 16px;
+    }
+
+    .dashboard-card .card-body {
+        padding: 16px;
+    }
+}
+
+/* 动画效果 */
+.fade-enter-active,
+.fade-leave-active {
+    transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+    opacity: 0;
+}
+
+.slide-up-enter-active,
+.slide-up-leave-active {
+    transition: all 0.3s ease;
+}
+
+.slide-up-enter-from,
+.slide-up-leave-to {
+    opacity: 0;
+    transform: translateY(20px);
+}

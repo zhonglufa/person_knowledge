@@ -1,0 +1,172 @@
+// 间距变量
+$spacing-xs: 4px;
+$spacing-sm: 8px;
+$spacing-md: 12px;
+$spacing-lg: 16px;
+$spacing-xl: 20px;
+$spacing-xxl: 24px;
+$spacing-xxxl: 32px;
+
+// 字体大小
+$font-size-xs: 10px;
+$font-size-sm: 12px;
+$font-size-base: 14px;
+$font-size-lg: 16px;
+$font-size-xl: 18px;
+$font-size-xxl: 20px;
+$font-size-xxxl: 24px;
+$font-size-xxxxl: 32px;
+
+// 字重
+$font-weight-normal: 400;
+$font-weight-medium: 500;
+$font-weight-semibold: 600;
+$font-weight-bold: 700;
+
+// 边框圆角
+$border-radius-xs: 2px;
+$border-radius-sm: 4px;
+$border-radius-base: 4px;
+$border-radius-md: 8px;
+$border-radius-lg: 12px;
+$border-radius-xl: 16px;
+$border-radius-full: 50%;
+
+// 边框宽度
+$border-width-base: 1px;
+$border-width-light: 1px;
+$border-width-thin: 0.5px;
+
+// 过渡动画
+$transition-fast: 0.15s ease;
+$transition-normal: 0.2s ease;
+$transition-base: 0.2s ease;
+$transition-slow: 0.3s ease;
+
+// 阴影
+$shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+$shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+$shadow-base: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+$shadow-md: 0 4px 8px rgba(0, 0, 0, 0.12);
+$shadow-lg: 0 6px 16px rgba(0, 0, 0, 0.14);
+$shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.16);
+
+// Z-index层级
+$z-index-dropdown: 1000;
+$z-index-sticky: 1020;
+$z-index-fixed: 1030;
+$z-index-modal-backdrop: 1040;
+$z-index-modal: 1050;
+$z-index-popover: 1060;
+$z-index-tooltip: 1070;
+$z-index-notification: 1080;
+
+// 容器最大宽度
+$container-max-width-sm: 540px;
+$container-max-width-md: 720px;
+$container-max-width-lg: 960px;
+$container-max-width-xl: 1200px;
+$container-max-width-xxl: 1400px;
+
+// 响应式断点
+$breakpoint-xs: 0;
+$breakpoint-sm: 576px;
+$breakpoint-md: 768px;
+$breakpoint-lg: 992px;
+$breakpoint-xl: 1200px;
+$breakpoint-xxl: 1400px;
+
+// 断点Map（供 mixins 使用）
+$breakpoints: (
+  'xs': $breakpoint-xs,
+  'sm': $breakpoint-sm,
+  'md': $breakpoint-md,
+  'lg': $breakpoint-lg,
+  'xl': $breakpoint-xl,
+  'xxl': $breakpoint-xxl
+);
+
+// 状态色（与 CSS 变量同步）
+$success-color: #52c41a;
+$success-light: #73d13d;
+$success-dark: #389e0d;
+$warning-color: #faad14;
+$warning-light: #ffc53d;
+$warning-dark: #d48806;
+$error-color: #ff4d4f;
+$error-light: #ff7875;
+$error-dark: #cf1322;
+$info-color: #1890ff;
+$info-light: #40a9ff;
+$info-dark: #096dd9;
+
+// 主色
+$primary-color: #4a6cf7;
+$primary-light: #6b8cff;
+$primary-dark: #3451db;
+
+// 行高
+$line-height-base: 1.5;
+$line-height-sm: 1.35;
+$line-height-lg: 1.65;
+
+// 字间距
+$letter-spacing-base: 0;
+$letter-spacing-wide: 0.02em;
+$letter-spacing-wider: 0.05em;
+$letter-spacing-tight: -0.02em;
+
+// 动画时长
+$animation-duration-base: 0.3s;
+$animation-duration-fast: 0.2s;
+$animation-duration-slow: 0.5s;
+
+// 动画缓动函数
+$easing-linear: linear;
+$easing-in: ease-in;
+$easing-out: ease-out;
+$easing-in-out: ease-in-out;
+$easing-cubic-bezier-base: cubic-bezier(0.4, 0, 0.2, 1);
+
+// 导出变量
+:export {
+  // 间距
+  spacingXs: #{$spacing-xs};
+  spacingSm: #{$spacing-sm};
+  spacingMd: #{$spacing-md};
+  spacingLg: #{$spacing-lg};
+  spacingXl: #{$spacing-xl};
+  spacingXxl: #{$spacing-xxl};
+  spacingXxxl: #{$spacing-xxxl};
+  
+  // 字体大小
+  fontSizeXs: #{$font-size-xs};
+  fontSizeSm: #{$font-size-sm};
+  fontSizeBase: #{$font-size-base};
+  fontSizeLg: #{$font-size-lg};
+  fontSizeXl: #{$font-size-xl};
+  fontSizeXxl: #{$font-size-xxl};
+  fontSizeXxxl: #{$font-size-xxxl};
+  fontSizeXxxxl: #{$font-size-xxxxl};
+  
+  // 边框圆角
+  borderRadiusXs: #{$border-radius-xs};
+  borderRadiusSm: #{$border-radius-sm};
+  BorderRadiusBase: #{$border-radius-base};
+  BorderRadiusMd: #{$border-radius-md};
+  BorderRadiusLg: #{$border-radius-lg};
+  BorderRadiusXl: #{$border-radius-xl};
+  
+  // 阴影
+  shadowXs: #{$shadow-xs};
+  shadowSm: #{$shadow-sm};
+  shadowBase: #{$shadow-base};
+  shadowMd: #{$shadow-md};
+  shadowLg: #{$shadow-lg};
+  shadowXl: #{$shadow-xl};
+  
+  // Z-index
+  zIndexDropdown: #{$z-index-dropdown};
+  zIndexModal: #{$z-index-modal};
+  zIndexNotification: #{$z-index-notification};
+}

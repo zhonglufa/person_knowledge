@@ -1,0 +1,180 @@
+// 默认亮色主题
+$theme-light: (
+  // 主色调
+  primary-color: #409eff,
+  primary-hover: #66b1ff,
+  primary-active: #3a8ee6,
+  
+  // 成功色
+  success-color: #67c23a,
+  success-hover: #85ce61,
+  success-active: #5daf34,
+  
+  // 警告色
+  warning-color: #e6a23c,
+  warning-hover: #ebb563,
+  warning-active: #cf9236,
+  
+  // 危险色
+  danger-color: #f56c6c,
+  danger-hover: #f78989,
+  danger-active: #dd6161,
+  
+  // 信息色
+  info-color: #909399,
+  info-hover: #a6a9ad,
+  info-active: #82848a,
+  
+  // 文本颜色
+  text-primary: #303133,
+  text-regular: #606266,
+  text-secondary: #909399,
+  text-placeholder: #c0c4cc,
+  
+  // 背景颜色
+  bg-primary: #ffffff,
+  bg-regular: #f5f7fa,
+  bg-secondary: #e4e7ed,
+  bg-disabled: #f5f7fa,
+  
+  // 边框颜色
+  border-base: #dcdfe6,
+  border-light: #e4e7ed,
+  border-lighter: #ebeef5,
+  border-extra-light: #f2f6fc,
+  
+  // 阴影
+  shadow-base: (0 2px 4px rgba(0, 0, 0, 0.12), 0 0 6px rgba(0, 0, 0, 0.04)),
+  shadow-light: (0 2px 12px 0 rgba(0, 0, 0, 0.1)),
+  shadow-extra-light: (0 1px 3px rgba(0, 0, 0, 0.08)),
+  
+  // 圆角
+  border-radius-base: 4px,
+  border-radius-small: 2px,
+  border-radius-large: 6px,
+  
+  // 尺寸
+  font-size-extra-small: 12px,
+  font-size-small: 14px,
+  font-size-base: 16px,
+  font-size-large: 18px,
+  font-size-extra-large: 20px,
+  font-size-huge: 24px,
+  
+  // 间距
+  spacing-extra-small: 4px,
+  spacing-small: 8px,
+  spacing-base: 16px,
+  spacing-large: 24px,
+  spacing-extra-large: 32px,
+  spacing-huge: 48px,
+  
+  // 过渡
+  transition-base: all 0.3s ease,
+  transition-fast: all 0.2s ease,
+  
+  // z-index
+  z-index-dropdown: 1000,
+  z-index-sticky: 1020,
+  z-index-fixed: 1030,
+  z-index-modal-backdrop: 1040,
+  z-index-modal: 1050,
+  z-index-popover: 1060,
+  z-index-tooltip: 1070
+);
+
+// 暗色主题
+$theme-dark: (
+  // 主色调
+  primary-color: #409eff,
+  primary-hover: #66b1ff,
+  primary-active: #3a8ee6,
+  
+  // 成功色
+  success-color: #67c23a,
+  success-hover: #85ce61,
+  success-active: #5daf34,
+  
+  // 警告色
+  warning-color: #e6a23c,
+  warning-hover: #ebb563,
+  warning-active: #cf9236,
+  
+  // 危险色
+  danger-color: #f56c6c,
+  danger-hover: #f78989,
+  danger-active: #dd6161,
+  
+  // 信息色
+  info-color: #909399,
+  info-hover: #a6a9ad,
+  info-active: #82848a,
+  
+  // 文本颜色
+  text-primary: #ffffff,
+  text-regular: #cccccc,
+  text-secondary: #999999,
+  text-placeholder: #666666,
+  
+  // 背景颜色
+  bg-primary: #1a1a1a,
+  bg-regular: #2c2c2c,
+  bg-secondary: #333333,
+  bg-disabled: #333333,
+  
+  // 边框颜色
+  border-base: #444444,
+  border-light: #555555,
+  border-lighter: #666666,
+  border-extra-light: #777777,
+  
+  // 阴影 (暗色模式下阴影更柔和)
+  shadow-base: (0 2px 4px rgba(0, 0, 0, 0.3), 0 0 6px rgba(0, 0, 0, 0.2)),
+  shadow-light: (0 2px 12px 0 rgba(0, 0, 0, 0.2)),
+  shadow-extra-light: (0 1px 3px rgba(0, 0, 0, 0.2)),
+  
+  // 其他属性保持不变
+  border-radius-base: 4px,
+  border-radius-small: 2px,
+  border-radius-large: 6px,
+  
+  font-size-extra-small: 12px,
+  font-size-small: 14px,
+  font-size-base: 16px,
+  font-size-large: 18px,
+  font-size-extra-large: 20px,
+  font-size-huge: 24px,
+  
+  spacing-extra-small: 4px,
+  spacing-small: 8px,
+  spacing-base: 16px,
+  spacing-large: 24px,
+  spacing-extra-large: 32px,
+  spacing-huge: 48px,
+  
+  transition-base: all 0.3s ease,
+  transition-fast: all 0.2s ease,
+  
+  z-index-dropdown: 1000,
+  z-index-sticky: 1020,
+  z-index-fixed: 1030,
+  z-index-modal-backdrop: 1040,
+  z-index-modal: 1050,
+  z-index-popover: 1060,
+  z-index-tooltip: 1070
+);
+
+// 导出当前主题
+$current-theme: $theme-light;
+
+// 生成CSS变量
+@mixin generate-theme-variables($theme) {
+  @each $key, $value in $theme {
+    --#{$key}: $value;
+  }
+}
+
+// 暗色主题类
+.dark-theme {
+  @include generate-theme-variables($theme-dark);
+}
