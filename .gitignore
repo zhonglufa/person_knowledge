@@ -74,3 +74,5 @@ nul
 package-lock.json
 .qoder/
 .trae/
+extension/
+database/
