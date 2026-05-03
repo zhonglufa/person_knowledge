@@ -72,6 +72,29 @@ export default [
     }
   },
   {
+    path: '/collections/items/:id',
+    name: 'CollectionItemDetailPage',
+    component: CollectionItemWorkspace,
+    props: false,
+    meta: {
+      requiresAuth: true,
+      title: '收藏项详情'
+    }
+  },
+  {
+    path: '/collection-item/:id',
+    redirect: to => `/collections/items/${to.params.id}`
+  },
+  {
+    path: '/collections/manage',
+    name: 'CollectionManagementPage',
+    component: () => import('@/views/collection/CollectionManagement.vue'),
+    meta: {
+      requiresAuth: true,
+      title: '收藏管理'
+    }
+  },
+  {
     path: '/collections/:id',
     name: 'CollectionDetailPage',
     component: CollectionDetailPage,
