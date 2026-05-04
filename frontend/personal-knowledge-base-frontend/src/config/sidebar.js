@@ -141,6 +141,18 @@ export const SIDEBAR_CONFIG = {
       route: '/creation/processing'
     },
     {
+      id: 'personal-categories',
+      text: '分类管理',
+      icon: 'fas fa-folder-tree',
+      route: '/taxonomy/categories'
+    },
+    {
+      id: 'personal-tags',
+      text: '标签管理',
+      icon: 'fas fa-tags',
+      route: '/taxonomy/tags'
+    },
+    {
       id: 'personal-public',
       text: '公开内容',
       icon: 'fas fa-globe',

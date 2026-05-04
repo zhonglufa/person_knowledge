@@ -228,7 +228,8 @@ const actions = {
     try {
       const requestParams = buildCollectListRequestParams(params, state);
       const response = await collectApi.getCollectList(requestParams);
-      const collectData = response.data || {};
+      // 适配响应拦截器解包后的数据结构
+      const collectData = response?.data ?? response ?? {};
       const collectList = Array.isArray(collectData.records) ? collectData.records : (Array.isArray(collectData) ? collectData : []);
       commit('SET_COLLECT_LIST', collectList);
       commit('SET_PAGINATION', {
@@ -250,7 +251,8 @@ const actions = {
     try {
       const requestParams = buildCollectListRequestParams(params, state);
       const response = await collectApi.getRecycleBin(requestParams);
-      const collectData = response.data || {};
+      // 适配响应拦截器解包后的数据结构
+      const collectData = response?.data ?? response ?? {};
       const collectList = Array.isArray(collectData.records) ? collectData.records : (Array.isArray(collectData) ? collectData : []);
       commit('SET_COLLECT_LIST', collectList);
       commit('SET_PAGINATION', {
@@ -277,7 +279,8 @@ const actions = {
         type: '0'
       }, state);
       const response = await collectApi.getCollectList(requestParams);
-      const collectData = response.data || {};
+      // 适配响应拦截器解包后的数据结构
+      const collectData = response?.data ?? response ?? {};
       const collectList = Array.isArray(collectData.records) ? collectData.records : (Array.isArray(collectData) ? collectData : []);
       commit('SET_COLLECT_LIST', collectList);
       commit('SET_PAGINATION', {
@@ -342,7 +345,8 @@ const actions = {
       }
 
       if (!collectList.length) {
-        const collectData = response?.data || {};
+        // 适配响应拦截器解包后的数据结构
+        const collectData = response?.data ?? response ?? {};
         collectList = Array.isArray(collectData.records) ? collectData.records : (Array.isArray(collectData) ? collectData : []);
         if (collectData.total !== undefined) {
           pagination = {
@@ -369,7 +373,8 @@ const actions = {
   async getCollectTags({ commit }) {
     try {
       const response = await getPopularTags(50);
-      const normalizedTags = normalizePopularTags(response.data || []);
+      // 适配响应拦截器解包后的数据结构
+      const normalizedTags = normalizePopularTags(response?.data ?? response ?? []);
       commit('SET_COLLECT_TAGS', normalizedTags);
       commit('SET_STATISTICS', { totalTags: normalizedTags.length });
       return response;
@@ -396,9 +401,10 @@ const actions = {
         collectApi.getStatistics(),
         collectApi.getRecycleBin({ page: 1, size: 1 })
       ]);
+      // 适配响应拦截器解包后的数据结构
       const normalizedStatistics = normalizeStatisticsResponse({
-        ...(statisticsResponse.data || {}),
-        recycledCollections: recycleBinResponse?.data?.total || 0,
+        ...(statisticsResponse?.data ?? statisticsResponse ?? {}),
+        recycledCollections: recycleBinResponse?.data?.total ?? recycleBinResponse?.total ?? 0,
         totalTags: state.statistics.totalTags
       });
       commit('SET_STATISTICS', normalizedStatistics);

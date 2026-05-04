@@ -88,4 +88,19 @@ public class CollectionItemDTO {
      * 标签ID列表
      */
     private List<Long> tagIds;
+
+    /**
+     * 是否已读
+     */
+    private Boolean isRead;
+
+    /**
+     * 是否星标
+     */
+    private Boolean isStar;
+
+    /**
+     * 是否公开: 0=私密, 1=公开
+     */
+    private Integer isPublic;
 }

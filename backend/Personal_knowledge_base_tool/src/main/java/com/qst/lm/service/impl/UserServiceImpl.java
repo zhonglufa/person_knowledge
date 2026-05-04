@@ -99,7 +99,7 @@ public class UserServiceImpl implements IUserService {
             Object failVal = redisTemplate.opsForValue().get(failKey);
             long failCount = failVal instanceof String ? Long.parseLong((String) failVal) : ((Number) failVal).longValue();
             if (failCount >= 5) {
-                redisTemplate.opsForValue().set(lockKey, 1, 10, TimeUnit.MINUTES);
+                redisTemplate.opsForValue().set(lockKey, "1", 10, TimeUnit.MINUTES);
                 throw new BusinessException("密码错误次数过多，账号已锁定10分钟");
             }
             throw new BusinessException("用户名或密码错误");

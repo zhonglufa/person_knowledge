@@ -123,6 +123,15 @@ public class CollectionItemServiceImpl implements ICollectionItemService {
         if (StringUtils.hasText(dto.getDigestStatus())) {
             updateWrapper.set(CollectionItem::getDigestStatus, dto.getDigestStatus());
         }
+        if (dto.getIsRead() != null) {
+            updateWrapper.set(CollectionItem::getIsRead, dto.getIsRead());
+        }
+        if (dto.getIsStar() != null) {
+            updateWrapper.set(CollectionItem::getIsStar, dto.getIsStar());
+        }
+        if (dto.getIsPublic() != null) {
+            updateWrapper.set(CollectionItem::getIsPublic, dto.getIsPublic());
+        }
         collectionItemMapper.update(null, updateWrapper);
 
         collectionItemTagMapper.deleteByCollectionItemId(id);

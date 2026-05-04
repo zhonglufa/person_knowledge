@@ -487,10 +487,11 @@ export default {
           collectionsApi.getUserCollections({ pageNum: 1, pageSize: 1 }),
           collectApi.getStatistics()
         ])
-        const collectionPayload = collectionRes?.data?.data || collectionRes?.data || {}
+        // 适配响应拦截器解包后的数据结构
+        const collectionPayload = collectionRes?.data ?? collectionRes ?? {}
         const totalCollections = collectionPayload.total || collectionPayload.records?.length || 0
 
-        const itemPayload = itemStatsRes?.data?.data || itemStatsRes?.data || {}
+        const itemPayload = itemStatsRes?.data ?? itemStatsRes ?? {}
         const totalItems = itemPayload.total || 0
         const starred = itemPayload.starred || 0
         const processed = itemPayload.digested || 0
@@ -505,6 +506,7 @@ export default {
         }
       } catch (error) {
         console.error('加载统计数据失败:', error)
+        this.$message.warning('统计数据加载失败，不影响主要功能')
       }
     },
     async loadCollections() {
@@ -518,12 +520,13 @@ export default {
         if (this.showTrash) params.deleted = true
 
         const response = await collectionsApi.getUserCollections(params)
-        const payload = response?.data?.data || response?.data || {}
+        // 适配响应拦截器解包后的数据结构
+        const payload = response?.data ?? response ?? {}
         this.collections = Array.isArray(payload) ? payload : (payload.records || payload.list || [])
         this.collectionsTotal = payload.total || this.collections.length
       } catch (error) {
         console.error('加载收藏集失败:', error)
-        this.$message.error('加载收藏集失败')
+        this.$message.error(error?.message || '加载收藏集失败，请稍后重试')
       } finally {
         this.loading = false
       }
@@ -539,12 +542,13 @@ export default {
         if (this.showTrash) params.deleted = true
 
         const response = await collectApi.getCollectList(params)
-        const payload = response?.data?.data || response?.data || {}
+        // 适配响应拦截器解包后的数据结构
+        const payload = response?.data ?? response ?? {}
         this.items = Array.isArray(payload) ? payload : (payload.records || payload.list || [])
         this.itemsTotal = payload.total || this.items.length
       } catch (error) {
         console.error('加载收藏项失败:', error)
-        this.$message.error('加载收藏项失败')
+        this.$message.error(error?.message || '加载收藏项失败，请稍后重试')
       } finally {
         this.loadingItems = false
       }

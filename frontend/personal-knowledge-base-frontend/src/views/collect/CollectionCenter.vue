@@ -11,7 +11,7 @@
     :show-stats="showSidebarStats"
     :sidebar-stats-config="sidebarStatsConfig"
     :total-collections="totalCollections"
-    :total-tags="popularTags.length"
+    :total-tags="userTagsCount"
     :show-search-filter="showSearchFilter"
     :search-placeholder="searchPlaceholder"
     :search-value="searchKeyword"
@@ -68,6 +68,7 @@ import navigationMixin from '@/utils/navigationMixin.js';
 import { SIDEBAR_CONFIG } from '@/config/sidebar.js';
 import { collectApi } from '@/api/collect.js';
 import { collectionsApi } from '@/api/collections.js';
+import { getUserTags } from '@/api/tag.js';
 import CollectionListPage from '@/views/collection/CollectionListPage.vue';
 
 export default {
@@ -94,6 +95,7 @@ export default {
       selectedSort: 'latest',
       selectedTags: [],
       popularTags: [],
+      userTagsCount: 0,
       selectionMode: false,
       selectedItems: [],
       processingBatch: false,
@@ -137,8 +139,7 @@ export default {
         icon: 'fas fa-chart-bar',
         items: [
           { label: '总收藏', key: 'totalCollects' },
-          { label: '标签数', key: 'totalTags' },
-          { label: '当前列表', key: 'currentList', count: this.collections.length }
+          { label: '标签数', key: 'totalTags' }
         ]
       };
     },
@@ -285,20 +286,32 @@ export default {
         } else {
           response = await collectApi.getCollectList({ ...params, category: this.activeSidebarItem });
         }
-        const payload = response?.data?.data || response?.data || {};
-        const records = Array.isArray(payload.records) ? payload.records : [];
+        // 适配响应拦截器解包后的数据结构：拦截器已将 {code, message, data} 解包
+        const payload = response?.data ?? response ?? {};
+        const records = Array.isArray(payload.records) ? payload.records : (Array.isArray(payload) ? payload : []);
         this.collections = append ? [...this.collections, ...records] : records;
         this.currentPage = page;
         this.pageSize = payload.size || this.pageSize;
         this.totalCollections = payload.total || this.collections.length;
         this.hasMore = this.collections.length < this.totalCollections;
         this.popularTags = this.extractPopularTags(this.collections);
+        await this.loadUserTagsCount();
       } catch (error) {
         console.error('加载收藏内容失败', error);
+        this.$message.error(error?.message || '加载收藏内容失败，请稍后重试');
         this.collections = append ? this.collections : [];
         this.hasMore = false;
       } finally {
         this.isLoading = false;
+      }
+    },
+    async loadUserTagsCount() {
+      try {
+        const response = await getUserTags();
+        this.userTagsCount = response.data?.length || 0;
+      } catch (error) {
+        console.error('获取用户标签数量失败:', error);
+        this.userTagsCount = 0;
       }
     },
     extractPopularTags(collections) {

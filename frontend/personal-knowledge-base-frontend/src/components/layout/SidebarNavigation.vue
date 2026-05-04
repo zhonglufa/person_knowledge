@@ -525,7 +525,7 @@ export default {
 /* 侧边栏统计 */
 .sidebar-stats {
   flex: 0 0 auto; /* 不伸缩，固定高度 */
-  padding: 16px;
+  padding: 10px;
   border-top: 1px solid var(--border-light);
   background-color: rgba(74, 108, 247, 0.05);
   border-radius: 8px;

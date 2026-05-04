@@ -221,12 +221,12 @@ public class SearchServiceImpl implements ISearchService {
         wrapper.orderByDesc(Tag::getUpdatedAt);
     }
 
-    private <T extends BasePojo> void applyBaseTimeRange(LambdaQueryWrapper<T> wrapper, String timeRange) {
+    private void applyBaseTimeRange(LambdaQueryWrapper<?> wrapper, String timeRange) {
         LocalDateTime[] range = buildTimeRange(timeRange);
         if (range == null) {
             return;
         }
-        wrapper.between(BasePojo::getCreatedAt, range[0], range[1]);
+        wrapper.apply("created_at BETWEEN {0} AND {1}", range[0], range[1]);
     }
 
     private void applyNoteTimeRange(LambdaQueryWrapper<Note> wrapper, String timeRange) {

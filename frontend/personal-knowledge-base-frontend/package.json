@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:e2e": "playwright test",
+    "test:e2e:full": "playwright test full-system-e2e.spec.js --reporter=list,html,json",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.1.0",
@@ -19,7 +22,9 @@
     "vuex": "^3.6.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@vitejs/plugin-vue2": "^2.2.0",
+    "mysql2": "^3.22.3",
     "sass": "^1.94.2",
     "vite": "^3.2.0"
   }

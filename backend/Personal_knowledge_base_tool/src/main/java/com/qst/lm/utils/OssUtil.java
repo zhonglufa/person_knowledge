@@ -20,23 +20,23 @@ import java.util.UUID;
  */
 @Component
 public class OssUtil {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(OssUtil.class);
-    
+
     @Autowired
     private OSS ossClient;
-    
+
     @Value("${oss.bucketName}")
     private String bucketName;
-    
+
     @Value("${oss.endpoint}")
     private String endpoint;
-    
+
     // 默认文件有效期（秒）
-    private static final int DEFAULT_EXPIRY_SECONDS = 60 * 60 * 24 * 7; // 7天
+    private static final int DEFAULT_EXPIRY_SECONDS = 60 * 60 * 24 * 7; // 3天
     // 私有文件短效期（用于临时访问）
     private static final int PRIVATE_FILE_EXPIRY_SECONDS = 60 * 60; // 1小时
-    
+
     /**
      * 上传文件（自动根据isPublic参数决定文件访问权限）
      *
@@ -45,17 +45,17 @@ public class OssUtil {
      * @return 文件访问URL
      */
     public String uploadFile(MultipartFile file, boolean isPublic) throws Exception {
-        logger.info("开始上传文件: 原始文件名={}, 大小={}字节, 类型={}, 公开状态={}", 
+        logger.info("开始上传文件: 原始文件名={}, 大小={}字节, 类型={}, 公开状态={}",
                    file.getOriginalFilename(), file.getSize(), file.getContentType(), isPublic);
-        
+
         // 生成唯一文件名
         String fileName = generateUniqueFileName(file.getOriginalFilename());
         logger.info("生成唯一文件名: {}", fileName);
-        
+
         // 上传文件
         try (InputStream inputStream = file.getInputStream()) {
             PutObjectRequest putObjectRequest = new PutObjectRequest(bucketName, fileName, inputStream);
-            
+
             // 根据公开状态设置文件权限
             if (isPublic) {
                 // 设置公共读权限
@@ -64,25 +64,25 @@ public class OssUtil {
                 putObjectRequest.setMetadata(metadata);
                 // 公开文件直接上传，OSS默认是私有的
             }
-            
+
             ossClient.putObject(putObjectRequest);
         }
-        
+
         logger.info("文件上传成功，正在生成访问URL");
-        
+
         // 根据权限类型返回相应URL
         String url = generateFileUrl(fileName, isPublic);
         logger.info("文件访问URL生成成功: {}", url);
         return url;
     }
-    
+
     /**
      * 上传文件（默认私有）
      */
     public String uploadFile(MultipartFile file) throws Exception {
         return uploadFile(file, false);
     }
-    
+
     /**
      * 上传字节数组（支持权限控制）
      *
@@ -93,39 +93,39 @@ public class OssUtil {
      * @return 文件访问URL
      */
     public String uploadBytes(byte[] bytes, String fileName, String contentType, boolean isPublic) throws Exception {
-        logger.info("开始上传字节数组: 文件名={}, 大小={}字节, 类型={}, 公开状态={}", 
+        logger.info("开始上传字节数组: 文件名={}, 大小={}字节, 类型={}, 公开状态={}",
                    fileName, bytes.length, contentType, isPublic);
-        
+
         // 生成唯一文件名
         String uniqueFileName = generateUniqueFileName(fileName);
         logger.info("生成唯一文件名: {}", uniqueFileName);
-        
+
         // 上传字节数组
         try (ByteArrayInputStream inputStream = new ByteArrayInputStream(bytes)) {
             PutObjectRequest putObjectRequest = new PutObjectRequest(bucketName, uniqueFileName, inputStream);
-            
+
             // 设置元数据
             ObjectMetadata metadata = new ObjectMetadata();
             metadata.setContentType(contentType);
             metadata.setContentLength(bytes.length);
             putObjectRequest.setMetadata(metadata);
-            
+
             // 根据公开状态设置权限
             if (isPublic) {
                 // 公开文件直接上传，OSS默认是私有的
             }
-            
+
             ossClient.putObject(putObjectRequest);
         }
-        
+
         logger.info("字节数组上传成功，正在生成访问URL");
-        
+
         // 根据权限类型返回相应URL
         String url = generateFileUrl(uniqueFileName, isPublic);
         logger.info("文件访问URL生成成功: {}", url);
         return url;
     }
-    
+
     /**
      * 生成文件访问URL
      *
@@ -142,7 +142,7 @@ public class OssUtil {
             return getPrivateFileUrl(fileName);
         }
     }
-    
+
     /**
      * 获取公开文件URL
      *
@@ -152,7 +152,7 @@ public class OssUtil {
     public String getPublicFileUrl(String fileName) {
         return String.format("https://%s.%s/%s", bucketName, endpoint.replace("https://", ""), fileName);
     }
-    
+
     /**
      * 获取私有文件临时访问URL
      *
@@ -164,7 +164,7 @@ public class OssUtil {
         URL url = ossClient.generatePresignedUrl(bucketName, fileName, expiration);
         return url.toString();
     }
-    
+
     /**
      * 管理员获取文件访问权限（无视公开状态）
      *
@@ -176,7 +176,7 @@ public class OssUtil {
         URL url = ossClient.generatePresignedUrl(bucketName, fileName, expiration);
         return url.toString();
     }
-    
+
     /**
      * 删除文件
      *
@@ -188,7 +188,7 @@ public class OssUtil {
         ossClient.deleteObject(bucketName, fileName);
         return true;
     }
-    
+
     /**
      * 检查文件是否存在
      *
@@ -198,7 +198,7 @@ public class OssUtil {
     public boolean fileExists(String fileName) throws Exception {
         return ossClient.doesObjectExist(bucketName, fileName);
     }
-    
+
     /**
      * 生成唯一文件名
      *
@@ -212,7 +212,7 @@ public class OssUtil {
         }
         return UUID.randomUUID().toString().replace("-", "") + extension;
     }
-    
+
     /**
      * 获取存储桶名称
      *
@@ -221,7 +221,7 @@ public class OssUtil {
     public String getBucketName() {
         return bucketName;
     }
-    
+
     /**
      * 关闭OSS客户端
      */

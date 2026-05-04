@@ -97,6 +97,8 @@ public class InteractionServiceImpl implements IInteractionService {
             throw new BusinessException("参数不完整");
         }
 
+        validateContentPublic(targetId, targetType);
+
         InteractionLike existing = interactionLikeMapper.existsByUserAndTarget(userId, targetId, targetType);
         if (existing != null) {
             throw new BusinessException("已点赞");
@@ -200,6 +202,8 @@ public class InteractionServiceImpl implements IInteractionService {
             throw new BusinessException("参数不完整");
         }
 
+        validateContentPublic(targetId, targetType);
+
         String filteredContent = SensitiveWordFilter.filterSensitiveWord(content);
 
         if (parentId != null) {
@@ -293,6 +297,8 @@ public class InteractionServiceImpl implements IInteractionService {
         if (targetId == null || !StringUtils.hasText(targetType)) {
             throw new BusinessException("参数不完整");
         }
+
+        validateContentPublic(targetId, targetType);
 
         InteractionCollect existing = interactionCollectMapper.existsByUserAndTarget(userId, targetId, targetType);
         if (existing != null) {
@@ -768,6 +774,41 @@ public class InteractionServiceImpl implements IInteractionService {
             noteMapper.updateById(note);
         } catch (Exception e) {
             log.warn("更新笔记点赞数失败, noteId={}", noteId, e);
+        }
+    }
+
+    private void validateContentPublic(Long targetId, String targetType) {
+        try {
+            if ("note".equalsIgnoreCase(targetType)) {
+                Note note = noteMapper.selectById(targetId);
+                if (note == null) {
+                    throw new BusinessException("笔记不存在");
+                }
+                if (note.getIsPublic() == null || note.getIsPublic() != 1) {
+                    throw new BusinessException("该笔记未公开，无法进行互动");
+                }
+            } else if ("collection".equalsIgnoreCase(targetType)) {
+                Collection collection = collectionMapper.selectById(targetId);
+                if (collection == null) {
+                    throw new BusinessException("收藏集不存在");
+                }
+                if (collection.getIsPublic() == null || collection.getIsPublic() != 1) {
+                    throw new BusinessException("该收藏集未公开，无法进行互动");
+                }
+            } else if ("collection_item".equalsIgnoreCase(targetType) || "item".equalsIgnoreCase(targetType)) {
+                CollectionItem item = collectionItemMapper.selectById(targetId);
+                if (item == null) {
+                    throw new BusinessException("收藏项不存在");
+                }
+                if (item.getIsPublic() == null || item.getIsPublic() != 1) {
+                    throw new BusinessException("该收藏项未公开，无法进行互动");
+                }
+            }
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("校验内容公开性失败, targetType={}, targetId={}", targetType, targetId, e);
+            throw new BusinessException("校验内容公开性失败");
         }
     }
 }

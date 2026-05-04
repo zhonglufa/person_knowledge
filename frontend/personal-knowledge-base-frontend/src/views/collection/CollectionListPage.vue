@@ -59,6 +59,7 @@
                 :src="collection?.coverImage || collection?.coverUrl"
                 :alt="collection?.name || '收藏集封面'"
                 class="card-cover"
+                @error="handleCoverError($event, collection)"
               >
               <div v-else class="card-cover placeholder-cover">
                 <i class="fas fa-layer-group"></i>
@@ -232,14 +233,19 @@ export default {
       this.loading = true
       try {
         const response = await collectionsApi.getUserCollections()
-        if (response?.data?.code === 200) {
-          this.collections = response.data.data || []
+        // 适配响应拦截器解包后的数据结构
+        const resCode = response?.code ?? response?.data?.code
+        const resData = response?.data ?? response?.data?.data ?? []
+        const resMsg = response?.message ?? response?.msg ?? response?.data?.msg ?? '加载失败'
+
+        if (resCode === 200 || (Array.isArray(resData) && resData.length >= 0)) {
+          this.collections = Array.isArray(resData) ? resData : (resData?.records || resData?.list || [])
         } else {
-          this.$message.error(response?.data?.msg || '加载失败')
+          this.$message.error(resMsg)
         }
       } catch (error) {
         console.error('加载收藏集失败', error)
-        this.$message.error('网络错误，请稍后重试')
+        this.$message.error(error?.message || '网络错误，请稍后重试')
       } finally {
         this.loading = false
       }
@@ -317,6 +323,14 @@ export default {
       }
       const parsed = new Date(date)
       return Number.isNaN(parsed.getTime()) ? '未知时间' : parsed.toLocaleDateString('zh-CN')
+    },
+    handleCoverError(event, collection) {
+      console.warn(`收藏集「${collection?.name}」封面加载失败:`, event.target.src)
+      // 移除 src 使 v-if 失效，显示占位图
+      if (collection) {
+        collection.coverImage = null
+        collection.coverUrl = null
+      }
     }
   }
 }

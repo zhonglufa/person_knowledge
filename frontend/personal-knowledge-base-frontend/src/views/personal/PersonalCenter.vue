@@ -387,7 +387,9 @@ export default {
         '/personal/public': 'personal-public',
         '/personal/notifications': 'personal-notifications',
         '/collections/manage': 'personal-collections',
-        '/creation/processing': 'personal-processing'
+        '/creation/processing': 'personal-processing',
+        '/taxonomy/categories': 'personal-categories',
+        '/taxonomy/tags': 'personal-tags'
       }
       const matchedId = pathToSidebarMap[this.$route.path]
       if (matchedId) {
@@ -558,7 +560,9 @@ export default {
         'personal-dashboard': '/personal/dashboard',
         'personal-collections': '/collections/manage',
         'personal-processing': '/creation/processing',
-        'personal-notifications': '/personal/notifications'
+        'personal-notifications': '/personal/notifications',
+        'personal-categories': '/taxonomy/categories',
+        'personal-tags': '/taxonomy/tags'
       }
       const path = routeMap[item?.id]
       if (path) {
@@ -571,6 +575,11 @@ export default {
       if (action?.route) {
         this.$router.push(action.route)
       }
+    },
+
+    // 查看统计看板
+    goToDashboard() {
+      this.$router.push('/personal/dashboard')
     },
 
     // 查看全部活动
@@ -737,7 +746,8 @@ export default {
 
 .stat-label {
   font-size: var(--font-size-sm);
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.8) !important;
+
 }
 
 /* 快捷操作区 */

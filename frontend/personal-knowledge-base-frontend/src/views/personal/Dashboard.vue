@@ -18,14 +18,16 @@
             返回个人中心 <i class="fas fa-arrow-right"></i>
           </el-button>
           <el-date-picker
-            v-model="dateRange"
-            type="daterange"
-            range-separator="至"
-            start-placeholder="开始日期"
-            end-placeholder="结束日期"
-            size="small"
-            @change="handleDateRangeChange"
-          />
+        v-model="dateRange"
+        type="daterange"
+        id="dateRange"
+        name="dateRange"
+        range-separator="至"
+        start-placeholder="开始日期"
+        end-placeholder="结束日期"
+        size="small"
+        @change="handleDateRangeChange"
+      />
         </div>
       </div>
     </div>
@@ -130,11 +132,11 @@
           <div class="chart-card card">
             <div class="chart-header">
               <h3>收藏趋势</h3>
-              <el-select v-model="collectionChartType" size="small" @change="updateCollectionChart">
-                <el-option label="日" value="daily"></el-option>
-                <el-option label="周" value="weekly"></el-option>
-                <el-option label="月" value="monthly"></el-option>
-              </el-select>
+              <el-select v-model="collectionChartType" id="collectionChartType" name="collectionChartType" size="small" @change="updateCollectionChart">
+              <el-option label="日" value="daily"></el-option>
+              <el-option label="周" value="weekly"></el-option>
+              <el-option label="月" value="monthly"></el-option>
+            </el-select>
             </div>
             <div class="chart-container">
               <canvas ref="collectionChart"></canvas>
@@ -184,10 +186,10 @@
           <div class="chart-card card">
             <div class="chart-header">
               <h3>学习进度总览</h3>
-              <el-select v-model="progressViewType" size="small" @change="updateProgressChart">
-                <el-option label="消化状态" value="digest"></el-option>
-                <el-option label="笔记类型" value="note"></el-option>
-              </el-select>
+              <el-select v-model="progressViewType" id="progressViewType" name="progressViewType" size="small" @change="updateProgressChart">
+              <el-option label="消化状态" value="digest"></el-option>
+              <el-option label="笔记类型" value="note"></el-option>
+            </el-select>
             </div>
             <div class="chart-container">
               <canvas ref="progressChart"></canvas>
@@ -231,12 +233,12 @@
             <div class="chart-header">
               <h3>每周学习活动</h3>
               <div class="chart-controls">
-                <el-radio-group v-model="activityTimeRange" size="small" @change="loadActivityHeatmap">
-                  <el-radio-button label="week">本周</el-radio-button>
-                  <el-radio-button label="month">本月</el-radio-button>
-                  <el-radio-button label="quarter">近三月</el-radio-button>
-                </el-radio-group>
-              </div>
+              <el-radio-group v-model="activityTimeRange" id="activityTimeRange" name="activityTimeRange" size="small" @change="loadActivityHeatmap">
+                <el-radio-button label="week" id="activityWeek" name="activityWeek">本周</el-radio-button>
+                <el-radio-button label="month" id="activityMonth" name="activityMonth">本月</el-radio-button>
+                <el-radio-button label="quarter" id="activityQuarter" name="activityQuarter">近三月</el-radio-button>
+              </el-radio-group>
+            </div>
             </div>
             <div class="heatmap-container">
               <div class="heatmap-grid">

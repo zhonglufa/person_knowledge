@@ -45,7 +45,7 @@ public class CollectionItem extends BasePojo implements Serializable {
      * 来源类型: 1=网页, 2=图片, 3=文本, 4=视频, 5=笔记
      */
     @TableField("source_type")
-    private Integer sourceType;
+    private Integer sourceType = 1;
 
     /**
      * 标题
@@ -147,6 +147,10 @@ public class CollectionItem extends BasePojo implements Serializable {
     @TableField("remind_at")
     private LocalDateTime remindAt;
 
-
+    /**
+     * 是否公开: 0=私密, 1=公开
+     */
+    @TableField("is_public")
+    private Integer isPublic;
 
 }

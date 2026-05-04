@@ -987,16 +987,27 @@ export default {
         return
       }
       this.likeLoading = true
+      const originalIsLiked = this.interactionState.isLiked
+      const originalLikes = this.interactionStats.likes
+      
       try {
-        if (this.interactionState.isLiked) {
-          await unlikeContent(this.noteId, 'note')
-          this.$message.success('已取消点赞')
-        } else {
+        // 乐观更新：先改变UI状态
+        this.interactionState.isLiked = !this.interactionState.isLiked
+        this.interactionStats.likes = this.interactionState.isLiked 
+          ? this.interactionStats.likes + 1 
+          : this.interactionStats.likes - 1
+        
+        if (!originalIsLiked) {
           await likeContent(this.noteId, 'note')
           this.$message.success('点赞成功')
+        } else {
+          await unlikeContent(this.noteId, 'note')
+          this.$message.success('已取消点赞')
         }
-        await this.loadInteractionData()
       } catch (error) {
+        // 出错时回滚状态
+        this.interactionState.isLiked = originalIsLiked
+        this.interactionStats.likes = originalLikes
         console.error('点赞操作失败:', error)
         this.$message.error(error?.message || '操作失败')
       } finally {
@@ -1008,16 +1019,27 @@ export default {
         return
       }
       this.collectLoading = true
+      const originalIsCollected = this.interactionState.isCollected
+      const originalCollects = this.interactionStats.collects
+      
       try {
-        if (this.interactionState.isCollected) {
-          await uncollectContent(this.noteId, 'note')
-          this.$message.success('已取消收藏')
-        } else {
+        // 乐观更新：先改变UI状态
+        this.interactionState.isCollected = !this.interactionState.isCollected
+        this.interactionStats.collects = this.interactionState.isCollected 
+          ? this.interactionStats.collects + 1 
+          : this.interactionStats.collects - 1
+        
+        if (!originalIsCollected) {
           await collectContent(this.noteId, 'note')
           this.$message.success('收藏成功')
+        } else {
+          await uncollectContent(this.noteId, 'note')
+          this.$message.success('已取消收藏')
         }
-        await this.loadInteractionData()
       } catch (error) {
+        // 出错时回滚状态
+        this.interactionState.isCollected = originalIsCollected
+        this.interactionStats.collects = originalCollects
         console.error('收藏操作失败:', error)
         this.$message.error(error?.message || '操作失败')
       } finally {

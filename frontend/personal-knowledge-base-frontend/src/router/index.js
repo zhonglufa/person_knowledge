@@ -1,7 +1,7 @@
 import Vue from 'vue'
 import Router from 'vue-router'
 import allRoutes from './routes'
-import store from "@/store/index.js";
+import store from "@/store/index.js"
 
 Vue.use(Router)
 
@@ -9,6 +9,33 @@ const router = new Router({
   mode: 'history',
   routes: allRoutes,
 })
+
+// 全局导航错误处理
+const originalPush = Router.prototype.push
+Router.prototype.push = function push(location) {
+  return originalPush.call(this, location).catch(err => {
+    // 忽略导航取消和重复导航错误
+    if (err.name === 'NavigationDuplicated' || 
+        err.message?.includes('Navigation cancelled')) {
+      return Promise.resolve()
+    }
+    // 其他错误正常抛出
+    return Promise.reject(err)
+  })
+}
+
+const originalReplace = Router.prototype.replace
+Router.prototype.replace = function replace(location) {
+  return originalReplace.call(this, location).catch(err => {
+    // 忽略导航取消和重复导航错误
+    if (err.name === 'NavigationDuplicated' || 
+        err.message?.includes('Navigation cancelled')) {
+      return Promise.resolve()
+    }
+    // 其他错误正常抛出
+    return Promise.reject(err)
+  })
+}
 
 router.beforeEach(async (to, from, next) => {
   if (to.meta.title) {

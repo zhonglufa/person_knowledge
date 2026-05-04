@@ -37,7 +37,6 @@
               <el-menu-item
                   index="home"
                   class="nav-item"
-                  @click="goToHome"
                   @mouseenter="onNavHover('home')"
                   @mouseleave="onNavLeave"
               >
@@ -48,7 +47,6 @@
               <el-menu-item
                   index="collect"
                   class="nav-item"
-                  @click="goToCollectionCenter"
                   @mouseenter="onNavHover('collect')"
                   @mouseleave="onNavLeave"
               >
@@ -59,7 +57,6 @@
               <el-menu-item
                   index="creation"
                   class="nav-item"
-                  @click="goToCreationCenter"
                   @mouseenter="onNavHover('creation')"
                   @mouseleave="onNavLeave"
               >
@@ -70,7 +67,6 @@
               <el-menu-item
                   index="search"
                   class="nav-item"
-                  @click="goToSearchCenter"
                   @mouseenter="onNavHover('search')"
                   @mouseleave="onNavLeave"
               >
