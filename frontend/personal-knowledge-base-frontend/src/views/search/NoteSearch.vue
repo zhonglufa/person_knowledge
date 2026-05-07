@@ -236,7 +236,7 @@ export default {
       this.currentPage = page
     },
     handleNoteClick(note) {
-      this.$router.push(`/notes/${note.id}`)
+      this.$router.push(`/creation/notes/${note.id}`)
     },
     highlightText(text) {
       if (!text) return ''

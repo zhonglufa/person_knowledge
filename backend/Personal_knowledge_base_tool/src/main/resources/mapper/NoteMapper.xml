@@ -19,8 +19,8 @@
             n.cover_image,
             n.finshed_at,
             n.status,
-            ci.title AS item_title,
-            ci.source_url AS item_url
+            ci.title AS collectionItemTitle,
+            ci.source_url AS sourceUrl
         FROM note n
         LEFT JOIN collection_item ci ON n.collection_item_id = ci.id AND ci.deleted = 0
         WHERE n.user_id = #{userId}

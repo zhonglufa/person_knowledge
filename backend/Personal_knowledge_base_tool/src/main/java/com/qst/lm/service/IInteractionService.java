@@ -12,6 +12,8 @@ public interface IInteractionService {
 
     R getCommentList(Long targetId, String targetType, Long parentId, Integer page, Integer size);
 
+    R deleteComment(Long userId, Long commentId);
+
     R collectContent(Long userId, Object dto);
 
     R uncollectContent(Long userId, Object dto);

@@ -279,6 +279,27 @@ public class InteractionServiceImpl implements IInteractionService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public R deleteComment(Long userId, Long commentId) {
+        if (commentId == null) {
+            throw new BusinessException("评论ID不能为空");
+        }
+        InteractionComment comment = interactionCommentMapper.selectById(commentId);
+        if (comment == null || comment.getDeleted() == 1) {
+            throw new BusinessException("评论不存在");
+        }
+        if (!comment.getUserId().equals(userId)) {
+            throw new BusinessException("无权删除此评论");
+        }
+        LambdaUpdateWrapper<InteractionComment> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(InteractionComment::getId, commentId)
+                .set(InteractionComment::getDeleted, 1);
+        interactionCommentMapper.update(null, wrapper);
+        log.info("用户[{}]删除评论[{}]成功", userId, commentId);
+        return R.success("删除评论成功");
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public R collectContent(Long userId, Object dto) {
         if (dto == null) {
             throw new BusinessException("请求参数不能为空");
@@ -704,13 +725,13 @@ public class InteractionServiceImpl implements IInteractionService {
             return null;
         }
         if ("note".equals(targetType)) {
-            return "/creation/notes/" + targetId + "#comments";
+            return "/creation/notes/" + targetId;
         }
         if ("collection".equals(targetType)) {
             return "/collections/" + targetId;
         }
         if ("collection_item".equals(targetType)) {
-            return "/collections/items/" + targetId;
+            return "/creation/processing?itemId=" + targetId;
         }
         return null;
     }

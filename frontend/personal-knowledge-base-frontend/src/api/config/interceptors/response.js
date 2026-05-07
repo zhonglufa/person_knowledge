@@ -92,7 +92,8 @@ export const responseErrorHandler = (error) => {
   // 提取错误信息
   let errorMessage = '请求失败，请稍后重试'
   let errorCode = null
-  let shouldShowError = true // 是否显示错误提示
+  let shouldShowError = true
+  let isAuthError = false
 
   // 尝试从响应中提取错误信息
   if (error.response) {
@@ -101,71 +102,66 @@ export const responseErrorHandler = (error) => {
     // 根据HTTP状态码处理
     switch (status) {
       case 400:
-        // 请求参数错误
         errorMessage = data?.message || '请求参数错误，请检查输入'
         errorCode = 400
         break
       case 401:
-        // 认证失败（Token过期、无效等）
-        errorMessage = '登录已过期，请重新登录'
+        errorMessage = data?.message || '登录已过期，请重新登录'
         errorCode = 401
-        shouldShowError = false // 由路由跳转处理，不重复提示
+        isAuthError = true
         break
       case 403:
-        // 权限不足
         errorMessage = data?.message || '权限不足，无法访问该资源'
         errorCode = 403
         break
       case 404:
-        // 资源不存在
         errorMessage = '请求的资源不存在'
         errorCode = 404
         break
       case 408:
-        // 请求超时
         errorMessage = '请求超时，请检查网络连接'
         errorCode = 408
         break
       case 500:
-        // 服务器错误
         errorMessage = '服务器错误，请稍后重试'
         errorCode = 500
         break
       case 502:
-        // 网关错误
         errorMessage = '服务器网关错误，请稍后重试'
         errorCode = 502
         break
       case 503:
-        // 服务不可用
         errorMessage = '服务暂时不可用，请稍后重试'
         errorCode = 503
         break
       case 504:
-        // 网关超时
         errorMessage = '网关超时，请稍后重试'
         errorCode = 504
         break
       default:
-        // 从后端响应中提取错误信息
         errorMessage = data?.message || error.message || '网络请求失败'
     }
 
     // 清除认证信息并重定向
     handleAuthError(status, data)
   } else if (error.request) {
-    // 网络错误（无响应）
     errorMessage = '网络连接失败，请检查网络设置'
     errorCode = 'NETWORK_ERROR'
   } else {
-    // 请求配置错误
     errorMessage = error.message || '请求配置错误'
     errorCode = 'CONFIG_ERROR'
   }
 
-  // 显示错误提示（如果不需要静默处理）
+  // 显示错误提示
+  // 对于401认证错误,延迟显示以确保在跳转前显示
   if (shouldShowError) {
-    showError(errorMessage);
+    if (isAuthError) {
+      setTimeout(() => {
+        showError(errorMessage)
+      }, 100)
+    } else {
+      showError(errorMessage)
+    }
   }
 
   // 创建标准化的错误对象
@@ -183,43 +179,56 @@ export const responseErrorHandler = (error) => {
  * 根据当前上下文区分管理员和普通用户的认证失败处理
  */
 function handleAuthError(status, data) {
+  const currentPath = window.location.pathname;
+
   // 检查是否是管理员上下文
-  const isAdminContext = window.location.pathname.startsWith('/admin')
+  const isAdminContext = currentPath.startsWith('/admin')
   const adminToken = localStorage.getItem('adminToken')
   const userToken = localStorage.getItem('token')
 
   // 避免在登录页重复跳转
-  const isLoginPage = window.location.pathname.includes('/login') ||
-                      window.location.pathname.includes('/admin/login')
+  const isLoginPage = currentPath.includes('/login') ||
+                      currentPath.includes('/admin/login')
 
   if (isLoginPage) {
-    return // 在登录页时不跳转
+    return
   }
 
-  // 清除对应的认证信息
+  // 清除认证信息并重定向
   if (status === 401) {
     // Token过期或无效
     if (isAdminContext && adminToken) {
-      // 管理员Token过期
       localStorage.removeItem('adminToken')
       localStorage.removeItem('adminInfo')
-      // 保存重定向路径
-      localStorage.setItem('redirectAfterAdminLogin', window.location.pathname)
-      // 跳转到管理员登录页
-      router.push('/admin/login')
+      localStorage.setItem('redirectAfterAdminLogin', currentPath)
+      localStorage.setItem('adminLoginExpired', 'true')
+      router.push('/admin/login').catch(err => {
+        if (err.name !== 'NavigationDuplicated') {
+          console.error('路由跳转失败:', err)
+          window.location.href = '/admin/login'
+        }
+      })
     } else if (userToken) {
-      // 普通用户Token过期
       localStorage.removeItem('token')
       store.commit('user/CLEAR_USER_STATE')
-      // 保存重定向路径
-      localStorage.setItem('redirectAfterLogin', window.location.pathname)
-      // 跳转到用户登录页
-      router.push('/login')
+      localStorage.setItem('redirectAfterLogin', currentPath)
+      localStorage.setItem('loginExpired', 'true')
+      router.push('/login').catch(err => {
+        if (err.name !== 'NavigationDuplicated') {
+          console.error('路由跳转失败:', err)
+          window.location.href = '/login'
+        }
+      })
     }
   } else if (status === 403) {
     // 权限不足（非管理员访问管理后台）
     if (isAdminContext && !adminToken) {
-      router.push('/admin/login')
+      router.push('/admin/login').catch(err => {
+        if (err.name !== 'NavigationDuplicated') {
+          console.error('路由跳转失败:', err)
+          window.location.href = '/admin/login'
+        }
+      })
     }
   }
 }

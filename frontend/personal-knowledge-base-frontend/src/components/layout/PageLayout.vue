@@ -41,7 +41,7 @@
         @view-change="handleViewChange"
         @update:selected-tags="$emit('update:selected-tags', $event)"
         @add-tag="$emit('add-tag', $event)"
-        @toggle-tag="$emit('toggle-tag', $event)"
+        @toggle-tag="$emit('tag-toggle', $event)"
         @remove-tag="$emit('remove-tag', $event)"
         @remove-all-tags="$emit('remove-all-tags')"
         @show-all-tags="$emit('show-all-tags', $event)"

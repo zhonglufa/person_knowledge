@@ -244,7 +244,7 @@ export default {
       } catch (error) {
         console.error('加载分类失败:', error)
         this.$message.error('加载分类失败')
-        this.categoryTree = this.getMockCategories()
+        this.categoryTree = []
         this.calculateStats()
       } finally {
         this.loading = false
@@ -345,14 +345,7 @@ export default {
       this.$refs.categoryForm?.resetFields()
     },
     getMockCategories() {
-      return [
-        { id: 1, name: '前端开发', description: '前端技术相关分类', icon: 'fas fa-code', color: '#4A6CF7', contentCount: 45, children: [
-          { id: 11, name: 'Vue.js', description: 'Vue框架学习', icon: 'fas fa-laptop', color: '#67C23A', contentCount: 20, parentId: 1 },
-          { id: 12, name: 'React', description: 'React框架学习', icon: 'fas fa-laptop', color: '#61dafb', contentCount: 15, parentId: 1 }
-        ]},
-        { id: 2, name: '后端开发', description: '后端技术相关分类', icon: 'fas fa-server', color: '#E6A23C', contentCount: 32, children: [] },
-        { id: 3, name: '学习笔记', description: '个人学习笔记', icon: 'fas fa-book', color: '#F56C6C', contentCount: 67, children: [] }
-      ]
+      return []
     }
   },
   mounted() {

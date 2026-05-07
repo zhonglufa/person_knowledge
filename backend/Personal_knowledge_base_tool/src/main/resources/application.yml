@@ -66,11 +66,7 @@ spring:
           max-idle: 8
           min-idle: 0
 
-  # Elasticsearch配置
-  elasticsearch:
-    uris: ${ES_URIS}
-    username: ${ES_USERNAME}
-    password: ${ES_PASSWORD}
+
 
   # MinIO配置
   servlet:
@@ -92,6 +88,11 @@ spring:
 # 应用配置
 server:
   port: 9000
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
 
 # JWT配置
 jwt:

@@ -264,6 +264,7 @@
 
 <script>
 import { getTags, createTag, updateTag, deleteTag, getTagStatistics, mergeTags, getTagCloud } from '@/api/tag'
+import { searchAll } from '@/api/search'
 
 export default {
   name: 'TagManagement',
@@ -353,7 +354,8 @@ export default {
         this.generateTagCloud()
       } catch (error) {
         console.error('加载标签失败:', error)
-        this.tags = this.getMockTags()
+        this.$message.error('加载标签失败')
+        this.tags = []
         this.calculateLocalStats()
         this.generateTagCloud()
       } finally {
@@ -370,6 +372,15 @@ export default {
     async refreshTags() {
       await this.loadTags()
       this.$message.success('刷新成功')
+    },
+    checkRouteTagId() {
+      const tagId = this.$route.query.tagId
+      if (tagId) {
+        const tag = this.tags.find(t => String(t.id) === String(tagId))
+        if (tag) {
+          this.viewTagRelated(tag)
+        }
+      }
     },
     editTag(tag) {
       this.isEditing = true
@@ -395,11 +406,31 @@ export default {
     async loadTagRelatedContent(tag) {
       this.relatedLoading = true
       try {
-        this.relatedNotes = this.getMockRelatedNotes(tag.name)
-        this.relatedCollections = this.getMockRelatedCollections(tag.name)
+        const params = { keyword: tag.name, pageNum: 1, pageSize: 20 }
+        const response = await searchAll(params)
+        const data = response?.data?.data || {}
+        const noteRecords = data.notes?.records || data.notes?.list || []
+        const collectionRecords = data.collections?.records || data.collections?.list || []
+        this.relatedNotes = noteRecords.map(n => ({
+          id: n.id,
+          title: n.title || '未命名笔记',
+          content: n.description || n.content || '',
+          isPublic: n.isPublic,
+          updatedAt: n.updateTime || n.updatedAt
+        }))
+        this.relatedCollections = collectionRecords.map(c => ({
+          id: c.id,
+          name: c.name || '未命名收藏集',
+          description: c.description || '',
+          isPublic: c.isPublic,
+          itemCount: c.itemCount || 0,
+          digestStatus: c.digestStatus
+        }))
       } catch (error) {
         console.error('加载关联内容失败:', error)
         this.$message.error('加载关联内容失败')
+        this.relatedNotes = []
+        this.relatedCollections = []
       } finally {
         this.relatedLoading = false
       }
@@ -409,7 +440,7 @@ export default {
       this.showRelatedDialog = false
     },
     viewCollection(collection) {
-      this.$router.push(`/collection/${collection.id}`)
+      this.$router.push(`/collections/${collection.id}`)
       this.showRelatedDialog = false
     },
     getNoteExcerpt(note) {
@@ -429,41 +460,11 @@ export default {
       const labels = { undigest: '未消化', digesting: '消化中', digested: '已消化', abandoned: '已放弃' }
       return labels[status] || status
     },
-    getMockRelatedNotes(tagName) {
-      return [
-        {
-          id: 1,
-          title: `${tagName} 学习笔记`,
-          content: `这是关于${tagName}的学习笔记，记录了重要的知识点和实践心得...`,
-          wordCount: 1247,
-          updateTime: '2024-01-15'
-        },
-        {
-          id: 2,
-          title: `${tagName} 实践总结`,
-          content: `通过实际项目应用，总结了${tagName}的最佳实践和常见问题解决方案...`,
-          wordCount: 2156,
-          updateTime: '2024-01-14'
-        }
-      ]
+    getMockRelatedNotes() {
+      return []
     },
-    getMockRelatedCollections(tagName) {
-      return [
-        {
-          id: 1,
-          title: `${tagName} 相关资源`,
-          description: `收集的${tagName}相关优质资源`,
-          status: 'digesting',
-          createTime: '2024-01-10'
-        },
-        {
-          id: 2,
-          title: `${tagName} 教程合集`,
-          description: `优质${tagName}教程和文档`,
-          status: 'digested',
-          createTime: '2024-01-08'
-        }
-      ]
+    getMockRelatedCollections() {
+      return []
     },
     async deleteTag(tag) {
       try {
@@ -514,14 +515,7 @@ export default {
       return luminance > 0.5 ? '#333' : '#fff'
     },
     getMockTags() {
-      return [
-        { id: 1, name: 'Vue', color: '#409EFF', usageCount: 25, createdAt: '2024-01-01' },
-        { id: 2, name: 'React', color: '#61dafb', usageCount: 18, createdAt: '2024-01-02' },
-        { id: 3, name: '知识管理', color: '#67C23A', usageCount: 32, createdAt: '2024-01-03' },
-        { id: 4, name: '前端', color: '#E6A23C', usageCount: 45, createdAt: '2024-01-04' },
-        { id: 5, name: '设计模式', color: '#F56C6C', usageCount: 12, createdAt: '2024-01-05' },
-        { id: 6, name: '学习笔记', color: '#909399', usageCount: 56, createdAt: '2024-01-06' }
-      ]
+      return []
     },
     generateTagCloud() {
       this.tagCloudData = [...this.tags].sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0))
@@ -578,6 +572,14 @@ export default {
   },
   mounted() {
     this.loadTags()
+    this.checkRouteTagId()
+  },
+  watch: {
+    '$route.query.tagId'(newTagId) {
+      if (newTagId) {
+        this.checkRouteTagId()
+      }
+    }
   }
 }
 </script>

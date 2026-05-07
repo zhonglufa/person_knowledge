@@ -37,23 +37,20 @@
     
     <div class="tags-container">
       <div
-        v-for="tag in filteredTags"
-        :key="tag.id"
+        v-for="(tag, index) in filteredTags"
+        :key="index"
         class="tag-item"
-        :class="{ 'selected': selectedTags.includes(tag.id) }"
+        :class="{ 'selected': selectedTags.includes(tag) }"
         @click="handleTagClick(tag)"
       >
         <div class="tag-content">
           <el-tag
-            :type="selectedTags.includes(tag.id) ? 'primary' : 'info'"
+            :type="selectedTags.includes(tag) ? 'primary' : 'info'"
             size="medium"
             class="tag-name"
           >
-            {{ tag.name }}
+            {{ tag }}
           </el-tag>
-          <span v-if="tag.count !== undefined" class="tag-count">
-            {{ tag.count }}
-          </span>
         </div>
       </div>
       
@@ -106,8 +103,8 @@ export default {
     handleSearch() {
       this.$emit('search-tags', this.searchKeyword);
     },
-    handleTagClick(tag) {
-      this.$emit('toggle-tag', tag.id);
+    handleTagClick(tagName) {
+      this.$emit('toggle-tag', tagName);
     }
   }
 }

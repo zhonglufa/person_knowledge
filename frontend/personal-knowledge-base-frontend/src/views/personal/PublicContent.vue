@@ -161,6 +161,7 @@
 import { mapGetters } from 'vuex'
 import { collectionsApi } from '@/api/collections'
 import { noteApi } from '@/api/note'
+import { debounce } from '@/utils/debounce'
 
 export default {
   name: 'PublicContent',
@@ -181,6 +182,15 @@ export default {
   },
   computed: {
     ...mapGetters('user', ['getUserInfo']),
+    requestSort() {
+      if (this.sortBy === 'views') {
+        return { sortBy: 'visitCount', sortOrder: 'desc' }
+      }
+      if (this.sortBy === 'createTime') {
+        return { sortBy: 'createdAt', sortOrder: 'desc' }
+      }
+      return { sortBy: 'updatedAt', sortOrder: 'desc' }
+    },
     filteredContent() {
       let result = [...this.publicContent]
 
@@ -199,45 +209,72 @@ export default {
       result.sort((a, b) => {
         if (this.sortBy === 'views') {
           return (b.views || 0) - (a.views || 0)
-        } else if (this.sortBy === 'createTime') {
-          return new Date(b.createTime) - new Date(a.createTime)
-        } else {
-          return new Date(b.updateTime) - new Date(a.updateTime)
         }
+        if (this.sortBy === 'createTime') {
+          return new Date(b.createTime || 0) - new Date(a.createTime || 0)
+        }
+        return new Date(b.updateTime || 0) - new Date(a.updateTime || 0)
       })
 
       return result
     }
   },
   created() {
+    this.debouncedReload = debounce(() => {
+      this.loadPublicContent()
+      this.loadPublicStats()
+    }, 300)
+
     this.loadPublicContent()
     this.loadPublicStats()
+  },
+  beforeDestroy() {
+    this.debouncedReload?.cancel?.()
   },
   methods: {
     async loadPublicContent() {
       this.loading = true
       try {
+        const sort = this.requestSort
+        const params = {
+          pageNum: 1,
+          pageSize: 50,
+          keyword: this.searchKeyword || undefined,
+          ...sort
+        }
+
         const [collectionsRes, notesRes] = await Promise.all([
-          collectionsApi.getPublicCollections({ pageNum: 1, pageSize: 50 }),
-          noteApi.getPublicNotes({ pageNum: 1, pageSize: 50 })
+          collectionsApi.getPublicCollections(params),
+          noteApi.getPublicNotes(params)
         ])
 
-        const collections = (collectionsRes?.data?.data?.list || collectionsRes?.data?.list || []).map(item => ({
+        const collectionsPayload = collectionsRes?.data ?? collectionsRes ?? {}
+        const collectionsPage = collectionsPayload.data ?? collectionsPayload
+        const collectionsRaw = Array.isArray(collectionsPage.records)
+          ? collectionsPage.records
+          : (Array.isArray(collectionsPage.list) ? collectionsPage.list : (Array.isArray(collectionsPage) ? collectionsPage : []))
+
+        const notesPayload = notesRes?.data ?? notesRes ?? {}
+        const notesPage = notesPayload.data ?? notesPayload
+        const notesRaw = Array.isArray(notesPage.records)
+          ? notesPage.records
+          : (Array.isArray(notesPage.list) ? notesPage.list : (Array.isArray(notesPage) ? notesPage : []))
+
+        const collections = collectionsRaw.map(item => ({
           ...item,
           type: 'collection',
-          status: item.status || 'published',
-          isPublic: item.isPublic !== false,
+          title: item.name || item.title,
+          isPublic: Number(item.isPublic) === 1,
           views: item.views || item.viewCount || 0,
           likes: item.likes || item.likeCount || 0,
           createTime: item.createTime || item.createdAt,
           updateTime: item.updateTime || item.updatedAt
         }))
 
-        const notes = (notesRes?.data?.data?.list || notesRes?.data?.list || []).map(item => ({
+        const notes = notesRaw.map(item => ({
           ...item,
           type: 'note',
-          status: item.status || 'published',
-          isPublic: item.isPublic !== false,
+          isPublic: Number(item.isPublic) === 1,
           views: item.views || item.viewCount || 0,
           likes: item.likes || item.likeCount || 0,
           createTime: item.createTime || item.createdAt,
@@ -255,13 +292,26 @@ export default {
 
     async loadPublicStats() {
       try {
+        const sort = this.requestSort
+        const params = {
+          pageNum: 1,
+          pageSize: 1,
+          keyword: this.searchKeyword || undefined,
+          ...sort
+        }
+
         const [collectionsRes, notesRes] = await Promise.all([
-          collectionsApi.getPublicCollections({ pageNum: 1, pageSize: 1 }),
-          noteApi.getPublicNotes({ pageNum: 1, pageSize: 1 })
+          collectionsApi.getPublicCollections(params),
+          noteApi.getPublicNotes(params)
         ])
 
-        const collectionTotal = collectionsRes?.data?.data?.total || collectionsRes?.data?.total || 0
-        const noteTotal = notesRes?.data?.data?.total || notesRes?.data?.total || 0
+        const collectionsPayload = collectionsRes?.data ?? collectionsRes ?? {}
+        const collectionsPage = collectionsPayload.data ?? collectionsPayload
+        const notesPayload = notesRes?.data ?? notesRes ?? {}
+        const notesPage = notesPayload.data ?? notesPayload
+
+        const collectionTotal = Number(collectionsPage.total || 0)
+        const noteTotal = Number(notesPage.total || 0)
 
         this.publicStats = {
           collections: collectionTotal,
@@ -275,12 +325,15 @@ export default {
     },
 
     handleSearch() {
+      this.debouncedReload()
     },
 
     handleContentTypeChange() {
+      this.debouncedReload()
     },
 
     handleSortChange() {
+      this.debouncedReload()
     },
 
     formatDate(dateString) {
@@ -297,7 +350,7 @@ export default {
       if (item.type === 'collection') {
         this.$router.push(`/collections/${item.id}`)
       } else {
-        this.$router.push(`/notes/${item.id}`)
+        this.$router.push(`/creation/notes/${item.id}`)
       }
     },
 

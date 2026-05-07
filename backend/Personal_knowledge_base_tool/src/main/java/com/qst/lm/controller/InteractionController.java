@@ -75,6 +75,13 @@ public class InteractionController {
         return interactionService.getCommentList(targetId, targetType, null, pageNum, pageSize);
     }
 
+    @DeleteMapping("/comment/{id}")
+    @Operation(summary = "删除评论", description = "删除自己发表的评论")
+    public R deleteComment(@RequestAttribute Long userId, @PathVariable Long id) {
+        log.info("用户[{}]删除评论[{}]", userId, id);
+        return interactionService.deleteComment(userId, id);
+    }
+
     @PostMapping("/collect")
     @Operation(summary = "收藏内容", description = "收藏笔记或收藏集")
     public R collect(@RequestAttribute Long userId, @Valid @RequestBody CollectDTO collectDTO) {

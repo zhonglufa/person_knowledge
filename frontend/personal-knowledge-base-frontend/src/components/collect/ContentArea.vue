@@ -5,6 +5,7 @@
       :active-sidebar-item="activeSidebarItem"
       :is-mobile="isMobile"
       :selected-count="selectedCollections.length"
+      :disable-selection="activeSidebarItem === 'discover'"
       :filter-params="filterParams"
       @add-collection="$emit('add-collection')"
       @import="$emit('import')"

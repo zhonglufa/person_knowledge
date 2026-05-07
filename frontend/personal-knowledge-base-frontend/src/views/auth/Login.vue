@@ -617,7 +617,7 @@ export default {
 
             // 登录成功后跳转到个人中心
             const redirect = this.$route.query.redirect || '/personal/center';
-            this.$router.push(redirect);
+            this.$router.replace(redirect);
 
 
           } catch (error) {
@@ -889,24 +889,42 @@ export default {
     }
   },
   mounted() {
-    // 组件挂载后可以执行的初始化操作
     console.log('智识云登录注册页面已加载');
 
     // 检查是否记住我
     const rememberMe = localStorage.getItem('rememberMe');
     if (rememberMe === 'true') {
       this.loginForm.rememberMe = true;
-      // 如果记住我，自动填充用户名
       const username = localStorage.getItem('username');
       if (username) {
         this.loginForm.username = username;
       }
     }
 
+    // 检查是否因登录过期而重定向
+    const loginExpired = localStorage.getItem('loginExpired');
+    if (loginExpired === 'true') {
+      localStorage.removeItem('loginExpired');
+      this.$message({
+        message: '登录已过期，请重新登录',
+        type: 'warning',
+        duration: 4000
+      });
+    }
+
+    const adminLoginExpired = localStorage.getItem('adminLoginExpired');
+    if (adminLoginExpired === 'true') {
+      localStorage.removeItem('adminLoginExpired');
+      this.$message({
+        message: '管理员登录已过期，请重新登录',
+        type: 'warning',
+        duration: 4000
+      });
+    }
+
     // 检查URL参数，自动切换到注册表单
     const tab = this.$route.query.tab;
     if (tab === 'register') {
-      // 使用$nextTick确保DOM已渲染
       this.$nextTick(() => {
         this.switchToTab('register');
       });

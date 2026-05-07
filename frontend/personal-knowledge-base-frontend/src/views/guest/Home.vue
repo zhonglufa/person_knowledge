@@ -2,7 +2,7 @@
   <div class="guest-home-container">
     <GuestHeader />
 
-    <UnifiedSkeleton 
+    <UnifiedSkeleton
       v-if="loading"
       type="stats"
       :count="3"
@@ -18,7 +18,7 @@
 
     <main v-if="!loadError" v-loading="loading" element-loading-text="加载中...">
       <transition name="fade">
-        <HeroSection 
+        <HeroSection
           v-if="!loading"
           :is-logged-in="isAuthenticated"
           @explore="handleExplore"
@@ -32,7 +32,7 @@
       </transition>
 
       <transition name="slide-up">
-        <PopularKnowledgeSection 
+        <PopularKnowledgeSection
           v-if="!loading"
           :knowledge="popularKnowledge"
           :loading="loading"
@@ -106,29 +106,31 @@ export default {
       this.goToLogin();
     },
 
-    goToDashboard() { 
-      this.$router.push('/personal/center'); 
+    goToDashboard() {
+      this.$router.push('/personal/center');
     },
-    goToLogin() { 
-      this.$router.push('/login'); 
+    goToLogin() {
+      this.$router.push('/login');
     },
-    goToSearchCenter() { 
-      this.$router.push('/search/center'); 
+    goToSearchCenter() {
+      this.$router.push('/search/center');
     },
-    goToCollections() { 
-      this.$router.push('/collections'); 
+    goToCollections() {
+      this.$router.push('/collect/center?tab=discover');
     },
-    goToDetail() { 
-      this.$router.push({
-        path: '/login',
-        query: { redirect: '/search' }
-      });
+    goToDetail(collectionId) {
+      if (collectionId) {
+        this.$router.push(`/collections/${collectionId}`);
+      } else {
+        this.$router.push('/login');
+      }
     },
-    goToCollection() { 
-      this.$router.push({
-        path: '/login',
-        query: { redirect: '/collections' }
-      });
+    goToCollection(collectionId) {
+      if (collectionId) {
+        this.$router.push(`/collections/${collectionId}`);
+      } else {
+        this.$router.push('/login');
+      }
     },
 
     performSearch(query) {

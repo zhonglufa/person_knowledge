@@ -34,4 +34,6 @@ public interface IUserService {
     R getSettings(Long userId);
 
     R updateSettings(Long userId, UserSettingsDTO dto);
+
+    R sendVerifyCode(String email);
 }

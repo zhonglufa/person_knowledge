@@ -358,7 +358,6 @@ export default {
       }
     },
     onNavHover(index) {
-      this.activeIndex = index;
     },
     onNavLeave() {
       this.updateActiveNavigation();

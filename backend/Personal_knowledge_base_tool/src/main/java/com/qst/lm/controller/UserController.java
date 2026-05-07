@@ -74,6 +74,12 @@ public class UserController {
         return userService.resetPassword(email, code, newPassword);
     }
 
+    @PostMapping("/send-verify-code")
+    public R sendVerifyCode(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        return userService.sendVerifyCode(email);
+    }
+
     @GetMapping("/settings")
     public R getSettings(@RequestAttribute Long userId) {
         return userService.getSettings(userId);

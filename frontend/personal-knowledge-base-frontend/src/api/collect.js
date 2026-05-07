@@ -140,7 +140,7 @@ export const collectApi = {
     return request({
       url: `/collect/${id}/digest-status`,
       method: 'put',
-      data: { status }
+      data: { digestStatus: status }
     });
   },
 
@@ -168,7 +168,7 @@ export const collectApi = {
     return request({
       url: `/collect/${id}/digest-status`,
       method: 'put',
-      data: { status }
+      data: { digestStatus: status }
     });
   },
 

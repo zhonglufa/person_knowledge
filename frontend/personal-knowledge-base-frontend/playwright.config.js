@@ -11,8 +11,10 @@ export default defineConfig({
     ['json', { outputFile: 'e2e-test-results/results.json' }],
     ['list']
   ],
+  globalSetup: './e2e-tests/global-setup.js',
   use: {
-    baseURL: 'http://localhost:5000',
+    baseURL: process.env.E2E_BASE_URL || 'http://localhost:5000',
+    storageState: process.env.PLAYWRIGHT_STORAGE_STATE || 'e2e-test-results/storageState.json',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',

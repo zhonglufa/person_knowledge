@@ -6,16 +6,6 @@
   >
     <!-- 封面区域 -->
     <div class="collection-cover">
-      <!-- 加工状态角标-->
-      <div 
-        v-if="collection.digestStatus" 
-        class="digest-status-badge"
-        :class="`status-${collection.digestStatus}`"
-      >
-        {{ getDigestStatusText(collection.digestStatus) }}
-      </div>
-      
-      <!-- 有图片时显示图片 -->
       <img 
         v-if="collection.coverImage" 
         :src="collection.coverImage"
@@ -88,15 +78,15 @@
           <i class="fas fa-star"></i>
           默认
         </span>
-        <span class="stat-item" v-if="collection.isShared">
-          <i class="fas fa-share-alt"></i>
-          已共享
+        <span class="stat-item" v-if="collection.isPublic === 1">
+          <i class="fas fa-globe"></i>
+          公开
         </span>
       </div>
 
       <!-- 时间信息 -->
       <p class="collection-time">
-        {{ formatTime(collection.createTime) }}
+        {{ formatTime(collection.createdAt) }}
       </p>
     </div>
   </div>

@@ -27,12 +27,13 @@
     @search="handleSearch"
     @sort-change="handleSortChange"
     @tag-toggle="handleTagToggle"
+    @tags-back="handleTagsBack"
     @show-all-collections="handleShowAllCollections"
     @apply-filters="handleApplyFilters"
     @reset-filters="handleResetFilters"
   >
     <template v-if="activeSidebarItem === 'my-collections'">
-      <collection-list-page />
+      <collection-list-page :key="routeKey" />
     </template>
     <template v-else>
       <ContentArea
@@ -158,6 +159,9 @@ export default {
         { label: '创建时间', value: 'created' },
         { label: '标题名称', value: 'name' }
       ]
+    },
+    routeKey() {
+      return this.$route.query.tab || 'default'
     }
   },
   watch: {
@@ -168,7 +172,11 @@ export default {
           this.activeSidebarItem = 'my-collections'
           return
         }
-        if (this.activeSidebarItem === 'my-collections') {
+        if (tab === 'discover') {
+          this.activeSidebarItem = 'discover'
+          return
+        }
+        if (this.activeSidebarItem === 'my-collections' || this.activeSidebarItem === 'discover') {
           this.activeSidebarItem = 'all'
         }
       }
@@ -213,12 +221,11 @@ export default {
       this.resetInfiniteState();
       await this.fetchCollectionsPage(1);
     },
-    async handleTagToggle(tag) {
+    async handleTagToggle(tagName) {
       if (this.activeSidebarItem === 'my-collections') {
         return;
       }
-      const tagName = typeof tag === 'string' ? tag : tag?.name;
-      if (!tagName) {
+      if (!tagName || typeof tagName !== 'string') {
         return;
       }
       if (this.selectedTags.includes(tagName)) {
@@ -228,6 +235,12 @@ export default {
       }
       this.resetInfiniteState();
       await this.fetchCollectionsPage(1);
+    },
+    handleTagsBack() {
+      this.activeSidebarItem = 'all';
+      this.selectedTags = [];
+      this.resetInfiniteState();
+      this.loadCollections();
     },
     async handleApplyFilters(filters) {
       if (this.activeSidebarItem === 'my-collections') {

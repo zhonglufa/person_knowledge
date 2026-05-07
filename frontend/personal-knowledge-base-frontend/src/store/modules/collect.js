@@ -122,17 +122,22 @@ const state = {
 };
 
 const getters = {
-  getTotalCollections: (state) => state.statistics.totalCollects,
-  getTodayCollections: (state) => state.statistics.todayCollects,
-  getUnreadCollections: (state) => state.statistics.unreadCollects,
-  getRecycledCollections: (state) => state.statistics.recycledCollections,
+  getTotalCollectItems: (state) => state.statistics.totalCollects,
+  getTodayCollectItems: (state) => state.statistics.todayCollects,
+  getUnreadCollectItems: (state) => state.statistics.unreadCollects,
+  getRecycledCollectItems: (state) => state.statistics.recycledCollections,
   getTotalTags: (state) => state.statistics.totalTags,
-  getCurrentPageCollections: (state) => {
+  getCurrentPageCollectItems: (state) => {
     const { currentPage, pageSize } = state.pagination;
     const start = (currentPage - 1) * pageSize;
     const end = start + pageSize;
     return state.collectList.slice(start, end);
-  }
+  },
+  getTotalCollections: (state, getters) => getters.getTotalCollectItems,
+  getTodayCollections: (state, getters) => getters.getTodayCollectItems,
+  getUnreadCollections: (state, getters) => getters.getUnreadCollectItems,
+  getRecycledCollections: (state, getters) => getters.getRecycledCollectItems,
+  getCurrentPageCollections: (state, getters) => getters.getCurrentPageCollectItems
 };
 
 const mutations = {

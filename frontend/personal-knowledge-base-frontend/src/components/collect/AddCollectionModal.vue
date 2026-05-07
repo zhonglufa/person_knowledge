@@ -257,7 +257,6 @@ export default {
           thumbnail: this.detectedThumbnail
         };
         this.$emit('add', collectionData);
-        this.handleClose();
       } catch (error) {
         this.$message.error('请检查表单填写是否正确');
       } finally {

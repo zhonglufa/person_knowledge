@@ -440,6 +440,7 @@ export default {
       return {
         id: `collection-${record.id}`,
         rawId: record.id,
+        type: 'collections',
         title: record.name || '未命名收藏集',
         description: record.description || '暂无收藏集描述',
         typeLabel: '收藏集',
@@ -455,6 +456,7 @@ export default {
       return {
         id: `item-${record.id}`,
         rawId: record.id,
+        type: 'items',
         title: record.title || '未命名收藏项',
         description: record.coreAbstract || record.keywords || record.source || '暂无收藏项摘要',
         typeLabel: '收藏项',
@@ -471,6 +473,7 @@ export default {
       return {
         id: `note-${record.id}`,
         rawId: record.id,
+        type: 'notes',
         title: record.title || '未命名笔记',
         description: record.description || record.content || '暂无笔记内容',
         typeLabel: '笔记',
@@ -487,6 +490,7 @@ export default {
       return {
         id: `tag-${record.id}`,
         rawId: record.id,
+        type: 'tags',
         title: record.name || '未命名标签',
         description: `颜色标识：${record.color || '未设置'}`,
         typeLabel: '标签',
@@ -653,11 +657,12 @@ export default {
       return types[index] || ''
     },
     handleResultClick(item) {
+      const rawId = item.rawId || item.id
       const routes = {
-        collections: `/collections/${item.id}`,
-        items: `/creation/collection-items/${item.id}/note/create`,
-        notes: `/creation/notes/${item.id}`,
-        tags: `/taxonomy/tags?tagId=${item.tagId || item.id}`
+        collections: `/collections/${rawId}`,
+        items: `/creation/collection-items/${rawId}/note/create`,
+        notes: `/creation/notes/${rawId}`,
+        tags: `/taxonomy/tags?tagId=${rawId}`
       }
       const route = routes[item.type]
       if (route) {

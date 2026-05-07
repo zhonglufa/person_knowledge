@@ -193,8 +193,8 @@ export const announcementApi = {
   // 下架公告（修改状态为已下架，可恢复）
   takeDownAnnouncement(id) {
     return request({
-      url: `/admin/announcements/${id}/take-down`,
-      method: 'put'
+      url: `/admin/announcements/${id}`,
+      method: 'delete'
     })
   },
   // 删除公告（逻辑删除，不可恢复）

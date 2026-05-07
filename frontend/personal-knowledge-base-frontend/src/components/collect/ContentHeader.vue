@@ -12,6 +12,7 @@
             <div class="filter-group">
               <el-checkbox
                 v-model="selectAll"
+                :disabled="disableSelection"
                 @change="handleSelectAllChange"
                 :indeterminate="isIndeterminate"
               >
@@ -137,6 +138,10 @@ export default {
     filterParams: {
       type: Object,
       default: () => ({})
+    },
+    disableSelection: {
+      type: Boolean,
+      default: false
     }
   },
   data() {
@@ -175,43 +180,52 @@ export default {
       return Array.isArray(this.selectedDateRange) && this.selectedDateRange.length === 2;
     }
   },
+  watch: {
+    activeSidebarItem() {
+      this.selectAll = false;
+      this.isIndeterminate = false;
+    },
+    disableSelection(disabled) {
+      if (disabled) {
+        this.selectAll = false;
+        this.isIndeterminate = false;
+      }
+    }
+  },
   methods: {
     handleAddCollection() {
       this.showAddCollectionModalFlag = true;
     },
 
-    handleAddCollectionSubmit(data) {
-      this.addCollection(data);
+    async handleAddCollectionSubmit(data) {
+      try {
+        await this.addCollection(data);
+        this.showAddCollectionModalFlag = false;
+      } catch {
+      }
     },
 
     async addCollection(data) {
-      try {
-        if (!this.isValidUrl(data.url)) {
-          this.$message.error('请输入有效的URL');
-          return;
-        }
-
-        const checkResponse = await collectApi.checkUrlExists(data.url);
-        if (checkResponse.data && checkResponse.data.exists) {
-          this.$message.error('该链接已被收藏');
-          return;
-        }
-
-        const response = await collectApi.createCollect({
-          sourceType: 1,
-          sourceUrl: data.url,
-          title: data.title || undefined,
-          source: new URL(data.url).hostname || '未知来源'
-        });
-
-        this.$message.success('收藏添加成功');
-        this.$emit('add-collection-success', response.data);
-      } catch (error) {
-        const errorMsg = error.response?.data?.message || error.message || '未知错误';
-        this.$message.error(`收藏添加失败: ${errorMsg}`);
-      } finally {
-        this.showAddCollectionModalFlag = false;
+      if (!this.isValidUrl(data.url)) {
+        this.$message.error('请输入有效的URL');
+        return;
       }
+
+      const checkResponse = await collectApi.checkUrlExists(data.url);
+      if (checkResponse.data && checkResponse.data.exists) {
+        this.$message.error('该链接已被收藏');
+        return;
+      }
+
+      const response = await collectApi.createCollect({
+        sourceType: 1,
+        sourceUrl: data.url,
+        title: data.title || undefined,
+        source: new URL(data.url).hostname || '未知来源'
+      });
+
+      this.$message.success('收藏添加成功');
+      this.$emit('add-collection-success', response.data);
     },
 
     isValidUrl(url) {

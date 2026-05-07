@@ -312,6 +312,7 @@
 
 <script>
 import { collectionsApi } from '@/api/collections'
+import collectApi from '@/api/collect'
 
 export default {
   name: 'ProcessingManagement',
@@ -481,10 +482,10 @@ export default {
       return statusMap[status] || ''
     },
     startProcessing() {
-      this.$router.push('/creation/processing/tasks')
+      this.$router.push('/creation/processing')
     },
     viewAllProcessing() {
-      this.$router.push('/creation/processing/tasks')
+      this.$router.push('/creation/processing')
     },
     processItem(item) {
       this.editingItem = item
@@ -523,19 +524,14 @@ export default {
         return
       }
       try {
-        const payload = {
+        await collectApi.updateCollect(this.editingItem.id, {
           digestStatus: this.processForm.digestStatus,
-          digestContent: this.processForm.digestContent,
-          tags: this.processForm.tags,
-          categoryId: null,
-          noteTitle: this.editingItem.title,
-          noteContent: [
-            this.processForm.digestContent,
-            this.processForm.keywords,
-            this.processForm.learningGoal
-          ].filter(Boolean).join('\n\n')
-        }
-        await collectionsApi.processCollectionItem(this.editingItem.id, payload)
+          coreAbstract: this.processForm.digestContent,
+          keywords: this.processForm.keywords,
+          learningGoal: this.processForm.learningGoal,
+          reviewCycle: this.processForm.reviewCycle
+        })
+        await collectApi.updateDigestStatus(this.editingItem.id, this.processForm.digestStatus)
         Object.assign(this.editingItem, {
           digestStatus: this.processForm.digestStatus,
           digestContent: this.processForm.digestContent,

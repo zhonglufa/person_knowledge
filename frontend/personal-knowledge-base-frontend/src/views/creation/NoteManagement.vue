@@ -97,7 +97,7 @@
               </div>
               <div class="card-cover">
                 <i class="fas fa-file-alt"></i>
-                <span class="word-count">{{ note.wordCount || 0 }} 字</span>
+                <span class="word-count">{{ (note.content || '').length }} 字</span>
               </div>
               <div class="card-body">
                 <h3 class="card-title">{{ note.title }}</h3>
@@ -108,7 +108,7 @@
                 </div>
                 <div class="card-meta">
                   <span><i class="fas fa-calendar"></i> {{ formatDate(note.updateTime) }}</span>
-                  <span><i class="fas fa-layer-group"></i> {{ getTypeLabel(note.type) }}</span>
+                  <span><i class="fas fa-layer-group"></i> {{ getTypeLabel(note.noteType) }}</span>
                 </div>
                 <div class="card-actions" @click.stop>
                   <el-button type="text" size="mini" @click="handleEditNote(note)">{{ getNoteStage(note) === 'draft' ? '继续编辑' : '编辑' }}</el-button>
@@ -147,12 +147,14 @@
           <el-table-column label="来源收藏项" min-width="180">
             <template slot-scope="scope">{{ getSourceReference(scope.row) }}</template>
           </el-table-column>
-          <el-table-column prop="type" label="类型" width="100" align="center">
+          <el-table-column prop="noteType" label="类型" width="100" align="center">
             <template slot-scope="scope">
-              <el-tag :type="getTypeTag(scope.row.type)" size="mini">{{ getTypeLabel(scope.row.type) }}</el-tag>
+              <el-tag :type="getTypeTag(scope.row.noteType)" size="mini">{{ getTypeLabel(scope.row.noteType) }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="wordCount" label="字数" width="80" align="center" />
+          <el-table-column label="字数" width="80" align="center">
+            <template slot-scope="scope">{{ (scope.row.content || '').length }}</template>
+          </el-table-column>
           <el-table-column prop="updateTime" label="更新时间" width="160" align="center">
             <template slot-scope="scope">{{ formatDate(scope.row.updateTime) }}</template>
           </el-table-column>
@@ -253,7 +255,7 @@ export default {
         )
       }
       if (this.filterType) {
-        result = result.filter(n => n.type === this.filterType)
+        result = result.filter(n => n.noteType === this.filterType)
       }
       if (this.filterStatus) {
         if (this.filterStatus === 'draft' || this.filterStatus === 'published') {

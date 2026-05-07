@@ -109,7 +109,7 @@ public class CollectionItemController {
     public R updateDigestStatus(@RequestAttribute("userId") Long userId,
                                 @PathVariable Long id,
                                 @RequestBody Map<String, String> body) {
-        String status = body.get("status");
+        String status = body.get("digestStatus") != null ? body.get("digestStatus") : body.get("status");
         log.info("用户[{}]更新收藏项[{}]消化状态为[{}]", userId, id, status);
         return collectionItemService.updateDigestStatus(userId, id, status);
     }
@@ -195,5 +195,35 @@ public class CollectionItemController {
                            @Valid @RequestBody BookmarkImportDTO dto) {
         log.info("用户[{}]预览浏览器书签导入", userId);
         return collectionItemService.previewImport(userId, dto);
+    }
+
+    @PostMapping("/import/execute")
+    @Operation(summary = "执行浏览器书签导入", description = "确认导入浏览器书签，将预览数据落库")
+    public R executeImport(@RequestAttribute("userId") Long userId,
+                           @Valid @RequestBody BookmarkImportDTO dto) {
+        log.info("用户[{}]执行浏览器书签导入", userId);
+        return collectionItemService.executeImport(userId, dto);
+    }
+
+    @PutMapping("/{id}/remind")
+    @Operation(summary = "设置学习提醒", description = "为指定收藏项设置学习提醒时间")
+    public R setRemind(@RequestAttribute("userId") Long userId,
+                       @PathVariable Long id,
+                       @RequestBody Map<String, String> body) {
+        String remindAt = body.get("remindAt");
+        log.info("用户[{}]设置收藏项[{}]提醒时间[{}]", userId, id, remindAt);
+        java.time.LocalDateTime remindTime = null;
+        if (remindAt != null && !remindAt.isEmpty()) {
+            remindTime = java.time.LocalDateTime.parse(remindAt, java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        }
+        return collectionItemService.setRemind(userId, id, remindTime);
+    }
+
+    @DeleteMapping("/{id}/remind")
+    @Operation(summary = "取消学习提醒", description = "取消指定收藏项的学习提醒")
+    public R cancelRemind(@RequestAttribute("userId") Long userId,
+                          @PathVariable Long id) {
+        log.info("用户[{}]取消收藏项[{}]提醒", userId, id);
+        return collectionItemService.cancelRemind(userId, id);
     }
 }

@@ -268,7 +268,7 @@
 </template>
 
 <script>
-import { mapGetters, mapActions } from 'vuex'
+import { mapGetters } from 'vuex'
 import { changePassword, getUserSettings, updateUserSettings } from '@/api/user'
 import SettingsForm from '@/components/common/SettingsForm.vue'
 
@@ -316,7 +316,6 @@ export default {
     this.loadPersonalSettings()
   },
   methods: {
-    ...mapActions('user', ['updateUserInfo']),
 
     // 加载设置（优先从服务器获取，失败则使用本地缓存）
     async loadLocalSettings() {
@@ -324,8 +323,8 @@ export default {
         // 优先从服务器获取设置
         try {
           const response = await getUserSettings()
-          if (response?.data?.code === 200 && response.data.data) {
-            const serverSettings = response.data.data
+          if (response?.code === 200 && response.data) {
+            const serverSettings = response.data
             if (serverSettings.notification) {
               this.notificationForm = { ...this.notificationForm, ...serverSettings.notification }
             }
@@ -374,8 +373,8 @@ export default {
       this.settingsLoading = true
       try {
         const response = await getUserSettings()
-        if (response?.data?.code === 200 && response.data.data) {
-          this.personalSettings = response.data.data
+        if (response?.code === 200 && response.data) {
+          this.personalSettings = response.data
           // 将后端设置同步到本地缓存
           localStorage.setItem('userSettings', JSON.stringify(this.personalSettings))
         }
@@ -476,7 +475,7 @@ export default {
       this.saveLoading = true
       try {
         // 同时保存到服务器和本地
-        await updateUserSettings({ notification: this.notificationForm })
+        await updateUserSettings({ notifyPreferences: this.notificationForm })
         localStorage.setItem('notificationSettings', JSON.stringify(this.notificationForm))
         this.$message.success('通知设置保存成功')
       } catch (error) {

@@ -18,8 +18,8 @@
       
       <!-- 图片类型的封�?-->
       <img 
-        v-if="item.sourceType === 2 && item.storageUrl"
-        :src="item.storageUrl"
+        v-if="item.sourceType === 2 && item.sourceUrl"
+        :src="item.sourceUrl"
         :alt="item.title"
         class="cover-image"
         @error="handleImageError"
@@ -90,12 +90,12 @@
           未读
         </el-tag>
         <el-tag 
-          v-if="item.isShared" 
+          v-if="item.isPublic === 1" 
           type="success" 
           size="mini"
           class="shared-tag"
         >
-          已分�?
+          公开
         </el-tag>
       </div>
     </div>
@@ -190,8 +190,7 @@ export default {
       type: Object,
       required: true,
       validator(value) {
-        // 放宽验证条件，允许更多字段为�?
-        return value.id && (value.title || value.name)
+        return value.id && value.title
       }
     },
     selected: {
@@ -207,7 +206,7 @@ export default {
   },
   computed: {
     truncatedTitle() {
-      const title = this.item.title || this.item.name || '无标题';
+      const title = this.item.title || '无标题';
       return title.length > 50 ? title.substring(0, 50) + '...' : title
     },
     
@@ -221,10 +220,10 @@ export default {
     },
     
     faviconUrl() {
-      if (this.item.sourceType !== 1 || !this.item.storageUrl) return ''
+      if (this.item.sourceType !== 1 || !this.item.sourceUrl) return ''
       
       try {
-        const url = new URL(this.item.storageUrl)
+        const url = new URL(this.item.sourceUrl)
         return `https://www.google.com/s2/favicons?domain=${url.hostname}&sz=32`
       } catch (error) {
         console.warn('解析URL失败:', error);

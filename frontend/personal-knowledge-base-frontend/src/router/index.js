@@ -85,6 +85,24 @@ router.beforeEach(async (to, from, next) => {
     }
   }
 
+  if (to.path === '/login') {
+    const token = localStorage.getItem('token') || store.state.user.token;
+    if (token) {
+      try {
+        const userInfo = store.state.user.userInfo;
+        if (!userInfo || !userInfo.id) {
+          await store.dispatch('user/fetchUserInfo');
+        }
+        next('/personal/center');
+      } catch (error) {
+        console.warn('登录页登录态校验失败:', error);
+        store.commit('user/CLEAR_USER_STATE');
+        next();
+      }
+      return;
+    }
+  }
+
   if (to.matched.some(record => record.meta.requiresAuth)) {
     const isAdminRoute = to.matched.some(record => record.meta.isAdmin);
 

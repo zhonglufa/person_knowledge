@@ -20,7 +20,7 @@
           @collection-click="$emit('collection-click', $event)"
         />
 
-        <GridView
+        <CollectItemsGridView
           v-else
           :collections="collections"
           :selected-collections="selectedCollections"
@@ -72,13 +72,13 @@
 </template>
 
 <script>
-import GridView from './GridView.vue';
+import CollectItemsGridView from './CollectItemsGridView.vue';
 import PublicCollectionGrid from './PublicCollectionGrid.vue';
 
 export default {
   name: 'CollectionsDisplay',
   components: {
-    GridView,
+    CollectItemsGridView,
     PublicCollectionGrid
   },
   props: {

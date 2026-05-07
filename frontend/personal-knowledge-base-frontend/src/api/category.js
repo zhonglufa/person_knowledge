@@ -51,10 +51,10 @@ export function deleteCategory(id) {
 }
 
 // 移动分类
-export function moveCategory(categoryId, newParentId) {
+export function moveCategory(categoryId, targetParentId) {
   return request({
     url: `/categories/${categoryId}/move`,
     method: 'put',
-    data: { newParentId }
+    data: { targetParentId }
   })
 }

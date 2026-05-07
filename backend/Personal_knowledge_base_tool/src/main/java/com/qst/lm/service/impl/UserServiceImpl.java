@@ -318,6 +318,21 @@ public class UserServiceImpl implements IUserService {
     }
 
     @Override
+    public R sendVerifyCode(String email) {
+        if (!StringUtils.hasText(email)) {
+            throw new BusinessException("邮箱不能为空");
+        }
+        if (!verificationCodeService.canSendCode(email)) {
+            throw new BusinessException("发送过于频繁，请稍后再试");
+        }
+        String code = verificationCodeService.generateCode();
+        verificationCodeService.sendVerificationCode(email, code);
+        verificationCodeService.saveCode(email, code);
+        log.info("发送验证码成功，邮箱: {}", email);
+        return R.success("验证码发送成功");
+    }
+
+    @Override
     public R resetPassword(String email, String code, String newPassword) {
         if (!StringUtils.hasText(email) || !StringUtils.hasText(code) || !StringUtils.hasText(newPassword)) {
             throw new BusinessException("参数不完整");

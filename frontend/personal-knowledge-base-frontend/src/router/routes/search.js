@@ -2,11 +2,15 @@
 export default [
   {
     path: '/search',
-    redirect: '/search/global'
+    redirect: to => {
+      return { path: '/search/global', query: to.query }
+    }
   },
   {
     path: '/search/center',
-    redirect: '/search/global'
+    redirect: to => {
+      return { path: '/search/global', query: to.query }
+    }
   },
   {
     path: '/search/global',

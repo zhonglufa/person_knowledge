@@ -81,9 +81,14 @@ const actions = {
     return pendingPermissionPromise
   },
 
-  async fetchUserRoles({ commit }) {
+  async fetchUserRoles({ commit }, userId) {
     try {
-      const response = await permissionApi.getCurrentUserPermissions()
+      if (!userId) {
+        commit('SET_ROLES', [])
+        return []
+      }
+
+      const response = await permissionApi.getUserRoles(userId)
       const roles = response.data || response
       commit('SET_ROLES', roles)
       return roles

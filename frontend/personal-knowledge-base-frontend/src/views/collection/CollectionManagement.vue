@@ -182,14 +182,14 @@
             v-for="collection in collections"
             :key="collection.id"
             class="collection-card"
-            :class="{ 'is-selected': selectedItems.includes(collection.id) }"
+            :class="{ 'is-selected': selectedCollectionIds.includes(collection.id) }"
             @click="toggleSelect(collection.id)"
           >
             <div class="card-header">
               <div class="collection-info">
                 <i class="fas fa-folder collection-icon"></i>
                 <div class="collection-text">
-                  <h4 class="collection-title">{{ collection.title }}</h4>
+                  <h4 class="collection-title">{{ collection.name }}</h4>
                   <p class="collection-desc">{{ collection.description || '暂无描述' }}</p>
                 </div>
               </div>
@@ -300,9 +300,9 @@
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="createTime" label="收藏时间" width="180">
+            <el-table-column prop="createdAt" label="收藏时间" width="180">
               <template slot-scope="scope">
-                {{ formatDate(scope.row.createTime) }}
+                {{ formatDate(scope.row.createdAt) }}
               </template>
             </el-table-column>
             <el-table-column label="操作" width="200">
@@ -446,7 +446,9 @@ export default {
       filterType: 'all',
       sortBy: 'updateTime',
       showTrash: false,
-      selectedItems: [],
+      selectedCollectionIds: [],
+      selectedItemIds: [],
+      selectionDomain: null,
       showImportDialog: false,
       collectionsCurrentPage: 1,
       collectionsPageSize: 10,
@@ -479,6 +481,14 @@ export default {
     this.loadStats()
     this.loadCollections()
     this.loadItems()
+  },
+  computed: {
+    selectedItems() {
+      return this.selectionDomain === 'collection' ? this.selectedCollectionIds : this.selectedItemIds
+    },
+    selectedCount() {
+      return this.selectedItems.length
+    }
   },
   methods: {
     async loadStats() {
@@ -517,13 +527,12 @@ export default {
           pageSize: this.collectionsPageSize
         }
         if (this.searchKeyword) params.keyword = this.searchKeyword
-        if (this.showTrash) params.deleted = true
 
         const response = await collectionsApi.getUserCollections(params)
-        // 适配响应拦截器解包后的数据结构
         const payload = response?.data ?? response ?? {}
-        this.collections = Array.isArray(payload) ? payload : (payload.records || payload.list || [])
-        this.collectionsTotal = payload.total || this.collections.length
+        const records = Array.isArray(payload) ? payload : (payload.records || payload.list || [])
+        this.collectionsTotal = payload.total || records.length
+        this.collections = this.sortCollections(records)
       } catch (error) {
         console.error('加载收藏集失败:', error)
         this.$message.error(error?.message || '加载收藏集失败，请稍后重试')
@@ -539,10 +548,15 @@ export default {
           pageSize: this.itemsPageSize
         }
         if (this.searchKeyword) params.keyword = this.searchKeyword
-        if (this.showTrash) params.deleted = true
 
-        const response = await collectApi.getCollectList(params)
-        // 适配响应拦截器解包后的数据结构
+        const sortMapping = this.resolveItemSort(this.sortBy)
+        if (sortMapping.sortBy) params.sortBy = sortMapping.sortBy
+        if (sortMapping.sortOrder) params.sortOrder = sortMapping.sortOrder
+
+        const response = this.showTrash
+          ? await collectApi.getRecycleBin(params)
+          : await collectApi.getCollectList(params)
+
         const payload = response?.data ?? response ?? {}
         this.items = Array.isArray(payload) ? payload : (payload.records || payload.list || [])
         this.itemsTotal = payload.total || this.items.length
@@ -553,21 +567,63 @@ export default {
         this.loadingItems = false
       }
     },
+    sortCollections(records) {
+      const list = Array.isArray(records) ? [...records] : []
+      const sortBy = this.sortBy
+      if (sortBy === 'createTime') {
+        return list.sort((a, b) => new Date(b.createdAt || b.createTime || 0) - new Date(a.createdAt || a.createTime || 0))
+      }
+      if (sortBy === 'updateTime') {
+        return list.sort((a, b) => new Date(b.updatedAt || b.updateTime || b.createdAt || 0) - new Date(a.updatedAt || a.updateTime || a.createdAt || 0))
+      }
+      if (sortBy === 'title') {
+        return list.sort((a, b) => String(a.name || a.title || '').localeCompare(String(b.name || b.title || ''), 'zh-CN'))
+      }
+      return list
+    },
+    resolveItemSort(sortBy) {
+      if (sortBy === 'createTime') {
+        return { sortBy: 'createdAt', sortOrder: 'desc' }
+      }
+      if (sortBy === 'updateTime') {
+        return { sortBy: 'updatedAt', sortOrder: 'desc' }
+      }
+      if (sortBy === 'title') {
+        return { sortBy: 'title', sortOrder: 'asc' }
+      }
+      return { sortBy: undefined, sortOrder: undefined }
+    },
     handleSearch() {
       this.collectionsCurrentPage = 1
       this.itemsCurrentPage = 1
-      this.loadCollections()
-      this.loadItems()
+      this.clearSelection()
+      this.loadByFilterType()
     },
     handleFilterChange() {
       this.collectionsCurrentPage = 1
       this.itemsCurrentPage = 1
-      this.loadCollections()
-      this.loadItems()
+      this.clearSelection()
+      this.loadByFilterType()
     },
     handleSortChange() {
       this.collectionsCurrentPage = 1
       this.itemsCurrentPage = 1
+      this.clearSelection()
+      this.loadByFilterType()
+    },
+    loadByFilterType() {
+      if (this.filterType === 'collection') {
+        this.items = []
+        this.itemsTotal = 0
+        this.loadCollections()
+        return
+      }
+      if (this.filterType === 'item') {
+        this.collections = []
+        this.collectionsTotal = 0
+        this.loadItems()
+        return
+      }
       this.loadCollections()
       this.loadItems()
     },
@@ -585,22 +641,25 @@ export default {
       this.clearSelection()
       this.collectionsCurrentPage = 1
       this.itemsCurrentPage = 1
-      this.loadCollections()
-      this.loadItems()
+      this.loadByFilterType()
     },
     toggleSelect(id) {
-      const index = this.selectedItems.indexOf(id)
+      this.selectionDomain = 'collection'
+      const index = this.selectedCollectionIds.indexOf(id)
       if (index > -1) {
-        this.selectedItems.splice(index, 1)
+        this.selectedCollectionIds.splice(index, 1)
       } else {
-        this.selectedItems.push(id)
+        this.selectedCollectionIds.push(id)
       }
     },
     handleTableSelectionChange(selection) {
-      this.selectedItems = selection.map(item => item.id)
+      this.selectionDomain = 'item'
+      this.selectedItemIds = selection.map(item => item.id)
     },
     clearSelection() {
-      this.selectedItems = []
+      this.selectedCollectionIds = []
+      this.selectedItemIds = []
+      this.selectionDomain = null
     },
     calculateProgress(processedCount, itemCount) {
       if (!itemCount) return 0
@@ -658,7 +717,7 @@ export default {
     editCollection(collection) {
       this.editingCollection = collection
       this.collectionForm = {
-        title: collection.title || '',
+        name: collection.name || '',
         description: collection.description || '',
         tags: collection.tags || []
       }
@@ -720,14 +779,14 @@ export default {
       }
     },
     processCollection(collection) {
-      this.$router.push(`/creation/processing/tasks?collectionId=${collection.id}`)
+      this.$router.push({ path: '/creation/processing', query: { collectionId: collection.id } })
     },
     shareCollection() {
       this.$message.info('分享功能开发中')
     },
     async deleteCollection(collection) {
       try {
-        await this.$confirm(`确定删除收藏集「${collection.title}」吗？`, '删除确认', {
+        await this.$confirm(`确定删除收藏集「${collection.name}」吗？`, '删除确认', {
           type: 'warning'
         })
         await collectionsApi.deleteCollection(collection.id)
@@ -748,7 +807,7 @@ export default {
       this.$message.info('永久删除功能开发中')
     },
     processItem(item) {
-      this.$router.push(`/creation/processing/tasks?itemId=${item.id}`)
+      this.$router.push({ path: '/creation/processing', query: { itemId: item.id } })
     },
     editItem(item) {
       this.$router.push(`/creation/collection-items/${item.id}/note/create`)
@@ -799,15 +858,19 @@ export default {
       }
     },
     async handleBatchDelete() {
-      if (this.selectedItems.length === 0) {
+      if (this.selectionDomain !== 'item') {
+        this.$message.warning('当前选择为收藏集，暂不支持批量删除收藏集')
+        return
+      }
+      if (this.selectedItemIds.length === 0) {
         this.$message.warning('请先选择要操作的项目')
         return
       }
       try {
-        await this.$confirm(`确定删除选中的 ${this.selectedItems.length} 个项目吗？`, '批量删除确认', {
+        await this.$confirm(`确定删除选中的 ${this.selectedItemIds.length} 个项目吗？`, '批量删除确认', {
           type: 'warning'
         })
-        await collectApi.batchDeleteCollect(this.selectedItems)
+        await collectApi.batchDeleteCollect(this.selectedItemIds)
         this.$message.success('批量删除成功')
         this.clearSelection()
         await this.loadStats()
@@ -820,12 +883,16 @@ export default {
       }
     },
     async handleBatchRecover() {
-      if (this.selectedItems.length === 0) {
+      if (this.selectionDomain !== 'item') {
+        this.$message.warning('当前选择为收藏集，暂不支持批量操作收藏集')
+        return
+      }
+      if (this.selectedItemIds.length === 0) {
         this.$message.warning('请先选择要操作的项目')
         return
       }
       try {
-        await collectApi.batchRecoverCollect(this.selectedItems)
+        await collectApi.batchRecoverCollect(this.selectedItemIds)
         this.$message.success('批量恢复成功')
         this.clearSelection()
         await this.loadStats()
@@ -836,17 +903,21 @@ export default {
       }
     },
     async handleBatchPermanentDelete() {
-      if (this.selectedItems.length === 0) {
+      if (this.selectionDomain !== 'item') {
+        this.$message.warning('当前选择为收藏集，暂不支持批量操作收藏集')
+        return
+      }
+      if (this.selectedItemIds.length === 0) {
         this.$message.warning('请先选择要操作的项目')
         return
       }
       try {
-        await this.$confirm(`确定永久删除选中的 ${this.selectedItems.length} 个项目吗？此操作不可恢复！`, '批量永久删除确认', {
+        await this.$confirm(`确定永久删除选中的 ${this.selectedItemIds.length} 个项目吗？此操作不可恢复！`, '批量永久删除确认', {
           type: 'error',
           confirmButtonText: '永久删除',
           cancelButtonText: '取消'
         })
-        await collectApi.batchPermanentDeleteCollect(this.selectedItems)
+        await collectApi.batchPermanentDeleteCollect(this.selectedItemIds)
         this.$message.success('批量永久删除成功')
         this.clearSelection()
         await this.loadStats()

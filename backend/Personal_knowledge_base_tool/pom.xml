@@ -128,10 +128,10 @@
     </dependency>
 
     <!-- Elasticsearch -->
-    <dependency>
+<!--    <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-data-elasticsearch</artifactId>
-    </dependency>
+    </dependency>-->
     <!-- Jsoup HTML Parser -->
     <dependency>
       <groupId>org.jsoup</groupId>
@@ -181,6 +181,14 @@
       <version>4.13.2</version>
       <scope>test</scope>
     </dependency>
+
+    <!-- DotEnv支持 - 使用最新稳定版 -->
+    <dependency>
+      <groupId>io.github.cdimascio</groupId>
+      <artifactId>dotenv-java</artifactId>
+      <version>3.0.0</version>
+    </dependency>
+
   </dependencies>
 
 
@@ -196,7 +204,7 @@
           <encoding>UTF-8</encoding>
         </configuration>
       </plugin>
-      
+
       <!-- 资源文件编码配置 -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -205,7 +213,7 @@
           <encoding>UTF-8</encoding>
         </configuration>
       </plugin>
-      
+
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>

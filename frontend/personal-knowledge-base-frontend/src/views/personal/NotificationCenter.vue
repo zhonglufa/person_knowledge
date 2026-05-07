@@ -167,13 +167,51 @@ export default {
       this.$message.success('删除成功')
       await this.refreshData()
     },
+    normalizeTargetUrl(targetUrl) {
+      if (!targetUrl || typeof targetUrl !== 'string') {
+        return null
+      }
+
+      if (/^https?:\/\//i.test(targetUrl)) {
+        return null
+      }
+
+      let url = targetUrl.trim()
+      if (!url.startsWith('/')) {
+        url = '/' + url
+      }
+
+      const mapping = [
+        { from: /^\/notes\/(\d+)(\?.*)?$/i, to: '/creation/notes/$1' },
+        { from: /^\/collection\/(\d+)(\?.*)?$/i, to: '/collections/$1' },
+        { from: /^\/creation\/processing\/tasks(\?.*)?$/i, to: '/creation/processing$1' },
+        { from: /^\/creation\/processing\/(\?.*)?$/i, to: '/creation/processing$1' }
+      ]
+
+      for (const item of mapping) {
+        const match = url.match(item.from)
+        if (match) {
+          url = url.replace(item.from, item.to)
+          break
+        }
+      }
+
+      const validPrefixes = ['/collections/', '/creation/notes/', '/creation/processing', '/taxonomy/']
+      const isValid = validPrefixes.some(prefix => url.startsWith(prefix))
+      return isValid ? url : null
+    },
     async handleNavigate(item) {
       if (Number(item.isRead) === 0) {
         await markNotificationRead(item.id)
       }
-      if (item.targetUrl) {
-        await this.$router.push(item.targetUrl)
+
+      const target = this.normalizeTargetUrl(item.targetUrl)
+      if (target) {
+        await this.$router.push(target)
+      } else if (item.targetUrl) {
+        this.$message.warning('该通知关联的页面暂不可访问')
       }
+
       await this.refreshData()
     },
     resolveTypeLabel(type) {

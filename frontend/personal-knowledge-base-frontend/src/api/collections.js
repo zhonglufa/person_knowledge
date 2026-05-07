@@ -48,7 +48,7 @@ export const getPublicCollections = (params = {}) => {
 }
 
 export const updateCollectionPublicStatus = (id, isPublic) => {
-  return apiClient.put(`/collections/${id}/public`, { isPublic })
+  return apiClient.put(`/collections/${id}`, { isPublic })
 }
 
 export const collectionsApi = {

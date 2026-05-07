@@ -50,7 +50,7 @@ export default [
     name: 'CollectionListPage',
     component: CollectionListPage,
     meta: {
-      requiresAuth: false,
+      requiresAuth: true,
       title: '我的收藏集'
     }
   },
