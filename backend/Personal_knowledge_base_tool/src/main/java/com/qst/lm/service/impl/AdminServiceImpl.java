@@ -161,7 +161,7 @@ public class AdminServiceImpl implements IAdminService {
             wrapper.eq(CollectionItem::getIsPublic, 1);
             if (StringUtils.hasText(searchKey)) {
                 wrapper.and(w -> w.like(CollectionItem::getTitle, searchKey)
-                        .or().like(CollectionItem::getDescription, searchKey));
+                        .or().like(CollectionItem::getKeywords, searchKey));
             }
             wrapper.orderByDesc(CollectionItem::getCreatedAt);
             Page<CollectionItem> result = collectionItemMapper.selectPage(pageObj, wrapper);
@@ -221,7 +221,7 @@ public class AdminServiceImpl implements IAdminService {
                 throw new BusinessException("收藏集不存在");
             }
             // 同步下架该收藏集下的所有收藏项
-            LambdaUpdateWrapper&lt;CollectionItem&gt; itemWrapper = new LambdaUpdateWrapper&lt;&gt;();
+            LambdaUpdateWrapper<CollectionItem> itemWrapper = new LambdaUpdateWrapper<>();
             itemWrapper.eq(CollectionItem::getCollectionId, contentId)
                     .eq(CollectionItem::getDeleted, 0)
                     .set(CollectionItem::getIsPublic, 0);
@@ -589,7 +589,7 @@ public class AdminServiceImpl implements IAdminService {
                 throw new BusinessException("收藏集不存在");
             }
             // 同步恢复该收藏集下的所有收藏项
-            LambdaUpdateWrapper&lt;CollectionItem&gt; itemWrapper = new LambdaUpdateWrapper&lt;&gt;();
+            LambdaUpdateWrapper<CollectionItem> itemWrapper = new LambdaUpdateWrapper<>();
             itemWrapper.eq(CollectionItem::getCollectionId, contentId)
                     .eq(CollectionItem::getDeleted, 0)
                     .set(CollectionItem::getIsPublic, 1);
@@ -968,7 +968,7 @@ public class AdminServiceImpl implements IAdminService {
                         failReasons.add("收藏集ID[" + contentId + "]不存在");
                     } else {
                             // 同步下架该收藏集下的所有收藏项
-                        LambdaUpdateWrapper&lt;CollectionItem&gt; itemWrapper = new LambdaUpdateWrapper&lt;&gt;();
+                        LambdaUpdateWrapper<CollectionItem> itemWrapper = new LambdaUpdateWrapper<>();
                         itemWrapper.eq(CollectionItem::getCollectionId, contentId)
                                 .eq(CollectionItem::getDeleted, 0)
                                 .set(CollectionItem::getIsPublic, 0);
@@ -1063,7 +1063,7 @@ public class AdminServiceImpl implements IAdminService {
                         failReasons.add("收藏集ID[" + contentId + "]不存在");
                     } else {
                         // 同步恢复该收藏集下的所有收藏项
-                        LambdaUpdateWrapper&lt;CollectionItem&gt; itemWrapper = new LambdaUpdateWrapper&lt;&gt;();
+                        LambdaUpdateWrapper<CollectionItem>itemWrapper = new LambdaUpdateWrapper<>();
                         itemWrapper.eq(CollectionItem::getCollectionId, contentId)
                                 .eq(CollectionItem::getDeleted, 0)
                                 .set(CollectionItem::getIsPublic, 1);
