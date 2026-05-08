@@ -73,8 +73,8 @@
               <div class="card-value">{{ overviewStats?.totalTags || 0 }}</div>
               <div class="card-label">标签总数</div>
               <div class="card-trend neutral">
-                <i class="fas fa-minus"></i>
-                0%
+                <i class="fas fa-cloud"></i>
+                标签云 {{ tagCloud.length || 0 }} 项
               </div>
             </div>
           </div>

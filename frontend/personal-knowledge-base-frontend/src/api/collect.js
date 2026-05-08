@@ -187,19 +187,20 @@ export const collectApi = {
     });
   },
 
-  importPreview(htmlContent) {
+  importPreview(payload) {
+    const data = typeof payload === 'string' ? { htmlContent: payload } : payload
     return request({
       url: '/collect/import/preview',
       method: 'post',
-      data: { htmlContent }
+      data
     });
   },
 
-  importExecute(data) {
+  importExecute(payload) {
     return request({
       url: '/collect/import/execute',
       method: 'post',
-      data
+      data: payload
     });
   },
 

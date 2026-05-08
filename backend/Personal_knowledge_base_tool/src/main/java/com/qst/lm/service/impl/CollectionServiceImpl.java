@@ -14,15 +14,13 @@ import com.qst.lm.pojo.CollectionItem;
 import com.qst.lm.service.ICollectionService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * 收藏集服务实现类
- */
 @Slf4j
 @Service
 public class CollectionServiceImpl implements ICollectionService {
@@ -49,8 +47,9 @@ public class CollectionServiceImpl implements ICollectionService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public R updateCollection(Long userId, Long id, CollectionDTO dto) {
-        getAndCheckOwnership(userId, id);
+        Collection collection = getAndCheckOwnership(userId, id);
 
         LambdaUpdateWrapper<Collection> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(Collection::getId, id)
@@ -61,7 +60,18 @@ public class CollectionServiceImpl implements ICollectionService {
                 .set(Collection::getCoverImage, dto.getCoverImage())
                 .set(Collection::getIsPublic, dto.getIsPublic());
         collectionMapper.update(null, updateWrapper);
-        log.info("用户[{}]更新收藏集[{}]成功", userId, id);
+
+        if (collection.getIsPublic() != dto.getIsPublic()) {
+            LambdaUpdateWrapper<CollectionItem> itemUpdateWrapper = new LambdaUpdateWrapper<>();
+            itemUpdateWrapper.eq(CollectionItem::getCollectionId, id)
+                    .eq(CollectionItem::getDeleted, 0)
+                    .set(CollectionItem::getIsPublic, dto.getIsPublic());
+            int updatedCount = collectionItemMapper.update(null, itemUpdateWrapper);
+            log.info("用户[{}]更新收藏集[{}]公开状态，同步更新{}个收藏项", userId, id, updatedCount);
+        } else {
+            log.info("用户[{}]更新收藏集[{}]成功", userId, id);
+        }
+
         return R.success("更新收藏集成功");
     }
 
@@ -118,13 +128,6 @@ public class CollectionServiceImpl implements ICollectionService {
         return R.success(result);
     }
 
-    /**
-     * 校验数据归属并返回收藏集
-     *
-     * @param userId 当前用户ID
-     * @param id     收藏集ID
-     * @return 收藏集实体
-     */
     private Collection getAndCheckOwnership(Long userId, Long id) {
         LambdaQueryWrapper<Collection> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Collection::getId, id)
@@ -151,13 +154,11 @@ public class CollectionServiceImpl implements ICollectionService {
             size = 100;
         }
 
-        // 1. 查询公开收藏集
         Page<Collection> pageObj = new Page<>(page, size);
         LambdaQueryWrapper<Collection> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Collection::getIsPublic, 1)
                 .eq(Collection::getDeleted, 0);
         
-        // 如果userId不为null，则排除用户自己的收藏集
         if (userId != null) {
             wrapper.ne(Collection::getUserId, userId);
         }
@@ -166,14 +167,11 @@ public class CollectionServiceImpl implements ICollectionService {
 
         Page<Collection> result = collectionMapper.selectPage(pageObj, wrapper);
         
-        // 2. 批量统计每个收藏集的收藏项数量（仅统计未删除的）
         if (!result.getRecords().isEmpty()) {
-            // 提取所有收藏集ID
             List<Long> collectionIds = result.getRecords().stream()
                     .map(Collection::getId)
                     .collect(Collectors.toList());
             
-            // 批量查询每个收藏集的收藏项数量
             LambdaQueryWrapper<CollectionItem> itemWrapper = new LambdaQueryWrapper<>();
             itemWrapper.in(CollectionItem::getCollectionId, collectionIds)
                        .eq(CollectionItem::getDeleted, 0)
@@ -181,11 +179,9 @@ public class CollectionServiceImpl implements ICollectionService {
             
             List<CollectionItem> items = collectionItemMapper.selectList(itemWrapper);
             
-            // 统计每个收藏集的数量
             Map<Long, Long> itemCountMap = items.stream()
                     .collect(Collectors.groupingBy(CollectionItem::getCollectionId, Collectors.counting()));
             
-            // 填充itemCount到收藏集对象
             for (Collection collection : result.getRecords()) {
                 collection.setItemCount(itemCountMap.getOrDefault(collection.getId(), 0L).intValue());
             }

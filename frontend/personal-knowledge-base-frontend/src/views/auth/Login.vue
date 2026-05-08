@@ -56,7 +56,7 @@
                     >
                       <template #suffix>
                         <i
-                          :class="showLoginPassword ? 'el-icon-view' : 'el-icon-hide'"
+                          :class="showLoginPassword ? 'fas fa-eye' : 'fas fa-eye-slash'"
                           class="password-toggle"
                           @click="showLoginPassword = !showLoginPassword"
                         ></i>
@@ -171,7 +171,7 @@
                     >
                       <template #suffix>
                         <i
-                          :class="showRegisterPassword ? 'el-icon-view' : 'el-icon-hide'"
+                          :class="showRegisterPassword ? 'fas fa-eye' : 'fas fa-eye-slash'"
                           class="password-toggle"
                           @click="showRegisterPassword = !showRegisterPassword"
                         ></i>
@@ -274,7 +274,7 @@
                   >
                     <template #suffix>
                       <i
-                        :class="showForgotPassword ? 'el-icon-view' : 'el-icon-hide'"
+                        :class="showForgotPassword ? 'fas fa-eye' : 'fas fa-eye-slash'"
                         class="password-toggle"
                         @click="showForgotPassword = !showForgotPassword"
                       ></i>
@@ -293,7 +293,7 @@
                   >
                     <template #suffix>
                       <i
-                        :class="showForgotConfirm ? 'el-icon-view' : 'el-icon-hide'"
+                        :class="showForgotConfirm ? 'fas fa-eye' : 'fas fa-eye-slash'"
                         class="password-toggle"
                         @click="showForgotConfirm = !showForgotConfirm"
                       ></i>
@@ -557,10 +557,10 @@ export default {
       } else if (this.activeTab === 'register' && this.$refs.registerFormRef) {
         this.$refs.registerFormRef.clearValidate();
       }
-      
+
       // 2. 切换Tab
       this.activeTab = tab;
-      
+
       // 3. 下一个tick清除新表单的校验（避免显示旧状态）
       this.$nextTick(() => {
         if (tab === 'login' && this.$refs.loginFormRef) {
@@ -1200,6 +1200,8 @@ export default {
   font-size: 16px;
   transition: color var(--transition-fast);
   padding: var(--space-1);
+  margin-top: 13px;
+  margin-right: 11px;
 }
 
 .password-toggle:hover {

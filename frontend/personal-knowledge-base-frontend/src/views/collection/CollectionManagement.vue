@@ -384,7 +384,7 @@
     >
       <el-form :model="collectionForm" label-width="80px">
         <el-form-item label="标题">
-          <el-input v-model="collectionForm.title" placeholder="请输入标题"></el-input>
+          <el-input v-model="collectionForm.name" placeholder="请输入标题"></el-input>
         </el-form-item>
 
         <el-form-item label="描述">
@@ -468,7 +468,7 @@ export default {
       editCollectionDialogVisible: false,
       editingCollection: null,
       collectionForm: {
-        title: '',
+        name: '',
         description: '',
         tags: []
       },
@@ -644,6 +644,9 @@ export default {
       this.loadByFilterType()
     },
     toggleSelect(id) {
+      if (this.selectionDomain !== 'collection') {
+        this.selectedItemIds = []
+      }
       this.selectionDomain = 'collection'
       const index = this.selectedCollectionIds.indexOf(id)
       if (index > -1) {
@@ -653,6 +656,9 @@ export default {
       }
     },
     handleTableSelectionChange(selection) {
+      if (this.selectionDomain !== 'item') {
+        this.selectedCollectionIds = []
+      }
       this.selectionDomain = 'item'
       this.selectedItemIds = selection.map(item => item.id)
     },
@@ -725,14 +731,14 @@ export default {
     },
     resetCollectionForm() {
       this.collectionForm = {
-        title: '',
+        name: '',
         description: '',
         tags: []
       }
     },
     async saveCollection() {
-      if (!this.collectionForm.title.trim()) {
-        this.$message.warning('请输入收藏集标题')
+      if (!this.collectionForm.name.trim()) {
+        this.$message.warning('请输入收藏集名称')
         return
       }
 

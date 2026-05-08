@@ -171,8 +171,30 @@ Vue.use(Col)
 // 注册v-loading指令
 Vue.use(Loading, { directive: true })
 
+Message.install = (Vue, options) => {
+  Vue.prototype.$message = {
+    success: (options) => {
+      const config = typeof options === 'string' ? { message: options } : options
+      Message.success({ ...config, duration: 1000 })
+    },
+    warning: (options) => {
+      const config = typeof options === 'string' ? { message: options } : options
+      Message.warning({ ...config, duration: 1000 })
+    },
+    info: (options) => {
+      const config = typeof options === 'string' ? { message: options } : options
+      Message.info({ ...config, duration: 1000 })
+    },
+    error: (options) => {
+      const config = typeof options === 'string' ? { message: options } : options
+      Message.error({ ...config, duration: 1000 })
+    }
+  }
+}
+
+
 // 注册全局方法
-Vue.prototype.$message = Message
+Vue.prototype.$message = Vue.prototype.$message || Message
 Vue.prototype.$msgbox = MessageBox
 Vue.prototype.$alert = MessageBox.alert
 Vue.prototype.$confirm = MessageBox.confirm

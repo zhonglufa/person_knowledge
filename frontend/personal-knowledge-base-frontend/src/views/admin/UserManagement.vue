@@ -429,7 +429,9 @@ export default {
           role: this.queryParams.role || undefined
         }
         const response = await userManageApi.exportUsers(params)
-        const blob = new Blob([response], { type: 'text/csv;charset=utf-8;' })
+        const blob = response instanceof Blob
+          ? response
+          : new Blob([response], { type: 'text/csv;charset=utf-8;' })
         const link = document.createElement('a')
         link.href = URL.createObjectURL(blob)
         link.download = `用户列表_${new Date().toLocaleDateString('zh-CN').replace(/\//g, '')}.csv`

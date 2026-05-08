@@ -1,41 +1,5 @@
 import router from '@/router'
 import store from '@/store'
-import { Message } from 'element-ui'
-
-// 错误消息去重（防止短时间内重复提示）
-const errorMessages = new Set()
-let errorTimer = null
-
-/**
- * 显示错误消息（带防抖和去重）
- * @param {string} message - 错误消息
- */
-function showError(message) {
-  // 清除之前的定时器
-  if (errorTimer) {
-    clearTimeout(errorTimer);
-  }
-  
-  // 检查是否是重复的错误消息
-  if (errorMessages.has(message)) {
-    return;
-  }
-  
-  // 添加到集合中
-  errorMessages.add(message);
-  
-  // 显示错误消息
-  Message.error({
-    message,
-    duration: 3000,
-    showClose: true
-  });
-  
-  // 3秒后清除该消息，允许再次显示
-  errorTimer = setTimeout(() => {
-    errorMessages.delete(message);
-  }, 3000);
-}
 
 /**
  * 响应拦截器配置
@@ -55,26 +19,14 @@ export const responseInterceptor = (response) => {
   // 如果是标准的 R 格式响应 {code, message, data}
   // 将 data 直接挂到响应对象上，方便组件直接访问
   if (responseData && typeof responseData === 'object' && 'code' in responseData) {
-    // 业务错误码处理（HTTP 200但业务失败）
-    if (responseData.code !== 200) {
-      // 根据业务错误码显示不同的提示
-      const businessErrorMessages = {
-        400: '请求参数错误',
-        401: '登录已过期，请重新登录',
-        403: '权限不足，无法执行此操作',
-        404: '请求的资源不存在',
-        500: '服务器错误，请稍后重试'
-      };
-      
-      const errorMsg = responseData.message || businessErrorMessages[responseData.code] || '操作失败';
-      showError(errorMsg);
+    if (responseData.code === 401 || responseData.code === 403) {
+      handleAuthError(responseData.code, responseData)
     }
-    
-    // 创建解包后的响应对象
+
     return {
-      ...responseData,  // code, message 直接提升到顶层
-      data: responseData.data,  // data 保持原样
-      originalResponse: response  // 保存原始响应以备不时之需
+      ...responseData,
+      data: responseData.data,
+      originalResponse: response
     }
   }
 
@@ -150,18 +102,6 @@ export const responseErrorHandler = (error) => {
   } else {
     errorMessage = error.message || '请求配置错误'
     errorCode = 'CONFIG_ERROR'
-  }
-
-  // 显示错误提示
-  // 对于401认证错误,延迟显示以确保在跳转前显示
-  if (shouldShowError) {
-    if (isAuthError) {
-      setTimeout(() => {
-        showError(errorMessage)
-      }, 100)
-    } else {
-      showError(errorMessage)
-    }
   }
 
   // 创建标准化的错误对象

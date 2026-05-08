@@ -23,13 +23,14 @@
           :model="loginForm"
           :rules="loginRules"
           class="login-form"
-          @keyup.enter.native="handleLogin"
+          @submit.native.prevent="handleLogin"
         >
           <el-form-item prop="username">
             <el-input
               v-model="loginForm.username"
               placeholder="请输入管理员账号"
               prefix-icon="el-icon-user"
+              @keyup.enter.native="handleLogin"
               size="medium"
               clearable
             />
@@ -100,6 +101,10 @@ export default {
 
   methods: {
     handleLogin() {
+      if (this.loading) {
+        return
+      }
+
       this.$refs.loginFormRef.validate(async (valid) => {
         if (!valid) return
 

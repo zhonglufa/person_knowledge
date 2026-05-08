@@ -28,6 +28,7 @@
           :current-user-id="currentUserId"
           :user-collected-urls="userCollectedUrls"
           :show-selection-mode="showSelectionMode"
+          :processing-request="processingRequest"
           @collection-click="$emit('collection-click', $event)"
           @toggle-star="$emit('toggle-star', $event)"
           @delete-collection="$emit('delete-collection', $event)"
@@ -42,6 +43,7 @@
           @recover-collection="$emit('recover-collection', $event)"
           @permanent-delete="$emit('permanent-delete', $event)"
           @toggle-selection="$emit('toggle-selection', $event)"
+          @selection-change="$emit('selection-change', $event)"
         />
 
         <div v-if="!loading && collections.length > 0" class="load-more-section">
@@ -126,7 +128,7 @@ export default {
       type: Set,
       default: () => new Set()
     },
-    showSelectionMode: {
+    processingRequest: {
       type: Boolean,
       default: false
     }
@@ -146,6 +148,7 @@ export default {
     'preview-video',
     'show-context-menu',
     'toggle-selection',
+    'selection-change',
     'load-more',
     'retry-load-more'
   ],

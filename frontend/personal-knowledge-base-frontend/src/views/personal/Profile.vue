@@ -569,27 +569,32 @@ export default {
       if (!option?.file) return
 
       const formData = new FormData()
-      formData.append('avatar', option.file)
+      formData.append('file', option.file)
 
       try {
         const response = await uploadAvatar(formData)
-        const data = response?.data || response || {}
-        const avatarUrl = data?.avatarUrl || data?.avatar || data?.url || ''
 
-        if (avatarUrl) {
-          this.profileForm.avatar = avatarUrl
-          this.$message.success('头像上传成功')
-
-          // 更新 Vuex 中的用户信息
-          const userInfo = { ...(this.getUserInfo || {}) }
-          userInfo.avatar = avatarUrl
-          this.$store.commit('user/SET_USER_INFO', userInfo)
-        } else {
-          this.$message.error('头像上传失败')
+        if (response && typeof response === 'object' && 'code' in response && response.code !== 200) {
+          throw new Error(response?.message || '头像上传失败')
         }
+
+        const avatarUrl = typeof response?.data === 'string'
+          ? response.data
+          : response?.data?.avatarUrl || response?.data?.avatar || response?.data?.url || response?.avatarUrl || response?.avatar || response?.url || ''
+
+        if (!avatarUrl) {
+          throw new Error('头像上传失败')
+        }
+
+        this.profileForm.avatar = avatarUrl
+        this.$message.success('头像上传成功')
+
+        const userInfo = { ...(this.getUserInfo || {}) }
+        userInfo.avatar = avatarUrl
+        this.$store.commit('user/SET_USER_INFO', userInfo)
       } catch (error) {
         console.error('头像上传失败:', error)
-        this.$message.error('头像上传失败')
+        this.$message.error(error?.message || '头像上传失败')
       }
     },
 
@@ -609,7 +614,10 @@ export default {
           expertise: this.profileForm?.expertise || []
         }
 
-        await updateUserProfile(submitData)
+        const res = await updateUserProfile(submitData)
+        if (res && typeof res === 'object' && 'code' in res && res.code !== 200) {
+          return
+        }
         this.$message.success('资料保存成功')
 
         // 更新 Vuex 中的用户信息

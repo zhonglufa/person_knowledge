@@ -38,18 +38,18 @@
     <div class="tags-container">
       <div
         v-for="(tag, index) in filteredTags"
-        :key="index"
+        :key="tag.id ?? tag.name ?? index"
         class="tag-item"
-        :class="{ 'selected': selectedTags.includes(tag) }"
-        @click="handleTagClick(tag)"
+        :class="{ 'selected': selectedTags.includes(tag.id) }"
+        @click="handleTagClick(tag.id)"
       >
         <div class="tag-content">
           <el-tag
-            :type="selectedTags.includes(tag) ? 'primary' : 'info'"
+            :type="selectedTags.includes(tag.id) ? 'primary' : 'info'"
             size="medium"
             class="tag-name"
           >
-            {{ tag }}
+            {{ tag.name }}
           </el-tag>
         </div>
       </div>
@@ -82,13 +82,23 @@ export default {
   },
   computed: {
     filteredTags() {
+      const tags = Array.isArray(this.popularTags) ? this.popularTags : [];
+      const normalizedTags = tags
+        .map(tag => {
+          if (typeof tag === 'string') {
+            return { id: tag, name: tag };
+          }
+          return tag && typeof tag === 'object' ? tag : null;
+        })
+        .filter(Boolean);
       if (!this.searchKeyword.trim()) {
-        return this.popularTags;
+        return normalizedTags;
       }
       const keyword = this.searchKeyword.toLowerCase();
-      return this.popularTags.filter(tag => 
-        tag.name.toLowerCase().includes(keyword)
-      );
+      return normalizedTags.filter(tag => {
+        const name = typeof tag.name === 'string' ? tag.name : '';
+        return name.toLowerCase().includes(keyword);
+      });
     },
     emptyStateText() {
       return this.searchKeyword ? '未找到匹配的标签' : '暂无可用于筛选收藏项的标签';
@@ -103,8 +113,8 @@ export default {
     handleSearch() {
       this.$emit('search-tags', this.searchKeyword);
     },
-    handleTagClick(tagName) {
-      this.$emit('toggle-tag', tagName);
+    handleTagClick(tagId) {
+      this.$emit('toggle-tag', tagId);
     }
   }
 }

@@ -3,14 +3,15 @@
     title="创建新收藏集"
     :visible.sync="dialogVisible"
     width="540px"
+    append-to-body
     :close-on-click-modal="false"
     @close="handleClose"
     @open="handleOpen"
   >
-    <el-form 
-      ref="form" 
-      :model="formData" 
-      :rules="rules" 
+    <el-form
+      ref="form"
+      :model="formData"
+      :rules="rules"
       label-position="top"
       @submit.native.prevent="handleConfirm"
     >
@@ -80,26 +81,26 @@
                    <div class="upload-hint">支持 JPG、PNG、GIF，不超过 5MB</div>
                  </div>
                </el-upload>
-               
+
                <div v-if="formData.coverImage" class="image-actions">
                  <el-button size="small" @click.stop="handleRemoveImage">
                    <i class="el-icon-delete"></i> 移除图片
                  </el-button>
                </div>
              </div>
-             
+
              <div class="divider-text">
                <span>或</span>
              </div>
-             
+
              <el-input
                v-model="imageUrl"
                placeholder="输入图片URL"
                clearable
                @blur="handleUrlInput"
              >
-               <el-button 
-                 slot="append" 
+               <el-button
+                 slot="append"
                  @click="handleUrlInput"
                  :disabled="!imageUrl"
                >
@@ -119,7 +120,7 @@
               <span class="color-hint">无封面图片时使用</span>
             </div>
             <div class="color-preview-mini">
-              <div 
+              <div
                 class="preview-box-mini"
                 :style="{ backgroundColor: formData.coverColor }"
               >
@@ -133,9 +134,9 @@
 
     <span slot="footer" class="dialog-footer">
       <el-button @click="handleClose" :disabled="loading">取消</el-button>
-      <el-button 
-        type="primary" 
-        @click="handleConfirm" 
+      <el-button
+        type="primary"
+        @click="handleConfirm"
         :loading="loading"
         :disabled="!formData.name"
       >
@@ -164,7 +165,7 @@ export default {
       uploadLoading: null,
       activeCollapse: [],
       imageUrl: '',
-      uploadAction: process.env.VUE_APP_API_BASE_URL ? `${process.env.VUE_APP_API_BASE_URL}/api/collections/upload-cover` : '/api/collections/upload-cover',
+      uploadAction: import.meta.env.VITE_API_BASE_URL ? `${import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '')}/collections/upload-cover` : '/collections/upload-cover',
       uploadHeaders: {},
       predefineColors: [
         '#4ECDC4',
@@ -189,10 +190,10 @@ export default {
           { max: 100, message: '收藏集名称不能超过100个字符', trigger: 'blur' }
         ],
         coverImage: [
-          { 
-            pattern: /^(https?:\/\/.+)?$/, 
-            message: '请输入有效的 URL，以 http(s):// 开头', 
-            trigger: 'blur' 
+          {
+            pattern: /^(https?:\/\/.+)?$/,
+            message: '请输入有效的 URL，以 http(s):// 开头',
+            trigger: 'blur'
           }
         ]
       }
@@ -204,6 +205,9 @@ export default {
   watch: {
     visible(val) {
       this.dialogVisible = val;
+      if (val) {
+        this.initUploadHeaders();
+      }
     },
     dialogVisible(val) {
       this.$emit('update:visible', val);
@@ -226,7 +230,7 @@ export default {
 
       try {
         await this.$refs.form.validate();
-        
+
         this.loading = true;
 
         const response = await collectionsApi.createCollection({
@@ -238,11 +242,15 @@ export default {
         });
 
         this.$message.success('收藏集创建成功');
-        
+
         this.$emit('success', response.data);
-        
+
         this.handleClose();
       } catch (error) {
+        if (error === false) {
+          this.$message.warning('请检查表单填写是否正确');
+          return;
+        }
         console.error('创建收藏集失败:', error);
         const errorMsg = error.response?.data?.message || error.message || '创建失败';
         this.$message.error('创建失败: ' + errorMsg);
@@ -300,7 +308,7 @@ export default {
         spinner: 'el-icon-loading',
         background: 'rgba(0, 0, 0, 0.7)'
       });
-      
+
       this.uploadLoading = loading;
       return true;
     },
@@ -311,11 +319,13 @@ export default {
         this.uploadLoading = null;
       }
 
-      if (response && response.code === 200 && response.data) {
-        this.formData.coverImage = response.data.url || response.data;
-        this.$message.success('图片上传成功');
+      if (response && (response.code === 200 || response.code === '200') && response.data) {
+        const url = response.data.url || response.data
+        this.formData.coverImage = url
+        this.$message.success('图片上传成功')
       } else {
-        this.$message.error(response?.message || '图片上传失败');
+        const msg = response?.message || response?.msg || '图片上传失败'
+        this.$message.error(msg)
       }
     },
 
@@ -324,7 +334,7 @@ export default {
         this.uploadLoading.close();
         this.uploadLoading = null;
       }
-      
+
       console.error('图片上传失败:', error);
       this.$message.error('图片上传失败，请重试');
     },
@@ -364,10 +374,10 @@ export default {
 
     handleImageError(event) {
       if (!event || !event.target) return;
-      
+
       console.warn('图片加载失败:', event.target.src);
       event.target.style.display = 'none';
-      
+
       this.$message.warning('图片加载失败，请检查URL是否正确');
       this.formData.coverImage = '';
     }

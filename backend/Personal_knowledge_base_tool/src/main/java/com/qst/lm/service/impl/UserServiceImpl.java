@@ -92,6 +92,9 @@ public class UserServiceImpl implements IUserService {
         if (user == null) {
             throw new BusinessException("用户名或密码错误");
         }
+        if (user.getDeleted() != null && user.getDeleted() == 1) {
+            throw new BusinessException("账号已被禁用");
+        }
         if (!passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
             String failKey = "login:fail:" + dto.getUsername();
             redisTemplate.opsForValue().increment(failKey);
@@ -250,6 +253,27 @@ public class UserServiceImpl implements IUserService {
         if (profileMap.containsKey("avatar")) {
             wrapper.set(User::getAvatar, (String) profileMap.get("avatar"));
         }
+        if (profileMap.containsKey("phone")) {
+            wrapper.set(User::getPhone, (String) profileMap.get("phone"));
+        }
+        if (profileMap.containsKey("gender")) {
+            wrapper.set(User::getGender, (String) profileMap.get("gender"));
+        }
+        if (profileMap.containsKey("bio")) {
+            wrapper.set(User::getBio, (String) profileMap.get("bio"));
+        }
+        if (profileMap.containsKey("expertise")) {
+            Object expertise = profileMap.get("expertise");
+            if (expertise != null) {
+                try {
+                    wrapper.set(User::getExpertise, objectMapper.writeValueAsString(expertise));
+                } catch (JsonProcessingException e) {
+                    throw new BusinessException("专业领域格式不正确");
+                }
+            } else {
+                wrapper.set(User::getExpertise, null);
+            }
+        }
 
         userMapper.update(null, wrapper);
         log.info("用户[{}]更新个人信息成功", userId);
@@ -326,6 +350,7 @@ public class UserServiceImpl implements IUserService {
             throw new BusinessException("发送过于频繁，请稍后再试");
         }
         String code = verificationCodeService.generateCode();
+        System.out.println("发送验证码成功，邮箱: {}"+ email+"验证码"+code);
         verificationCodeService.sendVerificationCode(email, code);
         verificationCodeService.saveCode(email, code);
         log.info("发送验证码成功，邮箱: {}", email);

@@ -105,9 +105,10 @@ public class AdminController {
     @RequiresPermission("content:view")
     public R getPublicContent(@RequestAttribute Long userId,
                               PageDTO page,
-                              @RequestParam String contentType) {
+                              @RequestParam String contentType,
+                              @RequestParam(required = false) String searchKey) {
         log.info("管理员[{}]获取公开内容列表, 类型[{}], 页码[{}]", userId, contentType, page.getPageNum());
-        return adminService.getPublicContent(page, contentType);
+        return adminService.getPublicContent(page, contentType, searchKey);
     }
 
     @PutMapping("/content/take-down")

@@ -300,6 +300,7 @@ export default {
       },
       appearanceForm: {
         theme: 'light',
+        displayMode: 'grid',
         density: 'default',
         fontSize: 14
       },
@@ -325,16 +326,19 @@ export default {
           const response = await getUserSettings()
           if (response?.code === 200 && response.data) {
             const serverSettings = response.data
-            if (serverSettings.notification) {
-              this.notificationForm = { ...this.notificationForm, ...serverSettings.notification }
+
+            if (serverSettings.notifyPreferences) {
+              this.notificationForm = { ...this.notificationForm, ...serverSettings.notifyPreferences }
             }
-            if (serverSettings.privacy) {
-              this.privacyForm = { ...this.privacyForm, ...serverSettings.privacy }
+
+            if (serverSettings.theme) {
+              this.appearanceForm.theme = serverSettings.theme
             }
-            if (serverSettings.appearance) {
-              this.appearanceForm = { ...this.appearanceForm, ...serverSettings.appearance }
+
+            if (serverSettings.displayMode) {
+              this.appearanceForm.displayMode = serverSettings.displayMode
             }
-            // 缓存到本地
+
             localStorage.setItem('userSettings', JSON.stringify(serverSettings))
           }
         } catch (e) {
@@ -363,6 +367,7 @@ export default {
       // 应用主题和字体设置
       this.applyTheme()
       this.applyFontSize()
+      this.applyDisplayMode()
     },
 
     // ==================== 个性化设置相关 ====================
@@ -375,8 +380,19 @@ export default {
         const response = await getUserSettings()
         if (response?.code === 200 && response.data) {
           this.personalSettings = response.data
-          // 将后端设置同步到本地缓存
           localStorage.setItem('userSettings', JSON.stringify(this.personalSettings))
+
+          if (this.personalSettings?.notifyPreferences) {
+            this.notificationForm = { ...this.notificationForm, ...this.personalSettings.notifyPreferences }
+          }
+
+          if (this.personalSettings?.theme) {
+            this.appearanceForm.theme = this.personalSettings.theme
+          }
+
+          if (this.personalSettings?.displayMode) {
+            this.appearanceForm.displayMode = this.personalSettings.displayMode
+          }
         }
       } catch (error) {
         console.error('加载个性化设置失败:', error)
@@ -490,10 +506,8 @@ export default {
     async savePrivacy() {
       this.saveLoading = true
       try {
-        // 同时保存到服务器和本地
-        await updateUserSettings({ privacy: this.privacyForm })
         localStorage.setItem('privacySettings', JSON.stringify(this.privacyForm))
-        this.$message.success('隐私设置保存成功')
+        this.$message.success('隐私设置已保存')
       } catch (error) {
         console.error('保存隐私设置失败:', error)
         this.$message.error('保存失败')
@@ -509,12 +523,9 @@ export default {
         // 构建完整的设置数据
         const settingsData = {
           theme: this.appearanceForm.theme,
-          displayMode: this.appearanceForm.displayMode || 'grid',
-          density: this.appearanceForm.density,
-          fontSize: this.appearanceForm.fontSize
+          displayMode: this.appearanceForm.displayMode || 'grid'
         }
-        
-        // 同时保存到服务器和本地
+
         await updateUserSettings(settingsData)
         localStorage.setItem('appearanceSettings', JSON.stringify(this.appearanceForm))
         
@@ -535,11 +546,13 @@ export default {
     resetAppearance() {
       this.appearanceForm = {
         theme: 'light',
+        displayMode: 'grid',
         density: 'default',
         fontSize: 14
       }
       this.applyTheme()
       this.applyFontSize()
+      this.applyDisplayMode()
     },
 
     // 应用主题
@@ -557,6 +570,13 @@ export default {
       const root = document.documentElement
       if (this.appearanceForm?.fontSize) {
         root.style.fontSize = `${this.appearanceForm.fontSize}px`
+      }
+    },
+
+    applyDisplayMode() {
+      const mode = this.appearanceForm?.displayMode
+      if (mode) {
+        localStorage.setItem('displayMode', mode)
       }
     },
 

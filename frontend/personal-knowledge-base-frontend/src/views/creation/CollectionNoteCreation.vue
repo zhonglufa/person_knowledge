@@ -28,7 +28,7 @@
       </div>
     </div>
 
-    <div class="context-banner">
+    <div class="context-banner" :class="{ offline: !isOnline }">
       <div class="context-item">
         <span class="context-label">来源收藏项</span>
         <span class="context-value">{{ collection.title || '未命名收藏项' }}</span>
@@ -41,13 +41,24 @@
         <span class="context-label">当前状态</span>
         <span class="context-value">{{ digestStatusTag.text || '待加工' }}</span>
       </div>
+      <div class="context-item" v-if="!isOnline">
+        <span class="context-label">网络</span>
+        <span class="context-value">离线模式</span>
+      </div>
     </div>
 
     <div class="main-content-area" ref="mainContentArea" :style="mainContentAreaStyle">
-      <div class="reference-panel workbench-panel">
+      <div class="reference-panel workbench-panel" :class="{ 'is-mobile-hidden': isMobileLayout && activeMobilePanel !== 'reference' }">
+        <div class="mobile-panel-header">
+          <el-button type="text" icon="el-icon-back" @click="activeMobilePanel = 'draft'">笔记草稿</el-button>
+        </div>
         <div class="panel-header">
           <h3>收藏项参照</h3>
           <div class="panel-controls">
+            <el-button type="text" class="reference-toggle" @click="toggleReferenceInfo">
+              <span>{{ referenceExpanded ? '收起信息' : '展开信息' }}</span>
+              <i :class="['el-icon-arrow-down', { rotated: referenceExpanded }]" />
+            </el-button>
             <el-input
               v-model="searchKeyword"
               placeholder="关键词检索..."
@@ -59,7 +70,7 @@
         </div>
         <div class="panel-scroll-area">
           <div class="reference-content">
-            <div class="basic-info">
+            <div class="basic-info" v-show="referenceExpanded">
               <div class="info-item">
                 <label>标题:</label>
                 <span>{{ collection.title }}</span>
@@ -180,11 +191,14 @@
         </div>
       </div>
 
-      <div class="divider" ref="dividerRef">
+      <div class="divider" ref="dividerRef" :class="{ 'is-mobile-hidden': isMobileLayout }">
         <div class="divider-handle" @mousedown="startResize"></div>
       </div>
 
-      <div class="draft-panel workbench-panel">
+      <div class="draft-panel workbench-panel" :class="{ 'is-mobile-hidden': isMobileLayout && activeMobilePanel !== 'draft' }">
+        <div class="mobile-panel-header">
+          <el-button type="text" icon="el-icon-back" @click="activeMobilePanel = 'reference'">收藏项参照</el-button>
+        </div>
         <div class="panel-header">
           <h3>笔记草稿</h3>
           <div class="draft-status-group">
@@ -274,7 +288,7 @@
 import { mapGetters } from 'vuex'
 import { collectApi } from '@/api/collect.js'
 import { noteApi } from '@/api/note.js'
-import { sanitizeHtml, escapeHtml, stripHtmlAndEscape } from '@/utils/sanitize'
+import { escapeHtml, stripHtmlAndEscape } from '@/utils/sanitize'
 
 const PANEL_RATIO_STORAGE_KEY = 'creation:collection-note-panel-ratio'
 
@@ -322,7 +336,10 @@ export default {
       currentDraftId: null,
       drafts: [],
       saveInterval: null,
-      isOnline: navigator.onLine
+      isOnline: navigator.onLine,
+      activeMobilePanel: 'draft',
+      windowWidth: typeof window !== 'undefined' ? window.innerWidth : 1024,
+      referenceExpanded: false
     }
   },
   computed: {
@@ -346,6 +363,9 @@ export default {
       }
       return map[status] || { text: '', type: 'info' }
     },
+    isMobileLayout() {
+      return this.windowWidth < 1024
+    },
     canPublish() {
       return !!(this.noteForm.title && this.noteForm.categoryId && this.noteForm.noteType && this.noteForm.content)
     },
@@ -356,9 +376,18 @@ export default {
       return { totalCharacters, wordCount }
     },
     mainContentAreaStyle() {
+      const baseStyle = {
+        gridTemplateColumns: '1fr'
+      }
+
+      if (this.isMobileLayout) {
+        return baseStyle
+      }
+
       const left = `${(this.panelSplitRatio * 100).toFixed(2)}%`
       const right = `${((1 - this.panelSplitRatio) * 100).toFixed(2)}%`
       return {
+        ...baseStyle,
         gridTemplateColumns: `minmax(${this.minPanelWidth}px, ${left}) 10px minmax(${this.minPanelWidth}px, ${right})`
       }
     }
@@ -460,6 +489,9 @@ export default {
     searchInReference() {
       if (!this.searchKeyword) return
       this.$message.info(`已定位关键词：${this.searchKeyword}`)
+    },
+    toggleReferenceInfo() {
+      this.referenceExpanded = !this.referenceExpanded
     },
     toggleDebugPanel() {
       this.debugPanelExpanded = !this.debugPanelExpanded
@@ -602,6 +634,9 @@ export default {
       }
     },
     startResize(event) {
+      if (this.isMobileLayout) {
+        return
+      }
       event.preventDefault()
       this.isResizing = true
       document.body.classList.add('collection-note-resizing')
@@ -609,6 +644,9 @@ export default {
       window.addEventListener('mouseup', this.stopResize)
     },
     handleResize(event) {
+      if (this.isMobileLayout) {
+        return
+      }
       if (!this.isResizing || !this.$refs.mainContentArea) {
         return
       }
@@ -649,20 +687,26 @@ export default {
     handleOffline() {
       this.isOnline = false
       this.lastSaveStatus = '网络已断开，等待恢复后自动保存'
+    },
+    handleWindowResize() {
+      this.windowWidth = window.innerWidth
     }
   },
   async mounted() {
     this.restorePanelSplitRatio()
     await Promise.all([this.loadCollection(), this.loadCategories(), this.loadDrafts()])
+    this.activeMobilePanel = 'draft'
     this.startAutoSave()
     window.addEventListener('online', this.handleOnline)
     window.addEventListener('offline', this.handleOffline)
+    window.addEventListener('resize', this.handleWindowResize)
   },
   beforeDestroy() {
     this.stopAutoSave()
     this.stopResize()
     window.removeEventListener('online', this.handleOnline)
     window.removeEventListener('offline', this.handleOffline)
+    window.removeEventListener('resize', this.handleWindowResize)
   }
 }
 </script>
@@ -700,6 +744,11 @@ export default {
   background: linear-gradient(135deg, var(--primary-bg), var(--bg-card));
   border: 1px solid var(--primary-light);
   border-radius: var(--radius-xl);
+}
+
+.context-banner.offline {
+  background: linear-gradient(135deg, var(--warning-bg), var(--bg-card));
+  border-color: var(--warning-color);
 }
 
 .left-section,
@@ -777,6 +826,80 @@ export default {
   flex-shrink: 0;
 }
 
+.reference-toggle {
+  padding: 0;
+}
+
+.basic-info {
+  transition: opacity var(--transition-fast);
+}
+
+.mobile-panel-header {
+  display: none;
+  margin-bottom: var(--space-3);
+}
+
+.is-mobile-hidden {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .collection-note-creation-container {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+    padding: var(--space-4);
+  }
+
+  .top-operation-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .top-operation-bar .left-section {
+    flex-wrap: wrap;
+  }
+
+  .top-operation-bar .right-section {
+    width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .context-banner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .context-item {
+    justify-content: space-between;
+  }
+
+  .main-content-area {
+    height: auto;
+    min-height: auto;
+    grid-template-columns: 1fr;
+  }
+
+  .workbench-panel {
+    padding: var(--space-4);
+  }
+
+  .divider {
+    display: none;
+  }
+
+  .mobile-panel-header {
+    display: flex;
+  }
+
+  .bottom-operation-bar {
+    position: sticky;
+    bottom: var(--space-4);
+    z-index: var(--z-sticky);
+  }
+}
+
 .panel-scroll-area {
   flex: 1;
   overflow-y: auto;
@@ -819,13 +942,15 @@ export default {
 .video-content-display {
   position: relative;
   min-height: 280px;
+  max-height: 100%;
 }
 
 .web-iframe,
 .content-image,
 .content-video {
   width: 100%;
-  min-height: 320px;
+  min-height: 640px;
+  max-height: 100%;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-light);
 }

@@ -20,7 +20,7 @@ public interface UserMapper extends BaseMapper<User> {
      * @param username 用户名
      * @return 用户对象
      */
-    @Select("SELECT * FROM users WHERE username = #{username} AND deleted = 0")
+    @Select("SELECT * FROM users WHERE username = #{username}")
     User selectByUsername(@Param("username") String username);
 
     /**
@@ -28,7 +28,7 @@ public interface UserMapper extends BaseMapper<User> {
      * @param email 邮箱地址
      * @return 用户对象
      */
-    @Select("SELECT * FROM users WHERE email = #{email} AND deleted = 0")
+    @Select("SELECT * FROM users WHERE email = #{email}")
     User selectByEmail(@Param("email") String email);
 
     /**

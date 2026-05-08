@@ -30,11 +30,23 @@ public class User extends BasePojo implements Serializable {
     @TableField("email")
     private String email;
 
+    @TableField("phone")
+    private String phone;
+
     @TableField("nickname")
     private String nickname;
 
     @TableField("avatar")
     private String avatar;
+
+    @TableField("gender")
+    private String gender;
+
+    @TableField("bio")
+    private String bio;
+
+    @TableField("expertise")
+    private String expertise;
 
     @TableField("role")
     private String role;

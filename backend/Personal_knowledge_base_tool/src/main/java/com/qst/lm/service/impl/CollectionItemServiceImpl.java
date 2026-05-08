@@ -184,6 +184,19 @@ public class CollectionItemServiceImpl implements ICollectionItemService {
             wrapper.inSql(CollectionItem::getId, "SELECT collection_item_id FROM collection_item_tag WHERE tag_id = " + query.getTagId());
         }
 
+        if (!CollectionUtils.isEmpty(query.getTagIds())) {
+            wrapper.inSql(CollectionItem::getId,
+                "SELECT collection_item_id FROM collection_item_tag WHERE tag_id IN (" + joinIds(query.getTagIds()) + ") GROUP BY collection_item_id HAVING COUNT(DISTINCT tag_id) = " + query.getTagIds().size());
+        }
+
+        if (StringUtils.hasText(query.getStartDate())) {
+            wrapper.ge(CollectionItem::getCreatedAt, query.getStartDate() + " 00:00:00");
+        }
+
+        if (StringUtils.hasText(query.getEndDate())) {
+            wrapper.le(CollectionItem::getCreatedAt, query.getEndDate() + " 23:59:59");
+        }
+
         handleSort(wrapper, query.getSortBy(), query.getSortOrder());
         return R.success(collectionItemMapper.selectPage(page, wrapper));
     }
@@ -349,9 +362,22 @@ public class CollectionItemServiceImpl implements ICollectionItemService {
             return;
         }
         switch (sortBy) {
-            case "updatedAt" -> wrapper.orderBy(true, isAsc, CollectionItem::getUpdatedAt);
-            case "visitCount" -> wrapper.orderBy(true, isAsc, CollectionItem::getVisitCount);
-            default -> wrapper.orderBy(true, isAsc, CollectionItem::getCreatedAt);
+            case "updatedAt":
+                wrapper.orderBy(true, isAsc, CollectionItem::getUpdatedAt);
+                break;
+            case "visitCount":
+                wrapper.orderBy(true, isAsc, CollectionItem::getVisitCount);
+                break;
+            case "title":
+            case "name":
+                wrapper.orderBy(true, isAsc, CollectionItem::getTitle);
+                break;
+            case "createdAt":
+                wrapper.orderBy(true, isAsc, CollectionItem::getCreatedAt);
+                break;
+            default:
+                wrapper.orderBy(true, isAsc, CollectionItem::getCreatedAt);
+                break;
         }
     }
 
@@ -596,6 +622,19 @@ public class CollectionItemServiceImpl implements ICollectionItemService {
                 "SELECT collection_item_id FROM collection_item_tag WHERE tag_id = " + query.getTagId());
         }
 
+        if (!CollectionUtils.isEmpty(query.getTagIds())) {
+            wrapper.inSql(CollectionItem::getId,
+                "SELECT collection_item_id FROM collection_item_tag WHERE tag_id IN (" + joinIds(query.getTagIds()) + ") GROUP BY collection_item_id HAVING COUNT(DISTINCT tag_id) = " + query.getTagIds().size());
+        }
+
+        if (StringUtils.hasText(query.getStartDate())) {
+            wrapper.ge(CollectionItem::getCreatedAt, query.getStartDate() + " 00:00:00");
+        }
+
+        if (StringUtils.hasText(query.getEndDate())) {
+            wrapper.le(CollectionItem::getCreatedAt, query.getEndDate() + " 23:59:59");
+        }
+
         handleSort(wrapper, query.getSortBy(), query.getSortOrder());
 
         return R.success(collectionItemMapper.selectPage(pageRequest, wrapper));
@@ -696,12 +735,29 @@ public class CollectionItemServiceImpl implements ICollectionItemService {
     }
 
     private String extractSource(String url) {
-        try {
-            URI uri = new URI(url);
-            return uri.getHost();
-        } catch (URISyntaxException e) {
-            return null;
+      try {
+          URI uri = new URI(url);
+          return uri.getHost();
+      } catch (URISyntaxException e) {
+          return null;
+      }
+    }
+
+    private String joinIds(List<Long> ids) {
+        if (CollectionUtils.isEmpty(ids)) {
+            return "";
         }
+        StringBuilder builder = new StringBuilder();
+        for (Long id : ids) {
+            if (id == null) {
+                continue;
+            }
+            if (builder.length() > 0) {
+                builder.append(',');
+            }
+            builder.append(id);
+        }
+        return builder.toString();
     }
 
     private void fillNonHtmlMetadata(UrlMetadataResponseDTO responseDTO, String finalUrl, String contentType) {

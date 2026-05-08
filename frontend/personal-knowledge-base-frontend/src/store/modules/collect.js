@@ -222,7 +222,13 @@ const mutations = {
   TOGGLE_STAR(state, id) {
     const item = state.collectList.find(item => item.id === id);
     if (item) {
-      item.starred = !item.starred;
+      const current = typeof item.isStar === 'boolean'
+        ? item.isStar
+        : (typeof item.isStarred === 'boolean' ? item.isStarred : item.starred);
+      const next = !current;
+      item.isStar = next;
+      item.isStarred = next;
+      item.starred = next;
     }
   }
 };

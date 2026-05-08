@@ -175,7 +175,7 @@ const actions = {
     // 同步到服务器
     try {
       await request({
-        url: '/user/settings/notify',
+        url: '/user/settings',
         method: 'put',
         data: { notifyPreferences: preferences }
       });

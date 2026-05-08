@@ -147,22 +147,45 @@ public class AdminServiceImpl implements IAdminService {
     }
 
     @Override
-    public R getPublicContent(PageDTO page, String contentType) {
-        // 支持前端使用 "collect" 或 "collection" 作为内容类型
-        String normalizedType = "collect".equals(contentType) ? "collection" : contentType;
+    public R getPublicContent(PageDTO page, String contentType, String searchKey) {
+        String normalizedType;
+        if ("collect".equals(contentType) || "collection_item".equals(contentType) || "item".equals(contentType)) {
+            normalizedType = "collection_item";
+        } else {
+            normalizedType = contentType;
+        }
 
-        if ("collection".equals(normalizedType)) {
+        if ("collection_item".equals(normalizedType)) {
+            Page<CollectionItem> pageObj = new Page<>(page.getPageNum(), page.getPageSize());
+            LambdaQueryWrapper<CollectionItem> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(CollectionItem::getIsPublic, 1);
+            if (StringUtils.hasText(searchKey)) {
+                wrapper.and(w -> w.like(CollectionItem::getTitle, searchKey)
+                        .or().like(CollectionItem::getDescription, searchKey));
+            }
+            wrapper.orderByDesc(CollectionItem::getCreatedAt);
+            Page<CollectionItem> result = collectionItemMapper.selectPage(pageObj, wrapper);
+            return R.success(result);
+        } else if ("collection".equals(normalizedType)) {
             Page<Collection> pageObj = new Page<>(page.getPageNum(), page.getPageSize());
             LambdaQueryWrapper<Collection> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(Collection::getIsPublic, 1)
-                    .orderByDesc(Collection::getCreatedAt);
+            wrapper.eq(Collection::getIsPublic, 1);
+            if (StringUtils.hasText(searchKey)) {
+                wrapper.and(w -> w.like(Collection::getName, searchKey)
+                        .or().like(Collection::getDescription, searchKey));
+            }
+            wrapper.orderByDesc(Collection::getCreatedAt);
             Page<Collection> result = collectionMapper.selectPage(pageObj, wrapper);
             return R.success(result);
         } else if ("note".equals(normalizedType)) {
             Page<Note> pageObj = new Page<>(page.getPageNum(), page.getPageSize());
             LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(Note::getIsPublic, 1)
-                    .orderByDesc(Note::getCreateTime);
+            wrapper.eq(Note::getIsPublic, 1);
+            if (StringUtils.hasText(searchKey)) {
+                wrapper.and(w -> w.like(Note::getTitle, searchKey)
+                        .or().like(Note::getContent, searchKey));
+            }
+            wrapper.orderByDesc(Note::getCreateTime);
             Page<Note> result = noteMapper.selectPage(pageObj, wrapper);
             return R.success(result);
         } else {
@@ -171,11 +194,25 @@ public class AdminServiceImpl implements IAdminService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public R takeDownContent(String contentType, Long contentId) {
-        // 支持前端使用 "collect" 或 "collection" 作为内容类型
-        String normalizedType = "collect".equals(contentType) ? "collection" : contentType;
+        String normalizedType;
+        if ("collect".equals(contentType) || "collection_item".equals(contentType) || "item".equals(contentType)) {
+            normalizedType = "collection_item";
+        } else {
+            normalizedType = contentType;
+        }
 
-        if ("collection".equals(normalizedType)) {
+        if ("collection_item".equals(normalizedType)) {
+            LambdaUpdateWrapper<CollectionItem> wrapper = new LambdaUpdateWrapper<>();
+            wrapper.eq(CollectionItem::getId, contentId)
+                    .set(CollectionItem::getIsPublic, 0);
+            int rows = collectionItemMapper.update(null, wrapper);
+            if (rows == 0) {
+                throw new BusinessException("收藏项不存在");
+            }
+            log.info("下架收藏项[{}]", contentId);
+        } else if ("collection".equals(normalizedType)) {
             LambdaUpdateWrapper<Collection> wrapper = new LambdaUpdateWrapper<>();
             wrapper.eq(Collection::getId, contentId)
                     .set(Collection::getIsPublic, 0);
@@ -183,7 +220,13 @@ public class AdminServiceImpl implements IAdminService {
             if (rows == 0) {
                 throw new BusinessException("收藏集不存在");
             }
-            log.info("下架收藏集[{}]", contentId);
+            // 同步下架该收藏集下的所有收藏项
+            LambdaUpdateWrapper&lt;CollectionItem&gt; itemWrapper = new LambdaUpdateWrapper&lt;&gt;();
+            itemWrapper.eq(CollectionItem::getCollectionId, contentId)
+                    .eq(CollectionItem::getDeleted, 0)
+                    .set(CollectionItem::getIsPublic, 0);
+            int itemRows = collectionItemMapper.update(null, itemWrapper);
+            log.info("下架收藏集[{}]，同步下架{}个收藏项", contentId, itemRows);
         } else if ("note".equals(normalizedType)) {
             LambdaUpdateWrapper<Note> wrapper = new LambdaUpdateWrapper<>();
             wrapper.eq(Note::getId, contentId)
@@ -521,9 +564,23 @@ public class AdminServiceImpl implements IAdminService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public R restoreContent(String contentType, Long contentId, Long adminId) {
-        String normalizedType = "collect".equals(contentType) ? "collection" : contentType;
+        String normalizedType;
+        if ("collect".equals(contentType) || "collection_item".equals(contentType) || "item".equals(contentType)) {
+            normalizedType = "collection_item";
+        } else {
+            normalizedType = contentType;
+        }
 
-        if ("collection".equals(normalizedType)) {
+        if ("collection_item".equals(normalizedType)) {
+            LambdaUpdateWrapper<CollectionItem> wrapper = new LambdaUpdateWrapper<>();
+            wrapper.eq(CollectionItem::getId, contentId)
+                    .set(CollectionItem::getIsPublic, 1);
+            int rows = collectionItemMapper.update(null, wrapper);
+            if (rows == 0) {
+                throw new BusinessException("收藏项不存在");
+            }
+            log.info("管理员[{}]恢复收藏项[{}]", adminId, contentId);
+        } else if ("collection".equals(normalizedType)) {
             LambdaUpdateWrapper<Collection> wrapper = new LambdaUpdateWrapper<>();
             wrapper.eq(Collection::getId, contentId)
                     .set(Collection::getIsPublic, 1);
@@ -531,7 +588,13 @@ public class AdminServiceImpl implements IAdminService {
             if (rows == 0) {
                 throw new BusinessException("收藏集不存在");
             }
-            log.info("管理员[{}]恢复收藏集[{}]", adminId, contentId);
+            // 同步恢复该收藏集下的所有收藏项
+            LambdaUpdateWrapper&lt;CollectionItem&gt; itemWrapper = new LambdaUpdateWrapper&lt;&gt;();
+            itemWrapper.eq(CollectionItem::getCollectionId, contentId)
+                    .eq(CollectionItem::getDeleted, 0)
+                    .set(CollectionItem::getIsPublic, 1);
+            int itemRows = collectionItemMapper.update(null, itemWrapper);
+            log.info("管理员[{}]恢复收藏集[{}]，同步恢复{}个收藏项", adminId, contentId, itemRows);
         } else if ("note".equals(normalizedType)) {
             LambdaUpdateWrapper<Note> wrapper = new LambdaUpdateWrapper<>();
             wrapper.eq(Note::getId, contentId)
@@ -545,7 +608,6 @@ public class AdminServiceImpl implements IAdminService {
             throw new BusinessException("不支持的内容类型：" + contentType);
         }
 
-        // 记录操作日志
         saveOperationLog(adminId, "restore", normalizedType, contentId, "恢复已下架内容");
 
         return R.success("内容已恢复");
@@ -864,12 +926,37 @@ public class AdminServiceImpl implements IAdminService {
             throw new BusinessException("内容ID列表不能为空");
         }
 
-        String normalizedType = "collect".equals(contentType) ? "collection" : contentType;
+        String normalizedType;
+        if ("collect".equals(contentType) || "collection_item".equals(contentType) || "item".equals(contentType)) {
+            normalizedType = "collection_item";
+        } else {
+            normalizedType = contentType;
+        }
         int successCount = 0;
         int failCount = 0;
         List<String> failReasons = new java.util.ArrayList<>();
 
-        if ("collection".equals(normalizedType)) {
+        if ("collection_item".equals(normalizedType)) {
+            for (Long contentId : contentIds) {
+                try {
+                    LambdaUpdateWrapper<CollectionItem> wrapper = new LambdaUpdateWrapper<>();
+                    wrapper.eq(CollectionItem::getId, contentId)
+                            .set(CollectionItem::getIsPublic, 0);
+                    int rows = collectionItemMapper.update(null, wrapper);
+                    if (rows == 0) {
+                        failCount++;
+                        failReasons.add("收藏项ID[" + contentId + "]不存在");
+                    } else {
+                        saveOperationLog(adminId, "batch_take_down", "collection_item", contentId,
+                                "批量下架，原因：" + (reason != null ? reason : "未填写"));
+                        successCount++;
+                    }
+                } catch (Exception e) {
+                    failCount++;
+                    failReasons.add("收藏项ID[" + contentId + "]操作失败");
+                }
+            }
+        } else if ("collection".equals(normalizedType)) {
             for (Long contentId : contentIds) {
                 try {
                     LambdaUpdateWrapper<Collection> wrapper = new LambdaUpdateWrapper<>();
@@ -880,6 +967,12 @@ public class AdminServiceImpl implements IAdminService {
                         failCount++;
                         failReasons.add("收藏集ID[" + contentId + "]不存在");
                     } else {
+                            // 同步下架该收藏集下的所有收藏项
+                        LambdaUpdateWrapper&lt;CollectionItem&gt; itemWrapper = new LambdaUpdateWrapper&lt;&gt;();
+                        itemWrapper.eq(CollectionItem::getCollectionId, contentId)
+                                .eq(CollectionItem::getDeleted, 0)
+                                .set(CollectionItem::getIsPublic, 0);
+                        collectionItemMapper.update(null, itemWrapper);
                         saveOperationLog(adminId, "batch_take_down", "collection", contentId,
                                 "批量下架，原因：" + (reason != null ? reason : "未填写"));
                         successCount++;
@@ -929,12 +1022,36 @@ public class AdminServiceImpl implements IAdminService {
             throw new BusinessException("内容ID列表不能为空");
         }
 
-        String normalizedType = "collect".equals(contentType) ? "collection" : contentType;
+        String normalizedType;
+        if ("collect".equals(contentType) || "collection_item".equals(contentType) || "item".equals(contentType)) {
+            normalizedType = "collection_item";
+        } else {
+            normalizedType = contentType;
+        }
         int successCount = 0;
         int failCount = 0;
         List<String> failReasons = new java.util.ArrayList<>();
 
-        if ("collection".equals(normalizedType)) {
+        if ("collection_item".equals(normalizedType)) {
+            for (Long contentId : contentIds) {
+                try {
+                    LambdaUpdateWrapper<CollectionItem> wrapper = new LambdaUpdateWrapper<>();
+                    wrapper.eq(CollectionItem::getId, contentId)
+                            .set(CollectionItem::getIsPublic, 1);
+                    int rows = collectionItemMapper.update(null, wrapper);
+                    if (rows == 0) {
+                        failCount++;
+                        failReasons.add("收藏项ID[" + contentId + "]不存在");
+                    } else {
+                        saveOperationLog(adminId, "batch_restore", "collection_item", contentId, "批量恢复内容");
+                        successCount++;
+                    }
+                } catch (Exception e) {
+                    failCount++;
+                    failReasons.add("收藏项ID[" + contentId + "]操作失败");
+                }
+            }
+        } else if ("collection".equals(normalizedType)) {
             for (Long contentId : contentIds) {
                 try {
                     LambdaUpdateWrapper<Collection> wrapper = new LambdaUpdateWrapper<>();
@@ -945,6 +1062,12 @@ public class AdminServiceImpl implements IAdminService {
                         failCount++;
                         failReasons.add("收藏集ID[" + contentId + "]不存在");
                     } else {
+                        // 同步恢复该收藏集下的所有收藏项
+                        LambdaUpdateWrapper&lt;CollectionItem&gt; itemWrapper = new LambdaUpdateWrapper&lt;&gt;();
+                        itemWrapper.eq(CollectionItem::getCollectionId, contentId)
+                                .eq(CollectionItem::getDeleted, 0)
+                                .set(CollectionItem::getIsPublic, 1);
+                        collectionItemMapper.update(null, itemWrapper);
                         saveOperationLog(adminId, "batch_restore", "collection", contentId, "批量恢复内容");
                         successCount++;
                     }

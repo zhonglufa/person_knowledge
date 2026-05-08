@@ -27,17 +27,11 @@
             <i slot="prefix" class="el-input__icon el-icon-search"></i>
           </el-input>
         </el-form-item>
-        <el-form-item v-if="activeTab === 'note'" label="公开状态">
-          <el-select
-            v-model="queryParams.isPublic"
-            placeholder="全部状态"
-            clearable
-            @change="handleSearch"
-          >
-            <el-option label="全部" value=""></el-option>
-            <el-option label="公开" :value="1"></el-option>
-            <el-option label="私有" :value="0"></el-option>
-          </el-select>
+        <el-form-item v-if="activeTab === 'note'" label="说明">
+          <div class="status-hint">
+            <i class="el-icon-info"></i>
+            <span>仅显示公开笔记，私有笔记不可见</span>
+          </div>
         </el-form-item>
         <el-form-item>
           <el-button type="primary" icon="el-icon-search" @click="handleSearch">搜索</el-button>
@@ -52,6 +46,7 @@
         <!-- 收藏项管理 -->
         <el-tab-pane label="收藏项管理" name="collect">
           <el-table
+            ref="collectTable"
             :data="contentList"
             v-loading="loading"
             border
@@ -63,7 +58,7 @@
             <el-table-column type="index" label="序号" width="80" align="center" :index="indexMethod" />
             <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip />
             <el-table-column prop="source" label="来源" width="100" align="center" />
-            <el-table-column label="所属收藏集公开" width="130" align="center">
+            <el-table-column label="公开状态" width="130" align="center">
               <template slot-scope="scope">
                 <el-tag :type="scope.row.isPublic === 1 ? 'success' : 'info'" size="small">
                   {{ scope.row.isPublic === 1 ? '公开' : '私有' }}
@@ -108,6 +103,7 @@
         <!-- 笔记管理 -->
         <el-tab-pane label="笔记管理" name="note">
           <el-table
+            ref="noteTable"
             :data="contentList"
             v-loading="loading"
             border
@@ -127,33 +123,23 @@
             </el-table-column>
             <el-table-column label="可见性" width="100" align="center">
               <template slot-scope="scope">
-                <el-tag :type="scope.row.isPublic === 1 ? 'success' : 'info'" size="small">
-                  {{ scope.row.isPublic === 1 ? '公开' : '私有' }}
-                </el-tag>
+                <el-tag type="success" size="small">公开</el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="createdAt" label="创建时间" min-width="170" align="center">
+            <el-table-column prop="createTime" label="创建时间" min-width="170" align="center">
               <template slot-scope="scope">
-                {{ formatDate(scope.row.createdAt) }}
+                {{ formatDate(scope.row.createTime) }}
               </template>
             </el-table-column>
             <el-table-column label="操作" width="180" align="center" fixed="right">
               <template slot-scope="scope">
                 <div class="action-buttons">
                   <el-button
-                    v-if="scope.row.isPublic === 1"
                     type="warning"
                     size="mini"
                     icon="el-icon-bottom"
                     @click="handleTakeDownContent('note', scope.row)"
                   >下架</el-button>
-                  <el-button
-                    v-else
-                    type="success"
-                    size="mini"
-                    icon="el-icon-top"
-                    @click="handleRestoreContent('note', scope.row)"
-                  >恢复</el-button>
                 </div>
               </template>
             </el-table-column>
@@ -166,7 +152,7 @@
         <span class="batch-info">已选择 {{ selectedRows.length }} 项</span>
         <div class="batch-actions">
           <el-button type="warning" size="mini" icon="el-icon-bottom" @click="handleBatchTakeDown">批量下架</el-button>
-          <el-button type="success" size="mini" icon="el-icon-top" @click="handleBatchRestore">批量恢复</el-button>
+          <el-button v-if="activeTab === 'collect'" type="success" size="mini" icon="el-icon-top" @click="handleBatchRestore">批量恢复</el-button>
         </div>
       </div>
 
@@ -201,8 +187,7 @@ export default {
       loading: false,
 
       queryParams: {
-        searchKey: '',
-        isPublic: ''
+        searchKey: ''
       },
 
       pagination: {
@@ -213,24 +198,40 @@ export default {
     }
   },
 
+  watch: {
+    activeTab() {
+      this.clearSelection()
+    }
+  },
+
   mounted() {
     this.loadContentList()
   },
 
   methods: {
+    clearSelection() {
+      this.selectedRows = []
+      this.$nextTick(() => {
+        const tableRef = this.activeTab === 'collect' ? 'collectTable' : 'noteTable'
+        const table = this.$refs[tableRef]
+        if (table && typeof table.clearSelection === 'function') {
+          table.clearSelection()
+        }
+      })
+    },
+
     async loadContentList() {
       this.loading = true
+      this.clearSelection()
       try {
         const params = {
           contentType: this.activeTab,
           pageNum: this.pagination.currentPage,
           pageSize: this.pagination.pageSize,
-          searchKey: this.queryParams.searchKey,
-          isPublic: this.queryParams.isPublic !== '' ? this.queryParams.isPublic : undefined
+          searchKey: this.queryParams.searchKey
         }
         const response = await contentManageApi.getContentList(params)
         if (response.code === 200) {
-          // MyBatis Plus Page 对象返回的字段是 records 而不是 list
           this.contentList = response.data?.records || []
           this.pagination.total = response.data?.total || 0
         } else {
@@ -251,7 +252,6 @@ export default {
 
     handleReset() {
       this.queryParams.searchKey = ''
-      this.queryParams.isPublic = ''
       this.pagination.currentPage = 1
       this.loadContentList()
     },
@@ -259,7 +259,7 @@ export default {
     handleTabChange(tab) {
       this.activeTab = tab.name
       this.pagination.currentPage = 1
-      this.selectedRows = []
+      this.clearSelection()
       this.loadContentList()
     },
 
@@ -269,7 +269,8 @@ export default {
 
     handleTakeDownContent(type, row) {
       const contentType = type === 'collect' ? '收藏项' : '笔记'
-      this.$confirm(`确定要下架该${contentType} "${row.title}" 吗？下架后其他用户将无法查看。`, '下架确认', {
+      const contentTitle = type === 'collect' ? (row.title || row.name) : row.title
+      this.$confirm(`确定要下架该${contentType} "${contentTitle}" 吗？下架后其他用户将无法查看。`, '下架确认', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning'
@@ -291,7 +292,8 @@ export default {
 
     handleRestoreContent(type, row) {
       const contentType = type === 'collect' ? '收藏项' : '笔记'
-      this.$confirm(`确定要恢复该${contentType} "${row.title}" 吗？恢复后其他用户可以查看。`, '恢复确认', {
+      const contentTitle = type === 'collect' ? (row.title || row.name) : row.title
+      this.$confirm(`确定要恢复该${contentType} "${contentTitle}" 吗？恢复后其他用户可以查看。`, '恢复确认', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'success'
@@ -329,7 +331,7 @@ export default {
         type: 'warning'
       }).then(async () => {
         try {
-          const contentIds = this.selectedRows.map(row => row.id)
+          const contentIds = this.selectedRows.filter(row => row.isPublic === 1).map(row => row.id)
           const response = await contentManageApi.batchTakeDown({
             contentType: this.activeTab,
             contentIds,
@@ -337,7 +339,7 @@ export default {
           })
           if (response.code === 200) {
             this.$message.success('批量下架成功')
-            this.selectedRows = []
+            this.clearSelection()
             this.loadContentList()
           } else {
             this.$message.error(response.message || '批量下架失败')
@@ -364,14 +366,14 @@ export default {
         type: 'success'
       }).then(async () => {
         try {
-          const contentIds = this.selectedRows.map(row => row.id)
+          const contentIds = this.selectedRows.filter(row => row.isPublic !== 1).map(row => row.id)
           const response = await contentManageApi.batchRestore({
             contentType: this.activeTab,
             contentIds
           })
           if (response.code === 200) {
             this.$message.success('批量恢复成功')
-            this.selectedRows = []
+            this.clearSelection()
             this.loadContentList()
           } else {
             this.$message.error(response.message || '批量恢复失败')
@@ -457,6 +459,9 @@ export default {
 .page-header {
   padding: var(--space-4) var(--space-5);
   margin-bottom: var(--space-5);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .page-title {
@@ -479,6 +484,18 @@ export default {
 
 .filter-card :deep(.el-card__body) {
   padding: var(--space-4) var(--space-5);
+}
+
+.status-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #909399;
+  font-size: 13px;
+}
+
+.status-hint i {
+  color: #409eff;
 }
 
 /* ========== 表格卡片 ========== */
@@ -554,6 +571,11 @@ export default {
 @media (max-width: 768px) {
   .pagination-wrapper {
     justify-content: center;
+  }
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
   }
 }
 

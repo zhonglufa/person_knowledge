@@ -242,6 +242,7 @@ export default {
       // 预览相关
       previewLoading: false,
       previewResult: null,
+      htmlContent: '',
 
       // 导入相关
       importing: false,
@@ -329,16 +330,17 @@ export default {
       this.previewLoading = true
 
       try {
-        // 读取HTML文件内容
         const fileContent = await this.readFileAsText(this.selectedFile)
+        this.htmlContent = fileContent
 
-        // 调用后端预览API解析书签
-        const response = await collectApi.importPreview(fileContent)
-        this.previewResult = response.data || {
-          totalCount: 0,
-          validCount: 0,
+        const response = await collectApi.importPreview({ htmlContent: fileContent })
+        const payload = response?.data ?? response ?? {}
+
+        this.previewResult = {
+          totalCount: payload.totalCount || 0,
+          validCount: payload.totalCount || 0,
           duplicateCount: 0,
-          items: []
+          items: payload.items || []
         }
       } catch (error) {
         console.error('预览失败:', error)
@@ -370,17 +372,15 @@ export default {
       this.importProgressText = '正在准备导入...'
 
       try {
-        // 确定目标收藏集ID
         let targetId = this.targetCollectionId
 
-        // 如果选择创建新收藏集，先创建
         if (this.targetCollectionId === 'new') {
           this.importProgressText = '正在创建收藏集...'
           try {
             const createResponse = await collectionsApi.createCollection({
               name: this.newCollectionName.trim()
             })
-            targetId = createResponse.data?.id
+            targetId = createResponse?.data?.id
             if (!targetId) {
               throw new Error('创建收藏集失败')
             }
@@ -391,19 +391,19 @@ export default {
           }
         }
 
-        // 调用后端导入API
         this.importProgressText = '正在导入书签...'
-        const importData = {
-          collectionId: targetId,
-          items: this.previewResult?.items || []
-        }
-        const response = await collectApi.importExecute(importData)
 
-        // 解析导入结果
-        this.importResult = response.data || {
-          successCount: 0,
+        const response = await collectApi.importExecute({
+          htmlContent: this.htmlContent,
+          targetCollectionId: targetId
+        })
+
+        const payload = response?.data ?? response ?? {}
+        this.importResult = {
+          successCount: payload.successCount || 0,
           skippedCount: 0,
-          failedCount: 0
+          failedCount: payload.failCount || 0,
+          errors: payload.errors || []
         }
 
         this.currentStep = 2
@@ -436,6 +436,7 @@ export default {
       this.targetCollectionId = ''
       this.newCollectionName = ''
       this.previewResult = null
+      this.htmlContent = ''
       this.importResult = null
       this.importProgress = 0
       this.importProgressText = ''

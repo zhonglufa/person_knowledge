@@ -42,9 +42,10 @@ public interface IAdminService {
      *
      * @param page        分页参数
      * @param contentType 内容类型（collection/note）
+     * @param searchKey   搜索关键词
      * @return 内容列表
      */
-    R getPublicContent(PageDTO page, String contentType);
+    R getPublicContent(PageDTO page, String contentType, String searchKey);
 
     /**
      * 内容下架（设置为非公开）

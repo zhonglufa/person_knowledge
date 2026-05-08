@@ -128,7 +128,10 @@ export default {
     AddCollectionModal,
   },
   props: {
-    sidebarItems: Array,
+    sidebarItems: {
+      type: Array,
+      default: () => []
+    },
     activeSidebarItem: String,
     isMobile: Boolean,
     selectedCount: {
@@ -158,11 +161,13 @@ export default {
   },
   computed: {
     currentContentTitle() {
-      const item = this.sidebarItems.find(item => item.id === this.activeSidebarItem);
+      const items = Array.isArray(this.sidebarItems) ? this.sidebarItems : [];
+      const item = items.find(item => item.id === this.activeSidebarItem);
       return item ? item.text : '全部收藏';
     },
     currentContentSubtitle() {
-      const item = this.sidebarItems.find(item => item.id === this.activeSidebarItem);
+      const items = Array.isArray(this.sidebarItems) ? this.sidebarItems : [];
+      const item = items.find(item => item.id === this.activeSidebarItem);
       return item?.subtext || null;
     },
     // 添加收藏入口只在“全部收藏”场景展示，避免标签页、回收站等非主收藏流转场景出现错误操作入口。
@@ -178,18 +183,6 @@ export default {
     },
     hasSelectedDateRange() {
       return Array.isArray(this.selectedDateRange) && this.selectedDateRange.length === 2;
-    }
-  },
-  watch: {
-    activeSidebarItem() {
-      this.selectAll = false;
-      this.isIndeterminate = false;
-    },
-    disableSelection(disabled) {
-      if (disabled) {
-        this.selectAll = false;
-        this.isIndeterminate = false;
-      }
     }
   },
   methods: {
@@ -289,6 +282,17 @@ export default {
   },
 
   watch: {
+    activeSidebarItem() {
+      this.selectAll = false;
+      this.isIndeterminate = false;
+      this.syncFilterState();
+    },
+    disableSelection(disabled) {
+      if (disabled) {
+        this.selectAll = false;
+        this.isIndeterminate = false;
+      }
+    },
     selectedCount(newVal) {
       if (newVal === 0) {
         this.selectAll = false;
@@ -302,9 +306,6 @@ export default {
       },
       deep: true,
       immediate: true
-    },
-    activeSidebarItem() {
-      this.syncFilterState();
     }
   }
 }

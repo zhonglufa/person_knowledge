@@ -189,6 +189,7 @@ export default {
     return {
       loading: true,
       loadingMore: false,
+      deletingCollectionId: null,
       collections: [],
       searchKeyword: '',
       sortBy: 'createdAt',
@@ -394,18 +395,38 @@ export default {
       this.$message.info(`分享功能待补充：${collection?.name || ''}`)
     },
     async handleDelete(collection) {
+      const id = collection?.id
+      if (!id) {
+        return
+      }
+
+      if (this.deletingCollectionId) {
+        return
+      }
+
+      if (!this.userInfo?.id || this.userInfo.id !== collection?.userId) {
+        this.$message.error('无权限删除该收藏集')
+        return
+      }
+
       try {
         await this.$confirm(`确定删除收藏集「${collection.title || collection.name || ''}」吗？删除后不可恢复。`, '删除确认', {
           type: 'warning',
           confirmButtonText: '确定删除',
           cancelButtonText: '取消'
         })
-        await collectionsApi.deleteCollection(collection.id)
+
+        this.deletingCollectionId = id
+        await collectionsApi.deleteCollection(id)
         this.$message.success('删除成功')
         await this.loadCollections()
       } catch (error) {
         if (error !== 'cancel') {
           this.$message.error(error?.message || '删除失败')
+        }
+      } finally {
+        if (this.deletingCollectionId === id) {
+          this.deletingCollectionId = null
         }
       }
     },
@@ -433,16 +454,16 @@ export default {
     },
     handleCoverError(event, collection) {
       if (!collection) return
-      
+
       console.warn(`收藏集「${collection?.name || '未知'}」封面加载失败:`, event?.target?.src || '无URL')
-      
+
       if (collection.coverImage) {
         this.$set(collection, 'coverImage', null)
       }
       if (collection.coverUrl) {
         this.$set(collection, 'coverUrl', null)
       }
-      
+
       this.$forceUpdate()
     }
   }

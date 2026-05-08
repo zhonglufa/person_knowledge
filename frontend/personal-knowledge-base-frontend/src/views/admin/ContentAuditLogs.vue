@@ -28,6 +28,7 @@
 
         <el-form-item label="目标类型">
           <el-select v-model="filterForm.targetType" placeholder="全部" clearable @change="handleFilterChange">
+            <el-option label="收藏项" value="collection_item" />
             <el-option label="收藏集" value="collection" />
             <el-option label="笔记" value="note" />
             <el-option label="用户" value="user" />
@@ -217,6 +218,7 @@ export default {
 
     getTargetTypeName(type) {
       const map = {
+        'collection_item': '收藏项',
         'collection': '收藏集',
         'note': '笔记',
         'user': '用户',

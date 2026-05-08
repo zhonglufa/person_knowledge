@@ -51,7 +51,7 @@
               <i class="el-icon-edit"></i>
               编辑
             </el-button>
-            <el-button type="danger" size="small" @click="deleteCollection">
+            <el-button type="danger" size="small" :loading="deletingCollection" :disabled="deletingCollection" @click="deleteCollection">
               <i class="el-icon-delete"></i>
               删除
             </el-button>
@@ -272,6 +272,7 @@ export default {
       itemsCurrentPage: 1,
       itemsPageSize: 10,
       addItemLoading: false,
+      deletingCollection: false,
       searchDebounceTimer: null,
       addItemForm: {
         title: '',
@@ -433,11 +434,15 @@ export default {
       }
     },
     deleteCollection() {
+      if (this.deletingCollection) {
+        return
+      }
       this.$confirm('确定要删除该收藏集？收藏集内的收藏项将被移至回收站。', '删除收藏集', {
         confirmButtonText: '确认删除',
         cancelButtonText: '取消',
         type: 'warning'
       }).then(async () => {
+        this.deletingCollection = true
         try {
           await collectionsApi.deleteCollection(this.collection.id)
           this.$message.success('收藏集已删除')
@@ -445,6 +450,8 @@ export default {
         } catch (error) {
           console.error('删除收藏集失败:', error)
           this.$message.error('删除收藏集失败')
+        } finally {
+          this.deletingCollection = false
         }
       }).catch(() => {})
     },

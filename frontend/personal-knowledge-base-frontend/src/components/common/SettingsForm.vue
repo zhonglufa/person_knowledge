@@ -224,7 +224,7 @@ export default {
 
         // 从后端获取最新设置
         const response = await request({
-          url: '/settings',
+          url: '/user/settings',
           method: 'get'
         })
 
@@ -251,7 +251,7 @@ export default {
       this.saving = true
       try {
         const response = await request({
-          url: '/settings',
+          url: '/user/settings',
           method: 'put',
           data: this.settingsForm
         })

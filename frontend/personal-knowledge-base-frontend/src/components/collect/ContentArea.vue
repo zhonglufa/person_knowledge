@@ -17,6 +17,7 @@
       @batch-delete="$emit('batch-delete')"
       @batch-recover="$emit('batch-recover')"
       @batch-permanent-delete="$emit('batch-permanent-delete')"
+      @add-collection-success="$emit('add-collection-success', $event)"
     />
 
     <div class="content-container">
@@ -33,12 +34,14 @@
         :current-user-id="currentUserId"
         :user-collected-urls="userCollectedUrls"
         :show-selection-mode="showSelectionMode"
+        :processing-request="processingRequest"
         @collection-click="$emit('collection-click', $event)"
         @toggle-star="$emit('toggle-star', $event)"
         @delete-collection="$emit('delete-collection', $event)"
         @recover-collection="$emit('recover-collection', $event)"
         @permanent-delete="$emit('permanent-delete', $event)"
         @filter-by-tag="$emit('filter-by-tag', $event)"
+        @show-all-collection-tags="$emit('show-all-collection-tags', $event)"
         @preview-image="$emit('preview-image', $event)"
         @preview-text="$emit('preview-text', $event)"
         @preview-link="$emit('preview-link', $event)"
@@ -117,6 +120,10 @@ export default {
     showSelectionMode: {
       type: Boolean,
       default: false
+    },
+    processingRequest: {
+      type: Boolean,
+      default: false
     }
   },
   emits: [
@@ -130,12 +137,14 @@ export default {
     'batch-delete',
     'batch-recover',
     'batch-permanent-delete',
+    'add-collection-success',
     'collection-click',
     'toggle-star',
     'delete-collection',
     'recover-collection',
     'permanent-delete',
     'filter-by-tag',
+    'show-all-collection-tags',
     'preview-image',
     'preview-text',
     'preview-link',
