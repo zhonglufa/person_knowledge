@@ -44,6 +44,16 @@
           @permanent-delete="$emit('permanent-delete', $event)"
           @toggle-selection="$emit('toggle-selection', $event)"
           @selection-change="$emit('selection-change', $event)"
+          @move-item="handleMoveItem"
+        />
+
+
+
+        <CollectionSelectorDialog
+          v-model="showMoveDialog"
+          :item-ids="selectedItemIds"
+          :current-collection-id="currentCollectionId"
+          @moved="handleItemMoved"
         />
 
         <div v-if="!loading && collections.length > 0" class="load-more-section">
@@ -76,12 +86,13 @@
 <script>
 import CollectItemsGridView from './CollectItemsGridView.vue';
 import PublicCollectionGrid from './PublicCollectionGrid.vue';
-
+import CollectionSelectorDialog from '@/components/collect/CollectionSelectorDialog.vue'
 export default {
   name: 'CollectionsDisplay',
   components: {
     CollectItemsGridView,
-    PublicCollectionGrid
+    PublicCollectionGrid,
+    CollectionSelectorDialog
   },
   props: {
     collections: {
@@ -131,6 +142,10 @@ export default {
     processingRequest: {
       type: Boolean,
       default: false
+    },
+    showSelectionMode: {
+      type: Boolean,
+      default: false
     }
   },
   emits: [
@@ -150,11 +165,15 @@ export default {
     'toggle-selection',
     'selection-change',
     'load-more',
-    'retry-load-more'
+    'retry-load-more',
+    'item-moved'
   ],
   data() {
     return {
-      observer: null
+      observer: null,
+      showMoveDialog: false,
+      selectedItemIds: [],
+      currentCollectionId: null
     };
   },
   computed: {
@@ -231,6 +250,17 @@ export default {
         this.observer.disconnect();
         this.observer = null;
       }
+    },
+    handleMoveItem(item) {
+      this.selectedItemIds = [item.id];
+      this.currentCollectionId = item.collectionId || null;
+      this.showMoveDialog = true;
+    },
+    handleItemMoved() {
+      this.showMoveDialog = false;
+      this.selectedItemIds = [];
+      this.currentCollectionId = null;
+      this.$emit('item-moved');
     }
   }
 }

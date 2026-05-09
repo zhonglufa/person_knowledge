@@ -44,6 +44,54 @@ export function getUserStatistics() {
   })
 }
 
+// 获取学习进度
+export function getLearningProgress() {
+  return request({
+    url: '/user/statistics/learning-progress',
+    method: 'get'
+  })
+}
+
+// 获取学习趋势
+export function getLearningTrend() {
+  return request({
+    url: '/user/statistics/learning-trend',
+    method: 'get'
+  })
+}
+
+// 获取学习统计
+export function getLearningStats() {
+  return request({
+    url: '/user/statistics/learning-stats',
+    method: 'get'
+  })
+}
+
+// 获取学习进度列表
+export function getLearningProgressList() {
+  return request({
+    url: '/user/statistics/learning-progress-list',
+    method: 'get'
+  })
+}
+
+// 获取内容类型分布
+export function getTypeDistribution() {
+  return request({
+    url: '/user/statistics/type-distribution',
+    method: 'get'
+  })
+}
+
+// 获取加工状态分布
+export function getProcessingDistribution() {
+  return request({
+    url: '/user/statistics/processing-distribution',
+    method: 'get'
+  })
+}
+
 // 忘记密码 - 重置密码
 export function resetPassword(data) {
   return request({
@@ -78,6 +126,12 @@ export const userApi = {
   uploadAvatar,
   changePassword,
   getUserStatistics,
+  getLearningProgress,
+  getLearningTrend,
+  getLearningStats,
+  getLearningProgressList,
+  getTypeDistribution,
+  getProcessingDistribution,
   resetPassword,
   getUserSettings,
   updateUserSettings

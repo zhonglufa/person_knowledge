@@ -53,6 +53,7 @@
         @selection-change="handleSelectionChange"
         @sort-change="handleSortChange"
         @toggle-selection="$emit('toggle-selection', $event)"
+        @item-moved="$emit('item-moved')"
       />
     </div>
   </main>
@@ -155,7 +156,8 @@ export default {
     'sort-change',
     'toggle-selection',
     'load-more',
-    'retry-load-more'
+    'retry-load-more',
+    'item-moved'
   ],
   methods: {
     handleShowContextMenu(event, collection) {

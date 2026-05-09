@@ -53,4 +53,13 @@ public class Notification implements Serializable {
     @TableField("notify_type")
     private Integer notifyType;
 
+    @TableField("related_id")
+    private Long relatedId;
+
+    @TableField("related_type")
+    private String relatedType;
+
+    @TableField("extra_data")
+    private String extraData;
+
 }

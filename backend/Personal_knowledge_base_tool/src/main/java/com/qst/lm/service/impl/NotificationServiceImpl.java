@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.qst.lm.mapper.AnnouncementMapper;
+import com.qst.lm.mapper.AnnouncementStatisticsMapper;
 import com.qst.lm.mapper.CollectionItemMapper;
 import com.qst.lm.mapper.CollectionMapper;
 import com.qst.lm.mapper.NoteMapper;
@@ -40,12 +41,14 @@ public class NotificationServiceImpl extends ServiceImpl<NotificationMapper, Not
     private UserMapper userMapper;
     @Resource
     private AnnouncementMapper announcementMapper;
+    @Resource
+    private AnnouncementStatisticsMapper announcementStatisticsMapper;
 
     @Override
     public Map<String, Object> getNotificationList(Long userId, Integer pageNum, Integer pageSize, Integer isRead, Integer notifyType) {
         LambdaQueryWrapper<Notification> wrapper = new LambdaQueryWrapper<Notification>()
                 .eq(Notification::getUserId, userId)
-                .in(Notification::getNotifyType, 1, 2, 3, 4)
+                .in(Notification::getNotifyType, 1, 2, 3, 4, 5, 6, 7)
                 .orderByAsc(Notification::getIsRead)
                 .orderByDesc(Notification::getCreatedAt);
 
@@ -79,7 +82,7 @@ public class NotificationServiceImpl extends ServiceImpl<NotificationMapper, Not
     public Integer getUnreadCount(Long userId) {
         return Math.toIntExact(notificationMapper.selectCount(new LambdaQueryWrapper<Notification>()
                 .eq(Notification::getUserId, userId)
-                .in(Notification::getNotifyType, 1, 2, 3, 4)
+                .in(Notification::getNotifyType, 1, 2, 3, 4, 5, 6, 7)
                 .eq(Notification::getIsRead, 0)));
     }
 
@@ -96,7 +99,53 @@ public class NotificationServiceImpl extends ServiceImpl<NotificationMapper, Not
         }
         notification.setIsRead(1);
         notification.setReadAt(LocalDateTime.now());
-        return notificationMapper.updateById(notification) > 0;
+        boolean updated = notificationMapper.updateById(notification) > 0;
+        if (!updated) {
+            return false;
+        }
+
+        if (notification.getNotifyType() != null && notification.getNotifyType() == 2) {
+            markAnnouncementReadIfPresent(notification);
+        }
+
+        return true;
+    }
+
+    private void markAnnouncementReadIfPresent(Notification notification) {
+        String rawTitle = notification.getTitle();
+        String announcementTitle = rawTitle;
+        if (rawTitle != null && rawTitle.startsWith("系统公告：")) {
+            announcementTitle = rawTitle.substring("系统公告：".length()).trim();
+        }
+
+        if (announcementTitle == null || announcementTitle.isBlank()) {
+            return;
+        }
+
+        Announcement announcement = announcementMapper.selectOne(new LambdaQueryWrapper<Announcement>()
+                .eq(Announcement::getTitle, announcementTitle)
+                .orderByDesc(Announcement::getId)
+                .last("limit 1"));
+        if (announcement == null) {
+            return;
+        }
+
+        LambdaQueryWrapper<com.qst.lm.pojo.AnnouncementStatistics> statsWrapper = new LambdaQueryWrapper<>();
+        statsWrapper.eq(com.qst.lm.pojo.AnnouncementStatistics::getAnnouncementId, announcement.getId());
+        com.qst.lm.pojo.AnnouncementStatistics stats = announcementStatisticsMapper.selectOne(statsWrapper);
+        if (stats == null) {
+            stats = new com.qst.lm.pojo.AnnouncementStatistics();
+            stats.setAnnouncementId(announcement.getId());
+            stats.setViewCount(0);
+            stats.setReadUserCount(0);
+            announcementStatisticsMapper.insert(stats);
+        }
+
+        LambdaUpdateWrapper<com.qst.lm.pojo.AnnouncementStatistics> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(com.qst.lm.pojo.AnnouncementStatistics::getAnnouncementId, announcement.getId())
+                .set(com.qst.lm.pojo.AnnouncementStatistics::getReadUserCount,
+                        (stats.getReadUserCount() == null ? 0 : stats.getReadUserCount()) + 1);
+        announcementStatisticsMapper.update(null, updateWrapper);
     }
 
     @Override
@@ -116,6 +165,16 @@ public class NotificationServiceImpl extends ServiceImpl<NotificationMapper, Not
                 .eq(Notification::getUserId, userId)) > 0;
     }
 
+    @Override
+    public int batchDeleteNotifications(Long userId, List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return 0;
+        }
+        return notificationMapper.delete(new LambdaQueryWrapper<Notification>()
+                .in(Notification::getId, ids)
+                .eq(Notification::getUserId, userId));
+    }
+
     private Map<String, Object> convertNotification(Notification notification) {
         Map<String, Object> item = new LinkedHashMap<>();
         item.put("id", notification.getId());
@@ -126,6 +185,7 @@ public class NotificationServiceImpl extends ServiceImpl<NotificationMapper, Not
         item.put("createdAt", notification.getCreatedAt());
         item.put("readAt", notification.getReadAt());
         item.put("remindAt", notification.getRemindAt());
+        item.put("extraData", notification.getExtraData());
         item.put("targetId", null);
         item.put("targetType", null);
         item.put("targetTitle", null);
@@ -168,8 +228,14 @@ public class NotificationServiceImpl extends ServiceImpl<NotificationMapper, Not
     }
 
     private void fillAnnouncementTarget(Map<String, Object> item, Notification notification) {
+        String rawTitle = notification.getTitle();
+        String announcementTitle = rawTitle;
+        if (rawTitle != null && rawTitle.startsWith("系统公告：")) {
+            announcementTitle = rawTitle.substring("系统公告：".length()).trim();
+        }
+
         Announcement announcement = announcementMapper.selectOne(new LambdaQueryWrapper<Announcement>()
-                .eq(Announcement::getTitle, notification.getTitle())
+                .eq(Announcement::getTitle, announcementTitle)
                 .orderByDesc(Announcement::getId)
                 .last("limit 1"));
         if (announcement == null) {
@@ -178,8 +244,9 @@ public class NotificationServiceImpl extends ServiceImpl<NotificationMapper, Not
         item.put("targetId", announcement.getId());
         item.put("targetType", "announcement");
         item.put("targetTitle", announcement.getTitle());
-        item.put("targetUrl", "/admin/announcements");
+        item.put("targetUrl", "/announcements/" + announcement.getId());
     }
+
 
     private void fillNoteTarget(Map<String, Object> item, Long noteId) {
         if (noteId == null) {
@@ -196,12 +263,19 @@ public class NotificationServiceImpl extends ServiceImpl<NotificationMapper, Not
     }
 
     private void fillInteractionTarget(Map<String, Object> item, Notification notification) {
-        String content = notification.getContent();
-        Long targetId = parseTargetId(content);
-        String targetType = parseTargetType(notification.getTitle());
+        Long targetId = notification.getRelatedId();
+        String targetType = notification.getRelatedType();
+
+        if (targetId == null || targetType == null) {
+            String content = notification.getContent();
+            targetId = parseTargetId(content);
+            targetType = parseTargetType(notification.getTitle());
+        }
+
         if (targetId == null || targetType == null) {
             return;
         }
+
         item.put("targetId", targetId);
         item.put("targetType", targetType);
         item.put("targetUrl", buildInteractionTargetUrl(targetType, targetId));

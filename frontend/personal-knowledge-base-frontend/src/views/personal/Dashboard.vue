@@ -93,7 +93,7 @@
             </div>
           </div>
 
-          <!-- 新增：分类统计卡片 -->
+          <!-- 分类统计卡片 -->
           <div class="overview-card card" @click="activeTab = 'categories'" style="cursor: pointer;">
             <div class="card-icon bg-purple-gradient">
               <i class="fas fa-folder-open"></i>
@@ -108,7 +108,7 @@
             </div>
           </div>
 
-          <!-- 新增：学习进度卡片 -->
+          <!-- 学习进度卡片 -->
           <div class="overview-card card" @click="activeTab = 'learning'" style="cursor: pointer;">
             <div class="card-icon bg-cyan-gradient">
               <i class="fas fa-graduation-cap"></i>
@@ -138,8 +138,17 @@
               <el-option label="月" value="monthly"></el-option>
             </el-select>
             </div>
-            <div class="chart-container">
+            <div v-if="chartLibraryLoaded" class="chart-container">
               <canvas ref="collectionChart"></canvas>
+            </div>
+            <div v-else class="chart-fallback">
+              <div class="fallback-title">收藏趋势数据</div>
+              <div class="fallback-list">
+                <div v-for="(data, index) in collectionData.datasets[0].data" :key="index" class="fallback-item">
+                  <span class="fallback-label">{{ collectionData.labels[index] }}</span>
+                  <span class="fallback-value">{{ data }}</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -148,8 +157,17 @@
             <div class="chart-header">
               <h3>内容类型分布</h3>
             </div>
-            <div class="chart-container">
+            <div v-if="chartLibraryLoaded" class="chart-container">
               <canvas ref="typeChart"></canvas>
+            </div>
+            <div v-else class="chart-fallback">
+              <div class="fallback-title">内容类型分布</div>
+              <div class="fallback-list">
+                <div v-for="(data, index) in typeData.datasets[0].data" :key="index" class="fallback-item">
+                  <span class="fallback-label">{{ typeData.labels[index] }}</span>
+                  <span class="fallback-value">{{ data }}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -160,8 +178,17 @@
             <div class="chart-header">
               <h3>加工状态分布</h3>
             </div>
-            <div class="chart-container">
+            <div v-if="chartLibraryLoaded" class="chart-container">
               <canvas ref="processingChart"></canvas>
+            </div>
+            <div v-else class="chart-fallback">
+              <div class="fallback-title">加工状态分布</div>
+              <div class="fallback-list">
+                <div v-for="(data, index) in processingData.datasets[0].data" :key="index" class="fallback-item">
+                  <span class="fallback-label">{{ processingData.labels[index] }}</span>
+                  <span class="fallback-value">{{ data }}</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -171,8 +198,17 @@
               <h3>分类分布统计</h3>
               <el-button type="text" size="small" icon="el-icon-refresh" @click="loadCategoryStatistics"></el-button>
             </div>
-            <div v-if="categoryStats.length > 0" class="chart-container">
+            <div v-if="chartLibraryLoaded && categoryStats.length > 0" class="chart-container">
               <canvas ref="categoryChart"></canvas>
+            </div>
+            <div v-else-if="!chartLibraryLoaded && categoryStats.length > 0" class="chart-fallback">
+              <div class="fallback-title">分类分布统计</div>
+              <div class="fallback-list">
+                <div v-for="(stat, index) in categoryStats.slice(0, 10)" :key="index" class="fallback-item">
+                  <span class="fallback-label">{{ stat.name }}</span>
+                  <span class="fallback-value">{{ stat.itemCount }}</span>
+                </div>
+              </div>
             </div>
             <div v-else class="chart-empty">
               <i class="el-icon-folder-opened"></i>
@@ -191,8 +227,18 @@
               <el-option label="笔记类型" value="note"></el-option>
             </el-select>
             </div>
-            <div class="chart-container">
+            <div v-if="chartLibraryLoaded" class="chart-container">
               <canvas ref="progressChart"></canvas>
+            </div>
+            <div v-else class="chart-fallback">
+              <div class="fallback-title">学习进度总览</div>
+              <div class="fallback-list">
+                <div v-for="(item, index) in progressLegend" :key="index" class="fallback-item">
+                  <span class="fallback-color" :style="{ backgroundColor: item.color }"></span>
+                  <span class="fallback-label">{{ item.label }}</span>
+                  <span class="fallback-value">{{ item.value }} ({{ item.percent }}%)</span>
+                </div>
+              </div>
             </div>
             <div class="progress-legend">
               <div v-for="item in progressLegend" :key="item.label" class="legend-item">
@@ -226,7 +272,7 @@
             </div>
           </div>
         </div>
-        
+
         <div class="chart-row">
           <!-- 每周学习活动热力图 -->
           <div class="chart-card card full-width">
@@ -244,8 +290,8 @@
               <div class="heatmap-grid">
                 <div v-for="(day, index) in heatmapData" :key="index" class="heatmap-cell">
                   <el-tooltip :content="`${day.date}: ${day.count} 次活动`" placement="top">
-                    <div 
-                      class="heatmap-day" 
+                    <div
+                      class="heatmap-day"
                       :class="getHeatmapClass(day.count)"
                       @click="showActivityDetail(day)"
                     >
@@ -518,6 +564,7 @@ export default {
     return {
       pageLoading: false,
       tableLoading: false,
+      chartLibraryLoaded: true, // 图表库加载状态
       dateRange: [new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), new Date()],
       activeTab: 'collections',
       collectionChartType: 'weekly',
@@ -526,11 +573,11 @@ export default {
       processingChart: null,
       categoryChart: null,
       progressChart: null, // 学习进度图表
-      
+
       // 学习进度相关
       progressViewType: 'digest', // digest: 消化状态, note: 笔记类型
       progressLegend: [],
-      
+
       // 活动热力图相关
       activityTimeRange: 'week',
       heatmapData: [],
@@ -627,10 +674,10 @@ export default {
     ...mapGetters('user', ['getUserInfo'])
   },
   async mounted() {
+    await this.loadChartLibrary()
     await this.loadDashboardData()
     await this.loadCategoryStatistics()
     await this.loadTagCloud()
-    await this.loadChartLibrary()
     this.$nextTick(() => {
       this.initCharts()
     })
@@ -641,28 +688,38 @@ export default {
   methods: {
     // 初始化学习进度图表
     initProgressChart() {
+      if (!Chart) {
+        console.warn('Chart.js 库未加载，跳过图表初始化')
+        return
+      }
+
       if (this.progressChart) {
         this.progressChart.destroy();
       }
-      
+
       const ctx = this.$refs.progressChart;
       if (!ctx) return;
-      
+
       const isDigest = this.progressViewType === 'digest';
-      
+
+      // 使用真实数据或回退到备用数据
+      let chartData;
+      if (isDigest) {
+        // 消化状态数据
+        chartData = this.processingData.datasets[0].data;
+      } else {
+        // 笔记类型数据 - 支持从API获取或使用备用
+        chartData = [35, 40, 25];
+      }
+
       this.progressChart = new Chart(ctx, {
         type: 'doughnut',
         data: {
-          labels: isDigest 
+          labels: isDigest
             ? ['未消化', '消化中', '已消化', '已放弃']
             : ['概念性', '程序性', '事实性', '元认知'],
           datasets: [{
-            data: isDigest
-              ? [this.processingData.datasets[0].data[0] || 40, 
-                 this.processingData.datasets[0].data[1] || 25,
-                 this.processingData.datasets[0].data[2] || 30,
-                 this.processingData.datasets[0].data[3] || 5]
-              : [35, 40, 25], // 模拟笔记类型数据
+            data: chartData,
             backgroundColor: isDigest
               ? ['var(--danger-color)', 'var(--warning-color)', 'var(--success-color)', 'var(--text-placeholder)']
               : ['var(--success-color)', 'var(--warning-color)', 'var(--info-color)'],
@@ -691,33 +748,33 @@ export default {
           }
         }
       });
-      
+
       // 更新图例
       this.updateProgressLegend();
     },
-    
+
     // 更新学习进度图表
     updateProgressChart() {
       this.initProgressChart();
     },
-    
+
     // 更新图例
     updateProgressLegend() {
       const isDigest = this.progressViewType === 'digest';
       const data = isDigest
         ? this.processingData.datasets[0].data
         : [35, 40, 25];
-      
+
       const labels = isDigest
         ? ['未消化', '消化中', '已消化', '已放弃']
         : ['概念性', '程序性', '事实性', '元认知'];
-      
+
       const colors = isDigest
         ? ['var(--danger-color)', 'var(--warning-color)', 'var(--success-color)', 'var(--text-placeholder)']
         : ['var(--primary-color)', 'var(--success-color)', 'var(--warning-color)', 'var(--info-color)'];
-      
+
       const total = data.reduce((a, b) => a + b, 0);
-      
+
       this.progressLegend = labels.map((label, index) => ({
         label,
         value: data[index] || 0,
@@ -725,25 +782,25 @@ export default {
         color: colors[index]
       }));
     },
-    
+
     // 生成热力图数据
     generateHeatmapData(days = 7) {
       const data = [];
       const today = new Date();
-      
+
       for (let i = days - 1; i >= 0; i--) {
         const date = new Date(today);
         date.setDate(date.getDate() - i);
-        
+
         data.push({
           date: date.toISOString().split('T')[0],
           count: Math.floor(Math.random() * 15) // 模拟数据：0-14次活动
         });
       }
-      
+
       return data;
     },
-    
+
     // 加载活动热力图
     loadActivityHeatmap() {
       let days = 7;
@@ -752,10 +809,10 @@ export default {
       } else if (this.activityTimeRange === 'quarter') {
         days = 90;
       }
-      
+
       this.heatmapData = this.generateHeatmapData(days);
     },
-    
+
     // 获取热力图颜色类
     getHeatmapClass(count) {
       if (count === 0) return 'level-0';
@@ -764,19 +821,22 @@ export default {
       if (count <= 10) return 'level-3';
       return 'level-4';
     },
-    
+
     // 显示活动详情
     showActivityDetail(day) {
       this.$message.info(`${day.date}: ${day.count} 次活动`);
     },
-    
+
     // 加载 Chart.js 库
     async loadChartLibrary() {
       try {
         const chartModule = await import('chart.js/auto')
         Chart = chartModule.default || chartModule
+        this.chartLibraryLoaded = true
       } catch (error) {
         console.error('加载图表库失败:', error)
+        this.chartLibraryLoaded = false
+        this.$message.warning('图表库加载失败，将以文本形式展示统计数据')
       }
     },
 
@@ -796,6 +856,7 @@ export default {
         }
       } catch (error) {
         console.error('加载分类统计失败:', error)
+        this.$message.warning('分类统计加载失败，已显示备用数据')
         this.useFallbackCategoryData()
       }
     },
@@ -808,6 +869,7 @@ export default {
         this.tagCloud = Array.isArray(data) ? data : data?.list || []
       } catch (error) {
         console.error('加载标签云失败:', error)
+        this.$message.warning('标签云加载失败，已显示备用数据')
         this.useFallbackTagCloud()
       }
     },
@@ -879,13 +941,29 @@ export default {
         processingItems: data?.processingItems ?? this.overviewStats.processingItems,
         collectionTrend: data?.collectionTrend ?? this.overviewStats.collectionTrend,
         noteTrend: data?.noteTrend ?? this.overviewStats.noteTrend,
-        processingTrend: data?.processingTrend ?? this.overviewStats.processingTrend
+        processingTrend: data?.processingTrend ?? this.overviewStats.processingTrend,
+        totalCategories: data?.totalCategories ?? this.overviewStats.totalCategories,
+        learningProgress: data?.learningProgress ?? this.overviewStats.learningProgress,
+        learningTrend: data?.learningTrend ?? this.overviewStats.learningTrend
       }
 
       this.topTags = Array.isArray(data?.topTags) ? data.topTags : this.getFallbackTopTags()
       this.collectionStats = Array.isArray(data?.collectionStats) ? data.collectionStats : this.getFallbackCollectionStats()
       this.noteStats = Array.isArray(data?.noteStats) ? data.noteStats : this.getFallbackNoteStats()
 
+      // 解析学习进度数据
+      if (data?.learningStats) {
+        this.learningStats = {
+          completed: data.learningStats?.completed ?? this.learningStats.completed,
+          inProgress: data.learningStats?.inProgress ?? this.learningStats.inProgress,
+          overdue: data.learningStats?.overdue ?? this.learningStats.overdue
+        }
+      }
+      this.learningProgressList = Array.isArray(data?.learningProgressList)
+        ? data.learningProgressList
+        : this.getFallbackLearningProgressList()
+
+      // 解析活动统计数据
       this.activityStats = {
         weeklyScore: data?.weeklyScore ?? this.activityStats.weeklyScore,
         weeklyChange: data?.weeklyChange ?? this.activityStats.weeklyChange,
@@ -894,8 +972,18 @@ export default {
         streakDays: data?.streakDays ?? this.activityStats.streakDays
       }
 
+      // 如果有真实的类型分布数据则使用
+      if (data?.typeDistribution) {
+        this.typeData.datasets[0].data = data.typeDistribution
+      }
+      // 如果有真实的加工状态数据则使用
+      if (data?.processingDistribution) {
+        this.processingData.datasets[0].data = data.processingDistribution
+      }
+
       this.generateChartData()
       this.generateActivityCalendar()
+      this.initProgressChart()
     },
 
     // 使用备用数据
@@ -907,12 +995,21 @@ export default {
         processingItems: 34,
         collectionTrend: 12.5,
         noteTrend: 8.3,
-        processingTrend: -5.2
+        processingTrend: -5.2,
+        totalCategories: 5,
+        learningProgress: 65,
+        learningTrend: 5.8
       }
 
       this.topTags = this.getFallbackTopTags()
       this.collectionStats = this.getFallbackCollectionStats()
       this.noteStats = this.getFallbackNoteStats()
+      this.learningStats = {
+        completed: 45,
+        inProgress: 23,
+        overdue: 8
+      }
+      this.learningProgressList = this.getFallbackLearningProgressList()
 
       this.activityStats = {
         weeklyScore: 78,
@@ -924,6 +1021,18 @@ export default {
 
       this.generateChartData()
       this.generateActivityCalendar()
+      this.initProgressChart()
+    },
+
+    // 获取备用学习进度列表
+    getFallbackLearningProgressList() {
+      return [
+        { title: 'Vue3 深入学习', progress: 85, status: 'in_progress' },
+        { title: 'Node.js 微服务架构', progress: 100, status: 'completed' },
+        { title: 'React 性能优化', progress: 40, status: 'in_progress' },
+        { title: 'TypeScript 高级特性', progress: 10, status: 'overdue' },
+        { title: 'Docker 容器化部署', progress: 70, status: 'in_progress' }
+      ]
     },
 
     // 获取备用热门标签
@@ -1071,10 +1180,10 @@ export default {
       }
 
       this.generateChartData()
-      
+
       // 初始化学习进度图表
       this.initProgressChart();
-      
+
       // 初始化活动热力图
       this.loadActivityHeatmap();
     },
@@ -1178,9 +1287,18 @@ export default {
   background-color: var(--bg-page);
 }
 
+.card {
+  background-color: var(--bg-container);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-base);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-base);
+}
+
 .page-header {
   margin: 0 0 var(--space-6);
   border: none;
+  padding: var(--space-6);
 }
 
 .header-content {
@@ -1635,6 +1753,66 @@ export default {
   margin: 0 0 var(--space-4) 0;
   font-size: var(--font-size-lg);
   color: var(--text-primary);
+}
+
+/* 图表降级展示 */
+.chart-fallback {
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-4);
+  background-color: var(--bg-canvas);
+  border-radius: var(--radius-md);
+}
+
+.fallback-title {
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-4);
+  text-align: center;
+}
+
+.fallback-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  overflow-y: auto;
+}
+
+.fallback-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-3);
+  background-color: var(--bg-page);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-normal);
+}
+
+.fallback-item:hover {
+  background-color: var(--primary-bg);
+}
+
+.fallback-label {
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.fallback-value {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.fallback-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-right: var(--space-2);
 }
 
 /* 响应式设计 */

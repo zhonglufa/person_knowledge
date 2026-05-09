@@ -6,6 +6,16 @@
         <p>查看系统公告、学习提醒与笔记通知</p>
       </div>
       <div class="header-actions">
+        <el-button v-if="!batchMode" type="default" plain @click="toggleBatchMode">批量管理</el-button>
+        <template v-else>
+          <el-button type="default" plain @click="handleSelectAll">
+            {{ isAllSelected ? '取消全选' : '全选' }}
+          </el-button>
+          <el-button type="primary" plain :disabled="selectedIds.length === 0" @click="handleBatchDelete">
+            批量删除 ({{ selectedIds.length }})
+          </el-button>
+          <el-button plain @click="cancelBatchMode">取消</el-button>
+        </template>
         <el-badge :value="unreadCount" :hidden="unreadCount === 0">
           <el-button type="primary" plain @click="handleMarkAllRead">全部已读</el-button>
         </el-badge>
@@ -32,8 +42,15 @@
             v-for="item in notifications"
             :key="item.id"
             class="notification-item"
-            :class="{ unread: Number(item.isRead) === 0 }"
+            :class="{ unread: Number(item.isRead) === 0, 'batch-mode': batchMode }"
           >
+            <el-checkbox
+              v-if="batchMode"
+              v-model="selectedIds"
+              :label="item.id"
+              class="batch-checkbox"
+              @click.native.stop
+            />
             <div class="item-main" @click="handleNavigate(item)">
               <div class="item-title-row">
                 <div class="item-title-wrap">
@@ -49,7 +66,7 @@
                 <span v-if="item.targetTitle">目标：{{ item.targetTitle }}</span>
               </div>
             </div>
-            <div class="item-actions">
+            <div v-if="!batchMode" class="item-actions">
               <el-button v-if="Number(item.isRead) === 0" type="primary" link @click.stop="handleMarkRead(item)">标记已读</el-button>
               <el-button type="danger" link @click.stop="handleDelete(item)">删除</el-button>
             </div>
@@ -74,6 +91,7 @@
 
 <script>
 import {
+  batchDeleteNotifications,
   deleteNotification,
   getNotificationList,
   getUnreadCount,
@@ -93,11 +111,16 @@ export default {
       pageNum: 1,
       pageSize: 10,
       total: 0,
+      batchMode: false,
+      selectedIds: [],
       typeOptions: [
         { label: '学习提醒', value: 1 },
         { label: '系统公告', value: 2 },
         { label: '笔记提醒', value: 3 },
-        { label: '进度逾期提醒', value: 4 }
+        { label: '进度逾期提醒', value: 4 },
+        { label: '点赞', value: 5 },
+        { label: '评论', value: 6 },
+        { label: '收藏', value: 7 }
       ]
     }
   },
@@ -106,6 +129,9 @@ export default {
       if (this.statusFilter === 'unread') return 0
       if (this.statusFilter === 'read') return 1
       return undefined
+    },
+    isAllSelected() {
+      return this.notifications.length > 0 && this.selectedIds.length === this.notifications.length
     }
   },
   async mounted() {
@@ -167,6 +193,41 @@ export default {
       this.$message.success('删除成功')
       await this.refreshData()
     },
+    toggleBatchMode() {
+      this.batchMode = true
+      this.selectedIds = []
+    },
+    cancelBatchMode() {
+      this.batchMode = false
+      this.selectedIds = []
+    },
+    handleSelectAll() {
+      if (this.isAllSelected) {
+        this.selectedIds = []
+      } else {
+        this.selectedIds = this.notifications.map(item => item.id)
+      }
+    },
+    async handleBatchDelete() {
+      if (this.selectedIds.length === 0) {
+        this.$message.warning('请选择要删除的通知')
+        return
+      }
+      try {
+        await this.$confirm(`确定删除选中的 ${this.selectedIds.length} 条通知吗？`, '批量删除确认', {
+          type: 'warning'
+        })
+        await batchDeleteNotifications(this.selectedIds)
+        this.$message.success(`已删除 ${this.selectedIds.length} 条通知`)
+        this.cancelBatchMode()
+        await this.refreshData()
+      } catch (error) {
+        if (error !== 'cancel') {
+          console.error('批量删除失败:', error)
+          this.$message.error('批量删除失败')
+        }
+      }
+    },
     normalizeTargetUrl(targetUrl) {
       if (!targetUrl || typeof targetUrl !== 'string') {
         return null
@@ -196,7 +257,7 @@ export default {
         }
       }
 
-      const validPrefixes = ['/collections/', '/creation/notes/', '/creation/processing', '/taxonomy/']
+      const validPrefixes = ['/collections/', '/creation/notes/', '/creation/processing', '/taxonomy/', '/announcements/']
       const isValid = validPrefixes.some(prefix => url.startsWith(prefix))
       return isValid ? url : null
     },
@@ -205,7 +266,23 @@ export default {
         await markNotificationRead(item.id)
       }
 
-      const target = this.normalizeTargetUrl(item.targetUrl)
+      let target = this.normalizeTargetUrl(item.targetUrl)
+      
+      if (target && item.notifyType === 6 && item.extraData) {
+        try {
+          const extraData = typeof item.extraData === 'string' 
+            ? JSON.parse(item.extraData) 
+            : item.extraData
+          
+          if (extraData && extraData.commentId) {
+            const separator = target.includes('?') ? '&' : '?'
+            target = `${target}${separator}commentId=${extraData.commentId}`
+          }
+        } catch (error) {
+          console.warn('解析extraData失败:', error)
+        }
+      }
+      
       if (target) {
         await this.$router.push(target)
       } else if (item.targetUrl) {
@@ -353,6 +430,21 @@ export default {
   align-items: flex-end;
   justify-content: center;
   gap: 8px;
+}
+
+.notification-item.batch-mode {
+  padding-left: 12px;
+}
+
+.batch-checkbox {
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
 }
 
 .pagination-wrap {

@@ -100,19 +100,8 @@ const actions = {
           const loginData = response.data;
           if (loginData && loginData.token) {
             commit('SET_TOKEN', loginData.token);
-            // 从登录数据中提取用户信息（排除token等非用户字段）
             if (loginData.userInfo) {
-              const userInfo = {
-                id: loginData.userInfo.id,
-                username: loginData.userInfo.username,
-                nickname: loginData.userInfo.nickname,
-                email: loginData.userInfo.email,
-                avatar: loginData.userInfo.avatar,
-                createdAt: loginData.userInfo.createdAt,
-                updatedAt: loginData.userInfo.updatedAt,
-                deleted: loginData.userInfo.deleted
-              };
-              commit('SET_USER_INFO', userInfo);
+              commit('SET_USER_INFO', loginData.userInfo)
             }
             commit('SET_AUTHENTICATED', true);
             return loginData.userInfo;

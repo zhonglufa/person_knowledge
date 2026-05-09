@@ -97,6 +97,10 @@ public class InteractionServiceImpl implements IInteractionService {
             throw new BusinessException("参数不完整");
         }
 
+        if ("note".equalsIgnoreCase(targetType)) {
+            throw new BusinessException("笔记收藏请使用 /note/{noteId}/collect 接口");
+        }
+
         validateContentPublic(targetId, targetType);
 
         InteractionLike existing = interactionLikeMapper.existsByUserAndTarget(userId, targetId, targetType);
@@ -234,13 +238,13 @@ public class InteractionServiceImpl implements IInteractionService {
             Long targetUserId = findTargetContentUserId(targetId, targetType);
             if (targetUserId != null && !targetUserId.equals(userId)) {
                 String actorNickname = getUserNickname(userId);
-                createInteractionNotification(targetUserId, userId, actorNickname, targetId, targetType, 6);
+                createInteractionNotification(targetUserId, userId, actorNickname, targetId, targetType, 6, comment.getId());
             }
         } catch (Exception e) {
             log.warn("发送评论通知失败", e);
         }
 
-        log.info("用户[{}]对[{}][{}]发表评论成功", userId, targetType, targetId);
+        log.info("用户[{}]对[{}][{}]发表评论成功, commentId={}", userId, targetType, targetId, comment.getId());
         return R.success("评论成功", comment);
     }
 
@@ -363,6 +367,10 @@ public class InteractionServiceImpl implements IInteractionService {
             throw new BusinessException("参数不完整");
         }
 
+        if ("note".equalsIgnoreCase(targetType)) {
+            throw new BusinessException("笔记取消收藏请使用 /note/{noteId}/collect 接口");
+        }
+
         InteractionCollect collect = interactionCollectMapper.existsByUserAndTarget(userId, targetId, targetType);
         if (collect == null) {
             throw new BusinessException("未找到收藏记录");
@@ -398,6 +406,10 @@ public class InteractionServiceImpl implements IInteractionService {
             throw new BusinessException("参数不完整");
         }
 
+        if ("note".equalsIgnoreCase(targetType)) {
+            throw new BusinessException("笔记收藏数统计不支持，请使用笔记模块接口");
+        }
+
         Long count = interactionCollectMapper.countByTarget(targetId, targetType);
         Map<String, Object> result = new HashMap<>(2);
         result.put("targetId", targetId);
@@ -426,6 +438,10 @@ public class InteractionServiceImpl implements IInteractionService {
     public R checkCollectStatus(Long userId, Long targetId, String targetType) {
         if (userId == null || targetId == null || !StringUtils.hasText(targetType)) {
             throw new BusinessException("参数不完整");
+        }
+
+        if ("note".equalsIgnoreCase(targetType)) {
+            throw new BusinessException("笔记收藏状态检查不支持，请使用笔记模块接口");
         }
 
         InteractionCollect collect = interactionCollectMapper.existsByUserAndTarget(userId, targetId, targetType);
@@ -598,6 +614,11 @@ public class InteractionServiceImpl implements IInteractionService {
 
     private void createInteractionNotification(Long targetUserId, Long actorId, String actorNickname,
                                                Long targetId, String targetType, int notifyType) {
+        createInteractionNotification(targetUserId, actorId, actorNickname, targetId, targetType, notifyType, null);
+    }
+
+    private void createInteractionNotification(Long targetUserId, Long actorId, String actorNickname,
+                                               Long targetId, String targetType, int notifyType, Long commentId) {
         try {
             String typeDesc;
             switch (notifyType) {
@@ -624,9 +645,15 @@ public class InteractionServiceImpl implements IInteractionService {
             notification.setContent(content);
             notification.setNotifyType(notifyType);
             notification.setIsRead(0);
+            notification.setRelatedId(targetId);
+            notification.setRelatedType(targetType);
+            
+            if (commentId != null) {
+                notification.setExtraData("{\"commentId\":" + commentId + "}");
+            }
 
             notificationMapper.insert(notification);
-            log.info("创建互动通知成功: userId={}, notifyType={}, title={}", targetUserId, notifyType, title);
+            log.info("创建互动通知成功: userId={}, notifyType={}, title={}, commentId={}", targetUserId, notifyType, title, commentId);
         } catch (Exception e) {
             log.error("创建互动通知失败: targetUserId={}, notifyType={}", targetUserId, notifyType, e);
         }

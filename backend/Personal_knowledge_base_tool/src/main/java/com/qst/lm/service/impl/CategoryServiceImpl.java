@@ -68,6 +68,8 @@ public class CategoryServiceImpl implements ICategoryService {
         category.setName(dto.getName());
         category.setParentId(parentId);
         category.setUserId(userId);
+        category.setIcon(dto.getIcon());
+        category.setColor(dto.getColor());
         categoryMapper.insert(category);
 
         log.info("用户[{}]创建分类[{}]成功", userId, category.getId());
@@ -100,6 +102,9 @@ public class CategoryServiceImpl implements ICategoryService {
 
         category.setName(dto.getName());
         category.setParentId(parentId);
+        category.setDescription(dto.getDescription());
+        category.setIcon(dto.getIcon());
+        category.setColor(dto.getColor());
         categoryMapper.updateById(category);
 
         log.info("用户[{}]更新分类[{}]成功", userId, id);
@@ -114,10 +119,9 @@ public class CategoryServiceImpl implements ICategoryService {
             throw new BusinessException("分类不存在");
         }
 
-        // 递归删除所有子分类
         deleteChildrenRecursive(userId, id);
 
-        // 删除当前分类（逻辑删除）
+        collectionItemMapper.clearCategoryReference(id);
         categoryMapper.deleteById(id);
 
         log.info("用户[{}]删除分类[{}]成功（含子分类）", userId, id);
@@ -156,6 +160,7 @@ public class CategoryServiceImpl implements ICategoryService {
         List<Category> children = categoryMapper.selectList(wrapper);
         for (Category child : children) {
             deleteChildrenRecursive(userId, child.getId());
+            collectionItemMapper.clearCategoryReference(child.getId());
             categoryMapper.deleteById(child.getId());
         }
     }
@@ -170,11 +175,18 @@ public class CategoryServiceImpl implements ICategoryService {
             boolean isRoot = (parentId == null && (catParentId == null || catParentId == 0L))
                     || (parentId != null && parentId.equals(catParentId));
             if (isRoot) {
-                Map<String, Object> node = new HashMap<>(8);
+                Map<String, Object> node = new HashMap<>(16);
                 node.put("id", category.getId());
                 node.put("name", category.getName());
+                node.put("icon", category.getIcon());
+                node.put("color", category.getColor());
                 node.put("parentId", category.getParentId());
                 node.put("createdAt", category.getCreatedAt());
+                node.put("updatedAt", category.getUpdatedAt());
+
+                int contentCount = collectionItemMapper.countByCategoryId(category.getId());
+                node.put("contentCount", contentCount);
+
                 node.put("children", buildTree(allCategories, category.getId()));
                 tree.add(node);
             }

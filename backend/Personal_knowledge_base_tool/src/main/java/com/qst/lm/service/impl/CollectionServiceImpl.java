@@ -12,10 +12,12 @@ import com.qst.lm.mapper.CollectionMapper;
 import com.qst.lm.pojo.Collection;
 import com.qst.lm.pojo.CollectionItem;
 import com.qst.lm.service.ICollectionService;
+import com.qst.lm.utils.OssUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -27,10 +29,12 @@ public class CollectionServiceImpl implements ICollectionService {
 
     private final CollectionMapper collectionMapper;
     private final CollectionItemMapper collectionItemMapper;
+    private final OssUtil ossUtil;
 
-    public CollectionServiceImpl(CollectionMapper collectionMapper, CollectionItemMapper collectionItemMapper) {
+    public CollectionServiceImpl(CollectionMapper collectionMapper, CollectionItemMapper collectionItemMapper, OssUtil ossUtil) {
         this.collectionMapper = collectionMapper;
         this.collectionItemMapper = collectionItemMapper;
+        this.ossUtil = ossUtil;
     }
 
     @Override
@@ -78,6 +82,7 @@ public class CollectionServiceImpl implements ICollectionService {
     @Override
     public R deleteCollection(Long userId, Long id) {
         getAndCheckOwnership(userId, id);
+        collectionItemMapper.clearCollectionReference(id);
         collectionMapper.updateDeletedById(id);
         log.info("用户[{}]删除收藏集[{}]成功", userId, id);
         return R.success("删除收藏集成功");
@@ -213,5 +218,27 @@ public class CollectionServiceImpl implements ICollectionService {
 
         Page<CollectionItem> result = collectionItemMapper.selectPage(pageObj, wrapper);
         return R.success(result);
+    }
+
+    @Override
+    public R uploadCoverImage(Long userId, MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException("请选择封面图片文件");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw new BusinessException("仅支持上传图片文件");
+        }
+        if (file.getSize() > 5 * 1024 * 1024) {
+            throw new BusinessException("封面图片文件大小不能超过5MB");
+        }
+        try {
+            String coverUrl = ossUtil.uploadFile(file, true);
+            log.info("用户[{}]上传收藏集封面图片成功: {}", userId, coverUrl);
+            return R.success("封面图片上传成功", Map.of("url", coverUrl));
+        } catch (Exception e) {
+            log.error("用户[{}]上传收藏集封面图片失败", userId, e);
+            throw new BusinessException("封面图片上传失败，请稍后重试");
+        }
     }
 }

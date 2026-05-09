@@ -83,6 +83,14 @@ public interface INoteService {
     R getPublicNotes(NoteQueryDTO query);
 
     /**
+     * 获取公开笔记详情
+     *
+     * @param id 笔记ID
+     * @return 笔记详情
+     */
+    R getPublicNoteDetail(Long id);
+
+    /**
      * 收藏笔记
      *
      * @param userId 用户ID

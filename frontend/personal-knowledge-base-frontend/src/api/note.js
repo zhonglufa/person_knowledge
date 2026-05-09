@@ -73,6 +73,7 @@ export const getPublicNotes = (params) => {
 }
 
 // 收藏他人笔记
+// ✅ 笔记收藏的唯一正确入口（不要使用 interaction.js 的 collectContent）
 export const collectNote = (noteId) => {
   return request({
     url: `/note/${noteId}/collect`,
@@ -81,6 +82,7 @@ export const collectNote = (noteId) => {
 }
 
 // 取消收藏笔记
+// ✅ 笔记取消收藏的唯一正确入口（不要使用 interaction.js 的 uncollectContent）
 export const uncollectNote = (noteId) => {
   return request({
     url: `/note/${noteId}/collect`,

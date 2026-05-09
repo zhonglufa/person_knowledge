@@ -168,7 +168,6 @@
                   clearable
                   filterable
                 >
-                  <!-- 这里应该从后端获取用户分类列表 -->
                   <el-option label="暂无分类" :value="null" />
                 </el-select>
               </el-form-item>
@@ -191,6 +190,16 @@
                 </el-button>
               </div>
             </el-form>
+          </div>
+        </el-tab-pane>
+
+        <!-- 关联笔记标签页 -->
+        <el-tab-pane label="关联笔记" name="notes">
+          <div class="tab-content">
+            <RelatedNotesSection 
+              v-if="itemData && itemData.id"
+              :collection-item-id="itemData.id"
+            />
           </div>
         </el-tab-pane>
       </el-tabs>
@@ -243,9 +252,13 @@
 
 <script>
 import { collectApi } from '@/api/collect'
+import RelatedNotesSection from './RelatedNotesSection.vue'
 
 export default {
   name: 'CollectionItemDigestEditor',
+  components: {
+    RelatedNotesSection
+  },
   props: {
     visible: {
       type: Boolean,

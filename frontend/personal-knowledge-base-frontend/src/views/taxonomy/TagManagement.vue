@@ -398,10 +398,13 @@ export default {
       }
     },
     async viewTagRelated(tag) {
-      this.selectedTag = tag
-      this.showRelatedDialog = true
-      this.relatedActiveTab = 'notes'
-      await this.loadTagRelatedContent(tag)
+      this.$router.push({
+        path: '/collections',
+        query: {
+          tagIds: [tag.id],
+          tagName: tag.name
+        }
+      })
     },
     async loadTagRelatedContent(tag) {
       this.relatedLoading = true
@@ -532,8 +535,13 @@ export default {
       return seed
     },
     handleTagClick(tag) {
-      this.searchKeyword = tag.name
-      this.$message.info(`筛选标签: ${tag.name}`)
+      this.$router.push({
+        path: '/collections',
+        query: {
+          tagIds: [tag.id],
+          tagName: tag.name
+        }
+      })
     },
     async handleMergeTags() {
       if (!this.mergeForm.sourceTagIds || this.mergeForm.sourceTagIds.length < 2) {

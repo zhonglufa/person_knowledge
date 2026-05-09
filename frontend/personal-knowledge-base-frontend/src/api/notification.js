@@ -29,6 +29,14 @@ export function deleteNotification(id) {
   })
 }
 
+export function batchDeleteNotifications(ids) {
+  return request({
+    url: '/notification/batch/delete',
+    method: 'post',
+    data: { ids }
+  })
+}
+
 export function getUnreadCount() {
   return request({
     url: '/notification/unread-count',

@@ -173,19 +173,18 @@ public class PermissionServiceImpl implements IPermissionService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public R<String> assignRoleToUser(Long userId, Long roleId) {
-        int count = userRoleMapper.countByUserIdAndRoleId(userId, roleId);
-        if (count > 0) {
-            return R.error("用户已拥有该角色");
+        userRoleMapper.deleteByUserId(userId);
+
+        if (roleId != null) {
+            SysUserRole userRole = new SysUserRole();
+            userRole.setUserId(userId);
+            userRole.setRoleId(roleId);
+            userRoleMapper.insert(userRole);
         }
 
-        SysUserRole userRole = new SysUserRole();
-        userRole.setUserId(userId);
-        userRole.setRoleId(roleId);
-        userRoleMapper.insert(userRole);
-
         clearUserPermissionCache(userId);
-        log.info("为用户[{}]分配角色[{}]", userId, roleId);
-        return R.success("角色分配成功");
+        log.info("为用户[{}]设置角色[{}]", userId, roleId);
+        return R.success("角色设置成功");
     }
 
     @Override

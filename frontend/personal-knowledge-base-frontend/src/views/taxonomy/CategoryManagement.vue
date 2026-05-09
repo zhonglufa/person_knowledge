@@ -108,24 +108,28 @@
               </div>
               <p class="node-desc" v-if="node.description">{{ node.description }}</p>
               <div class="node-stats">
-                <span><i class="fas fa-file"></i> {{ node.contentCount || 0 }} 项内容</span>
+                <span class="stat-link" @click.stop="viewCategoryContent(node)">
+                  <i class="fas fa-file"></i> {{ node.contentCount || 0 }} 项内容
+                  <i class="fas fa-external-link-alt" style="font-size: 10px; margin-left: 4px;"></i>
+                </span>
                 <span v-if="node.children?.length > 0"><i class="fas fa-folder"></i> {{ node.children.length }} 个子分类</span>
               </div>
             </div>
           </div>
 
           <div class="node-actions" @click.stop>
+            <el-button size="mini" type="text" @click="viewCategoryContent(node)" title="查看内容">
+              <i class="fas fa-eye"></i>
+            </el-button>
             <el-button size="mini" type="primary" @click="addChildCategory(node)" v-if="node.level < 3">
               <i class="fas fa-plus"></i> 子分类
             </el-button>
             <el-button size="mini" @click="editCategory(node)">
               <i class="fas fa-edit"></i>
             </el-button>
-            <el-popconfirm title="确定要删除此分类吗？" @confirm="deleteCategory(node)">
-              <el-button size="mini" type="danger" slot="reference">
-                <i class="fas fa-trash"></i>
-              </el-button>
-            </el-popconfirm>
+            <el-button size="mini" type="danger" @click="confirmDelete(node)">
+              <i class="fas fa-trash"></i>
+            </el-button>
           </div>
         </div>
       </div>
@@ -236,7 +240,7 @@ export default {
       try {
         const treeResponse = await getCategoryTree()
         if (treeResponse?.code === 200) {
-          this.categoryTree = treeResponse.data?.tree || []
+          this.categoryTree = treeResponse.data || []
         } else {
           this.categoryTree = []
         }
@@ -306,6 +310,20 @@ export default {
       }
       this.showCreateDialog = true
     },
+    async confirmDelete(node) {
+      try {
+        await this.$confirm('确定要删除此分类吗？删除后不可恢复。', '删除确认', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        })
+        await this.deleteCategory(node)
+      } catch (error) {
+        if (error !== 'cancel') {
+          console.error('删除操作失败:', error)
+        }
+      }
+    },
     async deleteCategory(node) {
       try {
         await deleteCategory(node.id)
@@ -346,6 +364,15 @@ export default {
     },
     getMockCategories() {
       return []
+    },
+    viewCategoryContent(node) {
+      this.$router.push({
+        path: '/collections',
+        query: {
+          categoryId: node.id,
+          categoryName: node.name
+        }
+      })
     }
   },
   mounted() {
@@ -490,6 +517,15 @@ export default {
   display: flex;
   align-items: center;
   gap: var(--space-1);
+}
+.stat-link {
+  cursor: pointer;
+  color: var(--primary-color);
+  transition: all var(--transition-normal);
+}
+.stat-link:hover {
+  color: var(--primary-hover);
+  text-decoration: underline;
 }
 .node-actions {
   display: flex;

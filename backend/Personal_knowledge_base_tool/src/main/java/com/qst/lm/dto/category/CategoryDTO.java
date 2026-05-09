@@ -19,4 +19,19 @@ public class CategoryDTO {
      * 父分类ID（null或0表示一级分类）
      */
     private Long parentId;
+
+    /**
+     * 分类描述
+     */
+    private String description;
+
+    /**
+     * 分类图标
+     */
+    private String icon;
+
+    /**
+     * 分类颜色
+     */
+    private String color;
 }

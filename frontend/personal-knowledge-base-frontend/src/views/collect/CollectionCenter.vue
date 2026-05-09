@@ -66,6 +66,7 @@
         @select-all-change="handleSelectAllChange"
         @selection-mode-change="handleSelectionModeChange"
         @add-collection-success="handleAddCollectionSuccess"
+        @item-moved="handleItemMoved"
       />
     </template>
   </PageLayout>
@@ -393,10 +394,17 @@ export default {
         return;
       }
       const isCollectionItem = item.sourceType !== undefined && item.sourceType !== null;
+      const query = { from: this.activeSidebarItem };
       if (isCollectionItem) {
-        this.$router.push(`/creation/collection-items/${item.id}/note/create`);
+        this.$router.push({
+          path: `/creation/collection-items/${item.id}/note/create`,
+          query
+        });
       } else {
-        this.$router.push(`/collections/${item.id}`);
+        this.$router.push({
+          path: `/collections/${item.id}`,
+          query
+        });
       }
     },
     async handleFilterByTag(tag) {
@@ -736,6 +744,10 @@ export default {
       const mm = String(date.getMonth() + 1).padStart(2, '0');
       const dd = String(date.getDate()).padStart(2, '0');
       return `${yyyy}-${mm}-${dd}`;
+    },
+    handleItemMoved() {
+      this.resetInfiniteState();
+      this.loadCollections();
     }
   }
 };

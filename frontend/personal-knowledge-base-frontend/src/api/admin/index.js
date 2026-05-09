@@ -190,14 +190,21 @@ export const announcementApi = {
       data
     })
   },
-  // 下架公告（修改状态为已下架，可恢复）
+  // 下架公告（已发布 -> 已下架，可恢复）
   takeDownAnnouncement(id) {
     return request({
-      url: `/admin/announcements/${id}`,
-      method: 'delete'
+      url: `/admin/announcements/${id}/take-down`,
+      method: 'put'
     })
   },
-  // 删除公告（逻辑删除，不可恢复）
+  // 重新发布公告（已下架 -> 已发布）
+  republishAnnouncement(id) {
+    return request({
+      url: `/admin/announcements/${id}/republish`,
+      method: 'post'
+    })
+  },
+  // 删除公告（逻辑删除：deleted=1，不可恢复）
   deleteAnnouncement(id) {
     return request({
       url: `/admin/announcements/${id}`,
@@ -226,6 +233,20 @@ export const announcementApi = {
       data
     })
   },
+  // 获取定时任务列表
+  getScheduleList() {
+    return request({
+      url: '/admin/announcements/schedules',
+      method: 'get'
+    })
+  },
+  // 取消定时发布
+  cancelSchedule(scheduleId) {
+    return request({
+      url: `/admin/announcements/schedules/${scheduleId}`,
+      method: 'delete'
+    })
+  },
   // 获取公告模板列表
   getAnnouncementTemplates() {
     return request({
@@ -238,6 +259,14 @@ export const announcementApi = {
     return request({
       url: '/admin/announcements/templates',
       method: 'post',
+      data
+    })
+  },
+  // 更新公告模板
+  updateAnnouncementTemplate(templateId, data) {
+    return request({
+      url: `/admin/announcements/templates/${templateId}`,
+      method: 'put',
       data
     })
   },
@@ -344,12 +373,19 @@ export const permissionApi = {
       method: 'get'
     })
   },
-  // 分配用户角色
+  // 设置用户角色（覆盖式，单用户单角色）
   assignUserRole(userId, data) {
     return request({
       url: `/admin/users/${userId}/roles`,
       method: 'put',
       data
+    })
+  },
+  // 清空用户角色
+  clearUserRoles(userId) {
+    return request({
+      url: `/admin/users/${userId}/roles`,
+      method: 'delete'
     })
   }
 }

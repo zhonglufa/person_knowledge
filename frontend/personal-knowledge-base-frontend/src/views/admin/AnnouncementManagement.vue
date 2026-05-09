@@ -7,9 +7,23 @@
         <p class="page-desc">管理系统公告，发布重要通知和信息</p>
       </div>
       <div class="header-right">
-        <el-button type="warning" icon="el-icon-time" @click="handleScheduleAnnouncement">定时发布</el-button>
-        <el-button type="info" icon="el-icon-document-copy" @click="showTemplateDialog">模板管理</el-button>
-        <el-button type="primary" @click="handleCreateAnnouncement">
+        <el-button
+          type="warning"
+          icon="el-icon-time"
+          v-permission="'announcement:publish'"
+          @click="handleScheduleAnnouncement"
+        >定时发布</el-button>
+        <el-button
+          type="info"
+          icon="el-icon-document-copy"
+          v-permission="'announcement:view'"
+          @click="showTemplateDialog"
+        >模板管理</el-button>
+        <el-button
+          type="primary"
+          v-permission="'announcement:create'"
+          @click="handleCreateAnnouncement"
+        >
           <i class="el-icon-plus"></i> 发布新公告
         </el-button>
       </div>
@@ -40,10 +54,10 @@
             @change="handleSearch"
           >
             <el-option label="全部" value=""></el-option>
-            <el-option label="草稿" value="draft"></el-option>
-            <el-option label="已发布" value="active"></el-option>
-            <el-option label="已下架" value="inactive"></el-option>
-            <el-option label="已过期" value="expired"></el-option>
+            <el-option label="草稿" :value="0"></el-option>
+            <el-option label="已发布" :value="1"></el-option>
+            <el-option label="已下架" :value="2"></el-option>
+            <el-option label="已过期" :value="3"></el-option>
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -92,14 +106,14 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="startTime" label="生效时间" min-width="170" align="center">
+        <el-table-column prop="effectiveAt" label="生效时间" min-width="170" align="center">
           <template slot-scope="scope">
-            {{ formatDate(scope.row.startTime) }}
+            {{ formatDate(scope.row.effectiveAt) }}
           </template>
         </el-table-column>
-        <el-table-column prop="endTime" label="结束时间" min-width="170" align="center">
+        <el-table-column prop="expireAt" label="结束时间" min-width="170" align="center">
           <template slot-scope="scope">
-            {{ formatDate(scope.row.endTime) }}
+            {{ formatDate(scope.row.expireAt) }}
           </template>
         </el-table-column>
         <el-table-column prop="createdAt" label="创建时间" min-width="170" align="center">
@@ -114,6 +128,7 @@
                 type="primary"
                 size="mini"
                 icon="el-icon-edit"
+                v-permission="'announcement:update'"
                 @click="handleEditAnnouncement(scope.row)"
               >编辑</el-button>
               <el-button
@@ -121,6 +136,7 @@
                 type="success"
                 size="mini"
                 icon="el-icon-top"
+                v-permission="'announcement:publish'"
                 @click="handlePublishAnnouncement(scope.row)"
               >发布</el-button>
               <el-button
@@ -128,19 +144,29 @@
                 type="warning"
                 size="mini"
                 icon="el-icon-bottom"
+                v-permission="'announcement:update'"
                 @click="handleTakeDownAnnouncement(scope.row)"
               >下架</el-button>
+              <el-button
+                v-if="scope.row.status === 2"
+                type="success"
+                size="mini"
+                icon="el-icon-top"
+                v-permission="'announcement:publish'"
+                @click="handleRepublishAnnouncement(scope.row)"
+              >重新发布</el-button>
               <el-button
                 type="info"
                 size="mini"
                 icon="el-icon-data-analysis"
+                v-permission="'announcement:view'"
                 @click="handleViewStatistics(scope.row)"
               >统计</el-button>
               <el-button
-                v-if="scope.row.status !== 1"
                 type="danger"
                 size="mini"
                 icon="el-icon-delete"
+                v-permission="'announcement:delete'"
                 @click="handleDeleteAnnouncement(scope.row)"
               >删除</el-button>
             </div>
@@ -272,33 +298,58 @@
     <el-dialog
       title="定时发布公告"
       :visible.sync="scheduleDialogVisible"
-      width="480px"
+      width="680px"
     >
-      <el-form label-width="100px">
-        <el-form-item label="选择公告">
-          <el-select v-model="scheduleForm.announcementId" placeholder="请选择公告" style="width: 100%;">
-            <el-option
-              v-for="item in announcementList.filter(a => a.status === 0)"
-              :key="item.id"
-              :label="item.title"
-              :value="item.id"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="发布时间">
-          <el-date-picker
-            v-model="scheduleForm.scheduledAt"
-            type="datetime"
-            placeholder="选择发布时间"
-            value-format="yyyy-MM-dd HH:mm:ss"
-            style="width: 100%;"
-          />
-        </el-form-item>
-      </el-form>
-      <div slot="footer" class="dialog-footer">
-        <el-button @click="scheduleDialogVisible = false">取 消</el-button>
-        <el-button type="primary" @click="submitSchedule">确 定</el-button>
-      </div>
+      <el-tabs v-model="scheduleActiveTab">
+        <el-tab-pane label="新建定时任务" name="create">
+          <el-form label-width="100px">
+            <el-form-item label="选择公告">
+              <el-select v-model="scheduleForm.announcementId" placeholder="请选择公告" style="width: 100%;">
+                <el-option
+                  v-for="item in announcementList.filter(a => a.status === 0)"
+                  :key="item.id"
+                  :label="item.title"
+                  :value="item.id"
+                />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="发布时间">
+              <el-date-picker
+                v-model="scheduleForm.scheduledAt"
+                type="datetime"
+                placeholder="选择发布时间"
+                value-format="yyyy-MM-dd HH:mm:ss"
+                :picker-options="pickerOptions"
+                style="width: 100%;"
+              />
+            </el-form-item>
+          </el-form>
+          <div slot="footer" class="dialog-footer">
+            <el-button @click="scheduleDialogVisible = false">取 消</el-button>
+            <el-button type="primary" @click="submitSchedule">确 定</el-button>
+          </div>
+        </el-tab-pane>
+        
+        <el-tab-pane label="已有定时任务" name="list">
+          <div v-loading="scheduleListLoading" class="schedule-list">
+            <div v-if="scheduleList.length === 0" class="empty-schedule">
+              暂无定时任务
+            </div>
+            <div v-for="schedule in scheduleList" :key="schedule.id" class="schedule-item">
+              <div class="schedule-info">
+                <div class="schedule-title">{{ schedule.announcementTitle }}</div>
+                <div class="schedule-time">
+                  <el-tag size="mini" type="warning">定时发布</el-tag>
+                  <span>{{ schedule.scheduledAt }}</span>
+                </div>
+              </div>
+              <div class="schedule-actions">
+                <el-button type="danger" size="mini" @click="handleCancelSchedule(schedule)">取消</el-button>
+              </div>
+            </div>
+          </div>
+        </el-tab-pane>
+      </el-tabs>
     </el-dialog>
 
     <!-- 模板管理对话框 -->
@@ -322,7 +373,9 @@
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleCreateTemplate">创建模板</el-button>
+          <el-button v-if="!templateEditMode" type="primary" @click="handleCreateTemplate">创建模板</el-button>
+          <el-button v-else type="primary" @click="handleUpdateTemplate">更新模板</el-button>
+          <el-button v-if="templateEditMode" @click="cancelEditTemplate">取消编辑</el-button>
         </el-form-item>
       </el-form>
 
@@ -332,10 +385,14 @@
         <div v-for="tpl in templates" :key="tpl.id" class="template-item">
           <div class="template-info">
             <strong>{{ tpl.name }}</strong>
-            <el-tag size="mini" type="info">{{ tpl.type }}</el-tag>
+            <el-tag size="mini" type="info">{{ getTypeText(tpl.type) }}</el-tag>
           </div>
           <p class="template-preview">{{ tpl.content?.substring(0, 50) }}...</p>
-          <el-button type="danger" size="mini" @click="handleDeleteTemplate(tpl)">删除</el-button>
+          <div class="template-actions">
+            <el-button type="primary" size="mini" @click="handleUseTemplate(tpl)">使用模板</el-button>
+            <el-button type="info" size="mini" @click="handleEditTemplate(tpl)">编辑</el-button>
+            <el-button type="danger" size="mini" @click="handleDeleteTemplate(tpl)">删除</el-button>
+          </div>
         </div>
       </div>
     </el-dialog>
@@ -381,15 +438,25 @@ export default {
 
       // 定时发布对话框
       scheduleDialogVisible: false,
+      scheduleActiveTab: 'create',
       scheduleForm: {
         announcementId: '',
         scheduledAt: ''
+      },
+      scheduleList: [],
+      scheduleListLoading: false,
+      pickerOptions: {
+        disabledDate(time) {
+          return time.getTime() < Date.now() - 8.64e7
+        }
       },
 
       // 模板对话框
       templateDialogVisible: false,
       templates: [],
       newTemplate: { name: '', content: '', type: 'system' },
+      templateEditMode: false,
+      editingTemplateId: null,
 
       // 表单
       announcementForm: {
@@ -461,14 +528,12 @@ export default {
     async loadAnnouncementList() {
       this.loading = true
       try {
-        // 构建查询参数，包含状态转换
         const params = {
           pageNum: this.pagination.currentPage,
           pageSize: this.pagination.pageSize
         }
-        // 转换前端状态筛选为后端数字状态
         if (this.queryParams.status !== '') {
-          params.status = this.convertStatusToBackend(this.queryParams.status)
+          params.status = this.queryParams.status
         }
         if (this.queryParams.type !== '') {
           params.type = this.queryParams.type
@@ -576,29 +641,6 @@ export default {
       }).catch(() => {})
     },
 
-    /**
-     * 下架公告（已发布 -> 已下架）
-     */
-    handleTakeDownAnnouncement(row) {
-      this.$confirm(`确定要下架公告 "${row.title}" 吗？下架后用户将不再看到该公告，但可以恢复。`, '下架确认', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }).then(async () => {
-        try {
-          const response = await announcementApi.takeDownAnnouncement(row.id)
-          if (response.code === 200) {
-            this.$message.success('下架成功')
-            this.loadAnnouncementList()
-          } else {
-            this.$message.error(response.message || '下架失败')
-          }
-        } catch (error) {
-          console.error('下架公告错误:', error)
-          this.$message.error('下架失败')
-        }
-      }).catch(() => {})
-    },
 
     /**
      * 定时发布公告
@@ -609,12 +651,36 @@ export default {
         return
       }
       this.scheduleForm = { announcementId: '', scheduledAt: '' }
+      this.scheduleActiveTab = 'create'
       this.scheduleDialogVisible = true
+      this.loadScheduleList()
+    },
+
+    async loadScheduleList() {
+      this.scheduleListLoading = true
+      try {
+        const response = await announcementApi.getScheduleList()
+        if (response.code === 200) {
+          this.scheduleList = response.data || []
+        } else {
+          this.$message.error(response.message || '获取定时任务列表失败')
+        }
+      } catch (error) {
+        console.error('获取定时任务列表错误:', error)
+      } finally {
+        this.scheduleListLoading = false
+      }
     },
 
     submitSchedule() {
       if (!this.scheduleForm.announcementId || !this.scheduleForm.scheduledAt) {
         this.$message.warning('请选择公告和发布时间')
+        return
+      }
+      const scheduledTime = new Date(this.scheduleForm.scheduledAt).getTime()
+      const now = Date.now()
+      if (scheduledTime <= now) {
+        this.$message.warning('发布时间必须晚于当前时间')
         return
       }
       this.$confirm(`确定要在 ${this.scheduleForm.scheduledAt} 发布该公告吗？`, '定时发布确认', {
@@ -628,7 +694,8 @@ export default {
           })
           if (response.code === 200) {
             this.$message.success('定时发布设置成功')
-            this.scheduleDialogVisible = false
+            this.scheduleActiveTab = 'list'
+            this.loadScheduleList()
             this.loadAnnouncementList()
           } else {
             this.$message.error(response.message || '定时发布设置失败')
@@ -636,6 +703,28 @@ export default {
         } catch (error) {
           console.error('定时发布错误:', error)
           this.$message.error('定时发布设置失败')
+        }
+      }).catch(() => {})
+    },
+
+    handleCancelSchedule(schedule) {
+      this.$confirm(`确定要取消定时发布任务吗？`, '取消确认', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(async () => {
+        try {
+          const response = await announcementApi.cancelSchedule(schedule.id)
+          if (response.code === 200) {
+            this.$message.success('已取消定时发布')
+            this.loadScheduleList()
+            this.loadAnnouncementList()
+          } else {
+            this.$message.error(response.message || '取消失败')
+          }
+        } catch (error) {
+          console.error('取消定时发布错误:', error)
+          this.$message.error('取消失败')
         }
       }).catch(() => {})
     },
@@ -685,6 +774,48 @@ export default {
       }).catch(() => {})
     },
 
+    handleEditTemplate(template) {
+      this.templateEditMode = true
+      this.editingTemplateId = template.id
+      this.newTemplate = {
+        name: template.name,
+        content: template.content,
+        type: template.type
+      }
+    },
+
+    handleUpdateTemplate() {
+      if (!this.newTemplate.name || !this.newTemplate.content) {
+        this.$message.warning('请填写模板名称和内容')
+        return
+      }
+      this.$confirm(`确定要更新模板吗？`, '更新模板确认', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'info'
+      }).then(async () => {
+        try {
+          const response = await announcementApi.updateAnnouncementTemplate(this.editingTemplateId, this.newTemplate)
+          if (response.code === 200) {
+            this.$message.success('模板更新成功')
+            this.cancelEditTemplate()
+            this.loadTemplates()
+          } else {
+            this.$message.error(response.message || '更新失败')
+          }
+        } catch (error) {
+          console.error('更新模板错误:', error)
+          this.$message.error('更新失败')
+        }
+      }).catch(() => {})
+    },
+
+    cancelEditTemplate() {
+      this.templateEditMode = false
+      this.editingTemplateId = null
+      this.newTemplate = { name: '', content: '', type: 'system' }
+    },
+
     handleDeleteTemplate(template) {
       this.$confirm(`确定要删除模板 "${template.name}" 吗？`, '删除模板确认', {
         confirmButtonText: '确定',
@@ -706,6 +837,71 @@ export default {
       }).catch(() => {})
     },
 
+    handleUseTemplate(template) {
+      this.templateDialogVisible = false
+      this.isCreate = true
+      this.dialogTitle = '创建公告（使用模板）'
+      this.announcementForm = {
+        id: '',
+        title: template.name || '',
+        content: template.content || '',
+        effectiveAt: '',
+        expireAt: '',
+        type: template.type || 'system',
+        priority: 'medium'
+      }
+      this.dialogVisible = true
+      this.$message.success('已应用模板内容')
+    },
+
+    /**
+     * 下架公告
+     */
+    handleTakeDownAnnouncement(row) {
+      this.$confirm(`确定要下架公告 "${row.title}" 吗？下架后可恢复。`, '下架确认', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(async () => {
+        try {
+          const response = await announcementApi.takeDownAnnouncement(row.id)
+          if (response.code === 200) {
+            this.$message.success('下架成功')
+            this.loadAnnouncementList()
+          } else {
+            this.$message.error(response.message || '下架失败')
+          }
+        } catch (error) {
+          console.error('下架公告错误:', error)
+          this.$message.error('下架失败')
+        }
+      }).catch(() => {})
+    },
+
+    /**
+     * 重新发布公告（已下架 -> 已发布）
+     */
+    handleRepublishAnnouncement(row) {
+      this.$confirm(`确定要重新发布公告 "${row.title}" 吗？发布后将推送给全平台用户。`, '重新发布确认', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(async () => {
+        try {
+          const response = await announcementApi.republishAnnouncement(row.id)
+          if (response.code === 200) {
+            this.$message.success('重新发布成功')
+            this.loadAnnouncementList()
+          } else {
+            this.$message.error(response.message || '重新发布失败')
+          }
+        } catch (error) {
+          console.error('重新发布公告错误:', error)
+          this.$message.error('重新发布失败')
+        }
+      }).catch(() => {})
+    },
+
     /**
      * 删除公告
      */
@@ -719,6 +915,12 @@ export default {
           const response = await announcementApi.deleteAnnouncement(row.id)
           if (response.code === 200) {
             this.$message.success('删除成功')
+
+            const isLastItemOnPage = this.announcementList.length <= 1
+            if (isLastItemOnPage && this.pagination.currentPage > 1) {
+              this.pagination.currentPage -= 1
+            }
+
             this.loadAnnouncementList()
           } else {
             this.$message.error(response.message || '删除失败')
@@ -750,7 +952,7 @@ export default {
           }
 
           if (response.code === 200) {
-            this.$message.success(this.isCreate ? '发布成功' : '更新成功')
+            this.$message.success(response.message || (this.isCreate ? '发布成功' : '更新成功'))
             this.dialogVisible = false
             this.loadAnnouncementList()
           } else {
@@ -854,14 +1056,15 @@ export default {
 
     /**
      * 获取状态标签文本
-     * 后端状态: 0=草稿, 1=已发布, 2=已下架, 3=已过期
+     * 后端状态: 0=草稿, 1=已发布, 2=已下架, 3=已过期, -1=已删除
      */
     getStatusText(status) {
       const textMap = {
         0: '草稿',
         1: '已发布',
         2: '已下架',
-        3: '已过期'
+        3: '已过期',
+        '-1': '已删除'
       }
       return textMap[status] || '未知'
     },
@@ -871,25 +1074,13 @@ export default {
      */
     getStatusTagType(status) {
       const typeMap = {
-        0: 'info',      // 草稿 - 灰色
-        1: 'success',   // 已发布 - 绿色
-        2: 'warning',   // 已下架 - 橙色
-        3: 'danger'    // 已过期 - 红色
+        0: 'info',
+        1: 'success',
+        2: 'warning',
+        3: 'danger',
+        '-1': 'danger'
       }
       return typeMap[status] || 'info'
-    },
-
-    /**
-     * 转换后端状态为前端筛选参数
-     * 后端状态: 0=草稿, 1=已发布, 2=已下架, 3=已过期
-     */
-    convertStatusToBackend(status) {
-      if (status === '') return null
-      if (status === 'draft') return 0
-      if (status === 'active') return 1
-      if (status === 'inactive') return 2
-      if (status === 'expired') return 3
-      return null
     }
   }
 }
@@ -1122,6 +1313,12 @@ export default {
   background: var(--bg-canvas);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.template-item:hover {
+  border-color: var(--primary-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .template-info {
@@ -1137,5 +1334,69 @@ export default {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.template-actions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+/* ========== 定时任务列表样式 ========== */
+.schedule-list {
+  max-height: 400px;
+  overflow-y: auto;
+  padding: var(--space-2);
+}
+
+.empty-schedule {
+  text-align: center;
+  padding: var(--space-6);
+  color: var(--text-secondary);
+}
+
+.schedule-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-3);
+  margin-bottom: var(--space-2);
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.schedule-item:hover {
+  border-color: var(--warning-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.schedule-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.schedule-title {
+  font-weight: 600;
+  font-size: var(--font-size-base);
+  color: var(--text-primary);
+  margin-bottom: var(--space-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedule-time {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.schedule-actions {
+  flex-shrink: 0;
+  margin-left: var(--space-3);
 }
 </style>

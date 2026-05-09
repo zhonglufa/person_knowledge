@@ -129,4 +129,36 @@ public class Note implements Serializable {
     @TableField("digest_status")
     private String digestStatus = "undigest";
 
+    /**
+     * 笔记修订次数（闭环字段）
+     */
+    @TableField("update_count")
+    private Integer updateCount = 0;
+
+    /**
+     * 复习次数（闭环字段）
+     */
+    @TableField("review_count")
+    private Integer reviewCount = 0;
+
+    /**
+     * 字数统计（闭环字段）
+     */
+    @TableField("word_count")
+    private Integer wordCount = 0;
+
+    /**
+     * 笔记质量评分（0-100）（闭环字段）
+     */
+    @TableField("note_quality_score")
+    private Integer noteQualityScore = 0;
+
+    /**
+     * 来源收藏项信息（非数据库字段，用于前端展示）
+     */
+    @TableField(exist = false)
+    private CollectionItem sourceCollectionItem;
+
+
+
 }

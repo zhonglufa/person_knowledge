@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.qst.lm.common.R;
+import com.qst.lm.dto.collect.BatchMoveDTO;
 import com.qst.lm.dto.collect.BatchOperationDTO;
 import com.qst.lm.dto.collect.BookmarkImportDTO;
 import com.qst.lm.dto.collect.CollectionItemDTO;
@@ -14,9 +15,11 @@ import com.qst.lm.exception.BusinessException;
 import com.qst.lm.mapper.CollectionItemMapper;
 import com.qst.lm.mapper.CollectionItemTagMapper;
 import com.qst.lm.mapper.ImportRecordMapper;
+import com.qst.lm.mapper.TagMapper;
 import com.qst.lm.pojo.CollectionItem;
 import com.qst.lm.pojo.CollectionItemTag;
 import com.qst.lm.pojo.ImportRecord;
+import com.qst.lm.pojo.Tag;
 import com.qst.lm.service.ICollectionItemService;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Connection;
@@ -37,6 +40,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -47,13 +51,22 @@ public class CollectionItemServiceImpl implements ICollectionItemService {
     private final CollectionItemMapper collectionItemMapper;
     private final CollectionItemTagMapper collectionItemTagMapper;
     private final ImportRecordMapper importRecordMapper;
+    private final TagMapper tagMapper;
+    private final com.qst.lm.mapper.NoteMapper noteMapper;
+    private final com.qst.lm.mapper.CollectionMapper collectionMapper;
 
     public CollectionItemServiceImpl(CollectionItemMapper collectionItemMapper,
                                      CollectionItemTagMapper collectionItemTagMapper,
-                                     ImportRecordMapper importRecordMapper) {
+                                     ImportRecordMapper importRecordMapper,
+                                     TagMapper tagMapper,
+                                     com.qst.lm.mapper.NoteMapper noteMapper,
+                                     com.qst.lm.mapper.CollectionMapper collectionMapper) {
         this.collectionItemMapper = collectionItemMapper;
         this.collectionItemTagMapper = collectionItemTagMapper;
         this.importRecordMapper = importRecordMapper;
+        this.tagMapper = tagMapper;
+        this.noteMapper = noteMapper;
+        this.collectionMapper = collectionMapper;
     }
 
     @Override
@@ -198,7 +211,10 @@ public class CollectionItemServiceImpl implements ICollectionItemService {
         }
 
         handleSort(wrapper, query.getSortBy(), query.getSortOrder());
-        return R.success(collectionItemMapper.selectPage(page, wrapper));
+        Page<CollectionItem> resultPage = collectionItemMapper.selectPage(page, wrapper);
+        fillItemTags(userId, resultPage.getRecords());
+        fillCollectionNames(resultPage.getRecords());
+        return R.success(resultPage);
     }
 
     @Override
@@ -209,6 +225,8 @@ public class CollectionItemServiceImpl implements ICollectionItemService {
         updateWrapper.eq(CollectionItem::getId, id).set(CollectionItem::getVisitCount, item.getVisitCount() + 1);
         collectionItemMapper.update(null, updateWrapper);
         item.setVisitCount(item.getVisitCount() + 1);
+        fillItemTags(userId, List.of(item));
+        fillCollectionNames(List.of(item));
         return R.success(item);
     }
 
@@ -307,6 +325,28 @@ public class CollectionItemServiceImpl implements ICollectionItemService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
+    public R batchMoveItems(Long userId, BatchMoveDTO dto) {
+        if (dto == null || CollectionUtils.isEmpty(dto.getIds())) {
+            throw new BusinessException("请选择要移动的收藏项");
+        }
+        if (dto.getTargetCollectionId() == null) {
+            throw new BusinessException("请选择目标收藏集");
+        }
+
+        for (Long id : dto.getIds()) {
+            getAndCheckOwnership(userId, id);
+        }
+
+        LambdaUpdateWrapper<CollectionItem> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.in(CollectionItem::getId, dto.getIds())
+                .set(CollectionItem::getCollectionId, dto.getTargetCollectionId());
+        collectionItemMapper.update(null, updateWrapper);
+
+        return R.success("批量移动成功，共移动 " + dto.getIds().size() + " 项");
+    }
+
+    @Override
     public R getStatistics(Long userId) {
         Map<String, Object> statistics = new HashMap<>(8);
         LambdaQueryWrapper<CollectionItem> totalWrapper = new LambdaQueryWrapper<>();
@@ -333,12 +373,115 @@ public class CollectionItemServiceImpl implements ICollectionItemService {
         if (CollectionUtils.isEmpty(tagIds)) {
             return;
         }
-        for (Long tagId : tagIds) {
+
+        List<Long> distinctTagIds = tagIds.stream()
+                .filter(tagId -> tagId != null)
+                .distinct()
+                .toList();
+        LambdaQueryWrapper<Tag> tagWrapper = new LambdaQueryWrapper<>();
+        tagWrapper.eq(Tag::getUserId, userId)
+                .eq(Tag::getDeleted, 0)
+                .in(Tag::getId, distinctTagIds);
+        List<Tag> tags = tagMapper.selectList(tagWrapper);
+        if (tags.size() != distinctTagIds.size()) {
+            throw new BusinessException("存在无效标签或无权使用的标签");
+        }
+
+        for (Long tagId : distinctTagIds) {
             CollectionItemTag itemTag = new CollectionItemTag();
             itemTag.setUserId(userId);
             itemTag.setCollectionItemId(itemId);
             itemTag.setTagId(tagId);
             collectionItemTagMapper.insert(itemTag);
+        }
+    }
+
+    private void fillItemTags(Long userId, List<CollectionItem> items) {
+        if (CollectionUtils.isEmpty(items)) {
+            return;
+        }
+
+        List<Long> itemIds = items.stream()
+                .map(CollectionItem::getId)
+                .filter(id -> id != null)
+                .toList();
+        if (itemIds.isEmpty()) {
+            return;
+        }
+
+        LambdaQueryWrapper<CollectionItemTag> relationWrapper = new LambdaQueryWrapper<>();
+        relationWrapper.eq(CollectionItemTag::getUserId, userId)
+                .in(CollectionItemTag::getCollectionItemId, itemIds);
+        List<CollectionItemTag> relations = collectionItemTagMapper.selectList(relationWrapper);
+        if (relations.isEmpty()) {
+            for (CollectionItem item : items) {
+                item.setTags(List.of());
+                item.setTagIds(List.of());
+            }
+            return;
+        }
+
+        Map<Long, List<Long>> itemIdToTagIds = relations.stream()
+                .collect(Collectors.groupingBy(CollectionItemTag::getCollectionItemId,
+                        Collectors.mapping(CollectionItemTag::getTagId, Collectors.toList())));
+
+        List<Long> allTagIds = relations.stream()
+                .map(CollectionItemTag::getTagId)
+                .distinct()
+                .toList();
+
+        LambdaQueryWrapper<Tag> tagWrapper = new LambdaQueryWrapper<>();
+        tagWrapper.eq(Tag::getUserId, userId)
+                .eq(Tag::getDeleted, 0)
+                .in(Tag::getId, allTagIds);
+        List<Tag> tags = tagMapper.selectList(tagWrapper);
+        Map<Long, Tag> tagMap = tags.stream().collect(Collectors.toMap(Tag::getId, t -> t, (a, b) -> a));
+
+        for (CollectionItem item : items) {
+            List<Long> tagIds = itemIdToTagIds.getOrDefault(item.getId(), List.of()).stream()
+                    .distinct()
+                    .toList();
+            item.setTagIds(tagIds);
+            List<Tag> itemTags = tagIds.stream()
+                    .map(tagMap::get)
+                    .filter(t -> t != null)
+                    .toList();
+            item.setTags(itemTags);
+        }
+    }
+
+    private void fillCollectionNames(List<CollectionItem> items) {
+        if (CollectionUtils.isEmpty(items)) {
+            return;
+        }
+
+        List<Long> collectionIds = items.stream()
+                .map(CollectionItem::getCollectionId)
+                .filter(id -> id != null)
+                .distinct()
+                .toList();
+
+        if (collectionIds.isEmpty()) {
+            return;
+        }
+
+        LambdaQueryWrapper<com.qst.lm.pojo.Collection> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(com.qst.lm.pojo.Collection::getId, collectionIds)
+                .eq(com.qst.lm.pojo.Collection::getDeleted, 0);
+        List<com.qst.lm.pojo.Collection> collections = collectionMapper.selectList(wrapper);
+
+        Map<Long, String> collectionNameMap = collections.stream()
+                .collect(Collectors.toMap(
+                        com.qst.lm.pojo.Collection::getId,
+                        com.qst.lm.pojo.Collection::getName,
+                        (a, b) -> a
+                ));
+
+        for (CollectionItem item : items) {
+            if (item.getCollectionId() != null) {
+                String collectionName = collectionNameMap.get(item.getCollectionId());
+                item.setCollectionName(collectionName);
+            }
         }
     }
 
@@ -580,7 +723,9 @@ public class CollectionItemServiceImpl implements ICollectionItemService {
     public R setRemind(Long userId, Long id, LocalDateTime remindAt) {
         getAndCheckOwnership(userId, id);
         LambdaUpdateWrapper<CollectionItem> updateWrapper = new LambdaUpdateWrapper<>();
-        updateWrapper.eq(CollectionItem::getId, id).set(CollectionItem::getRemindAt, remindAt);
+        updateWrapper.eq(CollectionItem::getId, id)
+                .set(CollectionItem::getRemindAt, remindAt)
+                .set(CollectionItem::getRemindTriggered, 0);
         collectionItemMapper.update(null, updateWrapper);
         return R.success("设置提醒成功");
     }
@@ -589,7 +734,9 @@ public class CollectionItemServiceImpl implements ICollectionItemService {
     public R cancelRemind(Long userId, Long id) {
         getAndCheckOwnership(userId, id);
         LambdaUpdateWrapper<CollectionItem> updateWrapper = new LambdaUpdateWrapper<>();
-        updateWrapper.eq(CollectionItem::getId, id).set(CollectionItem::getRemindAt, null);
+        updateWrapper.eq(CollectionItem::getId, id)
+                .set(CollectionItem::getRemindAt, null)
+                .set(CollectionItem::getRemindTriggered, 0);
         collectionItemMapper.update(null, updateWrapper);
         return R.success("取消提醒成功");
     }
@@ -637,7 +784,10 @@ public class CollectionItemServiceImpl implements ICollectionItemService {
 
         handleSort(wrapper, query.getSortBy(), query.getSortOrder());
 
-        return R.success(collectionItemMapper.selectPage(pageRequest, wrapper));
+        Page<CollectionItem> resultPage = collectionItemMapper.selectPage(pageRequest, wrapper);
+        fillItemTags(userId, resultPage.getRecords());
+        fillCollectionNames(resultPage.getRecords());
+        return R.success(resultPage);
     }
 
  /*   @Override
@@ -832,5 +982,91 @@ public class CollectionItemServiceImpl implements ICollectionItemService {
             }
         }
         return null;
+    }
+
+    public R getRelatedNotes(Long userId, Long collectionItemId) {
+        getAndCheckOwnership(userId, collectionItemId);
+        
+        LambdaQueryWrapper<com.qst.lm.pojo.Note> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(com.qst.lm.pojo.Note::getUserId, userId)
+               .eq(com.qst.lm.pojo.Note::getCollectionItemId, collectionItemId)
+               .orderByDesc(com.qst.lm.pojo.Note::getUpdateTime);
+        
+        List<com.qst.lm.pojo.Note> notes = noteMapper.selectList(wrapper);
+        
+        Map<String, Object> result = new HashMap<>(2);
+        result.put("notes", notes);
+        result.put("count", notes.size());
+        
+        return R.success(result);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public R getPublicItemDetail(Long id) {
+        LambdaQueryWrapper<CollectionItem> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(CollectionItem::getId, id)
+               .eq(CollectionItem::getDeleted, 0)
+               .eq(CollectionItem::getIsPublic, 1);
+        
+        CollectionItem item = collectionItemMapper.selectOne(wrapper);
+        if (item == null) {
+            throw new BusinessException("收藏项不存在或未公开");
+        }
+        
+        LambdaUpdateWrapper<CollectionItem> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(CollectionItem::getId, id)
+                    .set(CollectionItem::getVisitCount, item.getVisitCount() + 1);
+        collectionItemMapper.update(null, updateWrapper);
+        item.setVisitCount(item.getVisitCount() + 1);
+        
+        fillCollectionNames(List.of(item));
+        
+        return R.success(item);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public R setCategory(Long userId, Long id, Long categoryId) {
+        CollectionItem item = collectionItemMapper.selectById(id);
+        if (item == null || !item.getUserId().equals(userId)) {
+            throw new BusinessException("收藏项不存在");
+        }
+
+        LambdaUpdateWrapper<CollectionItem> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(CollectionItem::getId, id)
+                    .set(CollectionItem::getCategoryId, categoryId);
+        collectionItemMapper.update(null, updateWrapper);
+
+        log.info("用户[{}]设置收藏项[{}]分类为[{}]成功", userId, id, categoryId);
+        return R.success("设置分类成功");
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public R batchSetCategory(Long userId, List<Long> ids, Long categoryId) {
+        if (ids == null || ids.isEmpty()) {
+            throw new BusinessException("收藏项ID列表不能为空");
+        }
+
+        LambdaQueryWrapper<CollectionItem> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(CollectionItem::getUserId, userId)
+                   .in(CollectionItem::getId, ids)
+                   .eq(CollectionItem::getDeleted, 0);
+        List<CollectionItem> items = collectionItemMapper.selectList(queryWrapper);
+
+        if (items.isEmpty()) {
+            throw new BusinessException("未找到可操作的收藏项");
+        }
+
+        LambdaUpdateWrapper<CollectionItem> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(CollectionItem::getUserId, userId)
+                    .in(CollectionItem::getId, ids)
+                    .eq(CollectionItem::getDeleted, 0)
+                    .set(CollectionItem::getCategoryId, categoryId);
+        collectionItemMapper.update(null, updateWrapper);
+
+        log.info("用户[{}]批量设置收藏项分类成功, 数量[{}]", userId, items.size());
+        return R.success("批量设置分类成功", Map.of("count", items.size()));
     }
 }

@@ -1,5 +1,6 @@
 package com.qst.lm.dto.announcement;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
@@ -26,11 +27,13 @@ public class AnnouncementDTO {
     /**
      * 生效时间
      */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime effectiveAt;
 
     /**
      * 过期时间
      */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime expireAt;
 
     /**

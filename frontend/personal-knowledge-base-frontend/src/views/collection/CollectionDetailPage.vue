@@ -383,16 +383,31 @@ export default {
       this.itemsCurrentPage = page
     },
     goBack() {
-      this.goToCollectionsList()
+      // 根据来源参数智能返回
+      const from = this.$route.query.from;
+      if (from) {
+        // 所有来源都返回收藏中心对应的标签页，包括我的收藏集
+        this.$router.push({
+          path: '/collect/center',
+          query: { tab: from }
+        });
+      } else {
+        this.$router.back()
+      }
     },
     goToCollectionsList() {
-      this.$router.push('/collections')
+      this.$router.push('/collections/list')
     },
     goToItemWorkspace(item) {
       if (!item?.id) {
         return
       }
-      this.$router.push(`/creation/collection-items/${item.id}/note/create`)
+      // 传递来源信息
+      const query = { ...this.$route.query };
+      this.$router.push({
+        path: `/creation/collection-items/${item.id}/note/create`,
+        query
+      })
     },
     openEditDialog() {
       this.showEditDialog = true

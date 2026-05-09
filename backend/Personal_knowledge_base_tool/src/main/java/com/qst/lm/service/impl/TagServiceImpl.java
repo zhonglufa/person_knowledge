@@ -6,8 +6,10 @@ import com.qst.lm.common.R;
 import com.qst.lm.dto.tag.TagDTO;
 import com.qst.lm.dto.tag.TagMergeDTO;
 import com.qst.lm.exception.BusinessException;
+import com.qst.lm.mapper.CollectionItemMapper;
 import com.qst.lm.mapper.CollectionItemTagMapper;
 import com.qst.lm.mapper.TagMapper;
+import com.qst.lm.pojo.CollectionItem;
 import com.qst.lm.pojo.CollectionItemTag;
 import com.qst.lm.pojo.Tag;
 import com.qst.lm.service.ITagService;
@@ -29,10 +31,14 @@ public class TagServiceImpl implements ITagService {
 
     private final TagMapper tagMapper;
     private final CollectionItemTagMapper collectionItemTagMapper;
+    private final CollectionItemMapper collectionItemMapper;
 
-    public TagServiceImpl(TagMapper tagMapper, CollectionItemTagMapper collectionItemTagMapper) {
+    public TagServiceImpl(TagMapper tagMapper,
+                          CollectionItemTagMapper collectionItemTagMapper,
+                          CollectionItemMapper collectionItemMapper) {
         this.tagMapper = tagMapper;
         this.collectionItemTagMapper = collectionItemTagMapper;
+        this.collectionItemMapper = collectionItemMapper;
     }
 
     @Override
@@ -140,14 +146,17 @@ public class TagServiceImpl implements ITagService {
             throw new BusinessException("标签ID列表不能为空");
         }
 
+        CollectionItem item = getAndCheckItemOwnership(userId, itemId);
+
         for (Long tagId : tagIds) {
-            // 校验标签是否存在
             Tag tag = tagMapper.selectById(tagId);
-            if (tag == null) {
+            if (tag == null || tag.getDeleted() != null && tag.getDeleted() == 1) {
                 throw new BusinessException("标签[" + tagId + "]不存在");
             }
+            if (!tag.getUserId().equals(userId)) {
+                throw new BusinessException(403, "无权操作标签[" + tagId + "]");
+            }
 
-            // 校验是否已绑定
             LambdaQueryWrapper<CollectionItemTag> wrapper = new LambdaQueryWrapper<>();
             wrapper.eq(CollectionItemTag::getUserId, userId)
                     .eq(CollectionItemTag::getCollectionItemId, itemId)
@@ -164,12 +173,22 @@ public class TagServiceImpl implements ITagService {
             collectionItemTagMapper.insert(relation);
         }
 
-        log.info("用户[{}]为收藏项[{}]绑定标签成功", userId, itemId);
+        log.info("用户[{}]为收藏项[{}]绑定标签成功", userId, item.getId());
         return R.success("绑定标签成功");
     }
 
     @Override
     public R unbindTagFromItem(Long userId, Long itemId, Long tagId) {
+        CollectionItem item = getAndCheckItemOwnership(userId, itemId);
+
+        Tag tag = tagMapper.selectById(tagId);
+        if (tag == null || tag.getDeleted() != null && tag.getDeleted() == 1) {
+            throw new BusinessException("标签不存在");
+        }
+        if (!tag.getUserId().equals(userId)) {
+            throw new BusinessException(403, "无权操作此标签");
+        }
+
         LambdaQueryWrapper<CollectionItemTag> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(CollectionItemTag::getUserId, userId)
                 .eq(CollectionItemTag::getCollectionItemId, itemId)
@@ -179,12 +198,14 @@ public class TagServiceImpl implements ITagService {
             throw new BusinessException("未找到该标签绑定关系");
         }
 
-        log.info("用户[{}]为收藏项[{}]解绑标签[{}]成功", userId, itemId, tagId);
+        log.info("用户[{}]为收藏项[{}]解绑标签[{}]成功", userId, item.getId(), tagId);
         return R.success("解绑标签成功");
     }
 
     @Override
     public R getItemTags(Long userId, Long itemId) {
+        CollectionItem item = getAndCheckItemOwnership(userId, itemId);
+
         LambdaQueryWrapper<CollectionItemTag> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(CollectionItemTag::getUserId, userId)
                 .eq(CollectionItemTag::getCollectionItemId, itemId);
@@ -192,14 +213,35 @@ public class TagServiceImpl implements ITagService {
 
         List<Long> tagIds = relations.stream()
                 .map(CollectionItemTag::getTagId)
+                .distinct()
                 .collect(Collectors.toList());
 
         if (tagIds.isEmpty()) {
             return R.success(List.of());
         }
 
-        List<Tag> tags = tagMapper.selectBatchIds(tagIds);
+        LambdaQueryWrapper<Tag> tagWrapper = new LambdaQueryWrapper<>();
+        tagWrapper.eq(Tag::getUserId, userId)
+                .eq(Tag::getDeleted, 0)
+                .in(Tag::getId, tagIds);
+        List<Tag> tags = tagMapper.selectList(tagWrapper);
+
+        log.info("用户[{}]获取收藏项[{}]标签成功", userId, item.getId());
         return R.success(tags);
+    }
+
+    private CollectionItem getAndCheckItemOwnership(Long userId, Long itemId) {
+        LambdaQueryWrapper<CollectionItem> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(CollectionItem::getId, itemId)
+                .eq(CollectionItem::getDeleted, 0);
+        CollectionItem item = collectionItemMapper.selectOne(wrapper);
+        if (item == null) {
+            throw new BusinessException("收藏项不存在");
+        }
+        if (!item.getUserId().equals(userId)) {
+            throw new BusinessException(403, "无权操作该收藏项");
+        }
+        return item;
     }
 
     @Override

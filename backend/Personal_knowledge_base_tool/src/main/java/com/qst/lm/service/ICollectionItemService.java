@@ -1,6 +1,7 @@
 package com.qst.lm.service;
 
 import com.qst.lm.common.R;
+import com.qst.lm.dto.collect.BatchMoveDTO;
 import com.qst.lm.dto.collect.BatchOperationDTO;
 import com.qst.lm.dto.collect.BookmarkImportDTO;
 import com.qst.lm.dto.collect.CollectionItemDTO;
@@ -75,6 +76,11 @@ public interface ICollectionItemService {
     R moveItem(Long userId, Long id, Long targetCollectionId);
 
     /**
+     * 批量移动收藏项到其他收藏集
+     */
+    R batchMoveItems(Long userId, BatchMoveDTO dto);
+
+    /**
      * 获取收藏项统计数据
      */
     R getStatistics(Long userId);
@@ -128,4 +134,24 @@ public interface ICollectionItemService {
      * 取消提醒
      */
     R cancelRemind(Long userId, Long id);
+
+    /**
+     * 获取收藏项关联的笔记列表（闭环功能）
+     */
+    R getRelatedNotes(Long userId, Long collectionItemId);
+
+    /**
+     * 获取公开收藏项详情（无需登录）
+     */
+    R getPublicItemDetail(Long id);
+
+    /**
+     * 设置收藏项分类
+     */
+    R setCategory(Long userId, Long id, Long categoryId);
+
+    /**
+     * 批量设置收藏项分类
+     */
+    R batchSetCategory(Long userId, java.util.List<Long> ids, Long categoryId);
 }

@@ -447,7 +447,13 @@
               </span>
             </div>
             <transition-group name="comment-fade" tag="div" class="comment-items">
-              <div v-for="comment in comments" :key="comment.id" class="comment-item-enhanced">
+              <div 
+                v-for="comment in comments" 
+                :key="comment.id" 
+                :id="`comment-${comment.id}`"
+                class="comment-item-enhanced"
+                :class="{ 'highlight-comment': highlightedCommentId === comment.id }"
+              >
                 <div class="comment-avatar">
                   <i class="el-icon-user-solid"></i>
                 </div>
@@ -560,6 +566,7 @@ export default {
       commentForm: {
         content: ''
       },
+      highlightedCommentId: null,
       noteForm: createEmptyNoteForm(),
       originalNoteForm: null,
       lastSavedTime: null,
@@ -697,6 +704,9 @@ export default {
   async created() {
     await this.loadPageData()
     this.syncModeFromRoute()
+    this.$nextTick(() => {
+      this.scrollToCommentIfNeeded()
+    })
   },
   watch: {
     '$route.params.id': {
@@ -704,18 +714,21 @@ export default {
         this.isEditMode = false
         await this.loadPageData()
         this.syncModeFromRoute()
-        this.scrollToCommentsIfNeeded()
+        this.scrollToCommentIfNeeded()
       }
     },
     '$route.query.mode'() {
       this.syncModeFromRoute()
+    },
+    '$route.query.commentId'() {
+      this.scrollToCommentIfNeeded()
     },
     '$route.name': {
       async handler() {
         this.isEditMode = false
         await this.loadPageData()
         this.syncModeFromRoute()
-        this.scrollToCommentsIfNeeded()
+        this.scrollToCommentIfNeeded()
       }
     },
     '$route.hash'() {
@@ -841,6 +854,27 @@ export default {
       if (target && typeof target.scrollIntoView === 'function') {
         target.scrollIntoView({ behavior: 'smooth', block: 'start' })
       }
+    },
+    scrollToCommentIfNeeded() {
+      const commentId = this.$route.query.commentId
+      if (!commentId) {
+        this.scrollToCommentsIfNeeded()
+        return
+      }
+      
+      this.$nextTick(() => {
+        const commentElement = document.getElementById(`comment-${commentId}`)
+        if (commentElement) {
+          commentElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          this.highlightedCommentId = parseInt(commentId)
+          
+          setTimeout(() => {
+            this.highlightedCommentId = null
+          }, 3000)
+        } else {
+          console.warn(`评论 ${commentId} 未找到，可能需要加载更多评论`)
+        }
+      })
     },
     async loadMoreComments() {
       const nextPage = this.commentPagination.page + 1
@@ -1080,13 +1114,29 @@ export default {
       }
     },
     goBack() {
-      this.$router.push('/creation/notes')
+      // 根据来源参数智能返回
+      const from = this.$route.query.from;
+      if (from) {
+        // 所有来源都返回收藏中心对应的标签页
+        this.$router.push({
+          path: '/collect/center',
+          query: { tab: from }
+        });
+      } else {
+        // 没有来源信息，默认返回我的笔记列表
+        this.$router.push('/creation/notes');
+      }
     },
     goToSourceItem() {
       if (!this.sourceItem.id) {
         return
       }
-      this.$router.push(`/creation/collection-items/${this.sourceItem.id}/note/create`)
+      // 传递来源信息
+      const query = { ...this.$route.query };
+      this.$router.push({
+        path: `/creation/collection-items/${this.sourceItem.id}/note/create`,
+        query
+      })
     },
     getTypeLabel(type) {
       const map = {
@@ -1810,6 +1860,21 @@ export default {
 .comment-item-enhanced:hover {
   border-color: #e0e7ff;
   box-shadow: 0 2px 12px rgba(102, 126, 234, 0.06);
+}
+
+.comment-item-enhanced.highlight-comment {
+  animation: highlightPulse 2s ease-in-out;
+  border-color: #667eea;
+  background: linear-gradient(135deg, #f0f4ff 0%, #e8eeff 100%);
+}
+
+@keyframes highlightPulse {
+  0%, 100% {
+    box-shadow: 0 2px 12px rgba(102, 126, 234, 0.1);
+  }
+  50% {
+    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+  }
 }
 
 .comment-avatar {

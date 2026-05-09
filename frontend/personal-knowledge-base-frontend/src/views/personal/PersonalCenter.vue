@@ -15,12 +15,13 @@
     @user-command="handleUserCommand"
     @search="handleSearch"
     @sidebar-item-click="handleSidebarItemClick"
+    @stat-item-click="handleSidebarStatClick"
   >
     <div v-loading="pageLoading" class="personal-center">
       <!-- 页面头部 -->
       <div class="page-header card">
         <div class="header-content">
-          <div class="header-left">
+          <div class="header-left" @click="goToProfile">
             <div class="user-avatar-large">
               <img :src="currentUser?.avatar || defaultAvatar" :alt="currentUser?.name || ''" />
               <div class="avatar-status online"></div>
@@ -33,21 +34,21 @@
           </div>
           <div class="header-right">
             <div class="quick-stats">
-              <div class="stat-item">
+              <div class="stat-item" @click="goToCollections">
                 <i class="fas fa-bookmark"></i>
                 <div class="stat-content">
                   <span class="stat-number">{{ userStats?.collections || 0 }}</span>
                   <span class="stat-label">收藏集</span>
                 </div>
               </div>
-              <div class="stat-item">
+              <div class="stat-item" @click="goToNotes">
                 <i class="fas fa-file-alt"></i>
                 <div class="stat-content">
                   <span class="stat-number">{{ userStats?.notes || 0 }}</span>
                   <span class="stat-label">笔记</span>
                 </div>
               </div>
-              <div class="stat-item">
+              <div class="stat-item" @click="goToPublicContent">
                 <i class="fas fa-share-alt"></i>
                 <div class="stat-content">
                   <span class="stat-number">{{ userStats?.public || 0 }}</span>
@@ -105,19 +106,19 @@
             </div>
             <div class="card-content-inner">
               <div class="stats-grid">
-                <div class="stat-box">
+                <div class="stat-box" @click="goToCollectionsByStatus('all')">
                   <div class="stat-value">{{ collectionStats?.total || 0 }}</div>
                   <div class="stat-label">总收藏</div>
                 </div>
-                <div class="stat-box">
+                <div class="stat-box" @click="goToCollectionsByStatus('undigest')">
                   <div class="stat-value text-warning">{{ collectionStats?.undigest || 0 }}</div>
                   <div class="stat-label">未消化</div>
                 </div>
-                <div class="stat-box">
+                <div class="stat-box" @click="goToCollectionsByStatus('digesting')">
                   <div class="stat-value text-info">{{ collectionStats?.digesting || 0 }}</div>
                   <div class="stat-label">消化中</div>
                 </div>
-                <div class="stat-box">
+                <div class="stat-box" @click="goToCollectionsByStatus('digested')">
                   <div class="stat-value text-success">{{ collectionStats?.digested || 0 }}</div>
                   <div class="stat-label">已消化</div>
                 </div>
@@ -133,19 +134,19 @@
             </div>
             <div class="card-content-inner">
               <div class="stats-grid">
-                <div class="stat-box">
+                <div class="stat-box" @click="goToNotesByType('all')">
                   <div class="stat-value">{{ noteStats?.total || 0 }}</div>
                   <div class="stat-label">总笔记</div>
                 </div>
-                <div class="stat-box">
+                <div class="stat-box" @click="goToNotesByType('original')">
                   <div class="stat-value text-success">{{ noteStats?.original || 0 }}</div>
                   <div class="stat-label">原创</div>
                 </div>
-                <div class="stat-box">
+                <div class="stat-box" @click="goToNotesByType('summary')">
                   <div class="stat-value text-warning">{{ noteStats?.summary || 0 }}</div>
                   <div class="stat-label">总结</div>
                 </div>
-                <div class="stat-box">
+                <div class="stat-box" @click="goToNotesByType('normal')">
                   <div class="stat-value text-info">{{ noteStats?.normal || 0 }}</div>
                   <div class="stat-label">普通</div>
                 </div>
@@ -161,19 +162,19 @@
             </div>
             <div class="card-content-inner">
               <div class="activity-stats">
-                <div class="activity-item">
+                <div class="activity-item" @click="goToDashboard">
                   <span class="activity-label">今日新增</span>
                   <span class="activity-value">{{ activityStats?.today || 0 }}</span>
                 </div>
-                <div class="activity-item">
+                <div class="activity-item" @click="goToDashboard">
                   <span class="activity-label">本周新增</span>
                   <span class="activity-value">{{ activityStats?.week || 0 }}</span>
                 </div>
-                <div class="activity-item">
+                <div class="activity-item" @click="goToDashboard">
                   <span class="activity-label">本月新增</span>
                   <span class="activity-value">{{ activityStats?.month || 0 }}</span>
                 </div>
-                <div class="activity-item">
+                <div class="activity-item" @click="goToDashboard">
                   <span class="activity-label">连续打卡</span>
                   <span class="activity-value">{{ activityStats?.streak || 0 }}天</span>
                 </div>
@@ -196,6 +197,7 @@
             v-for="activity in recentActivities"
             :key="activity.id"
             class="activity-item"
+            @click="handleActivityClick(activity)"
           >
             <div class="activity-icon" :class="`bg-${activity.type || 'primary'}`">
               <i :class="activity.icon"></i>
@@ -610,6 +612,79 @@ export default {
         console.error('登出失败:', error)
         this.$message.error('登出失败，请重试')
       }
+    },
+
+    goToProfile() {
+      this.$router.push('/personal/profile')
+    },
+
+    goToCollections() {
+      this.$router.push({
+        path: '/collections/manage',
+        query: { view: 'my' }
+      })
+    },
+
+    goToNotes() {
+      this.$router.push({
+        path: '/creation/notes',
+        query: { view: 'my' }
+      })
+    },
+
+    goToPublicContent() {
+      this.$router.push('/personal/public')
+    },
+
+    goToCollectionsByStatus(status) {
+      this.$router.push({
+        path: '/collect/center',
+        query: { 
+          digestStatus: status,
+          view: 'my'
+        }
+      })
+    },
+
+    goToNotesByType(type) {
+      this.$router.push({
+        path: '/creation/notes',
+        query: { 
+          type: type,
+          view: 'my'
+        }
+      })
+    },
+
+    handleActivityClick(activity) {
+      if (activity.targetId && activity.targetType) {
+        const routeMap = {
+          collection: `/collect/item/${activity.targetId}`,
+          note: `/creation/note/${activity.targetId}`,
+          processing: `/creation/processing/${activity.targetId}`
+        }
+        const path = routeMap[activity.targetType]
+        if (path) {
+          this.$router.push(path)
+        } else {
+          this.$router.push('/personal/dashboard')
+        }
+      } else {
+        this.$router.push('/personal/dashboard')
+      }
+    },
+
+    handleSidebarStatClick(stat) {
+      const routeMap = {
+        collections: { path: '/collections/manage', query: { view: 'my' } },
+        notes: { path: '/creation/notes', query: { view: 'my' } },
+        publicContent: { path: '/personal/public' },
+        days: { path: '/personal/dashboard' }
+      }
+      const route = routeMap[stat.key]
+      if (route) {
+        this.$router.push(route)
+      }
     }
   }
 }
@@ -643,6 +718,12 @@ export default {
   display: flex;
   align-items: center;
   gap: var(--space-6);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+
+.header-left:hover {
+  opacity: 0.9;
 }
 
 .user-avatar-large {
@@ -721,10 +802,12 @@ export default {
   min-width: 180px;
   backdrop-filter: blur(8px);
   transition: all var(--transition-normal);
+  cursor: pointer;
 }
 
 .stat-item:hover {
   background: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
 }
 
 .stat-item i {
@@ -882,10 +965,13 @@ export default {
   background: var(--bg-canvas);
   border-radius: var(--radius-md);
   transition: all var(--transition-normal);
+  cursor: pointer;
 }
 
 .stat-box:hover {
   background: var(--primary-bg);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
 }
 
 .stat-value {
@@ -916,10 +1002,12 @@ export default {
   background: var(--bg-canvas);
   border-radius: var(--radius-md);
   transition: all var(--transition-normal);
+  cursor: pointer;
 }
 
 .activity-stats .activity-item:hover {
   background: var(--primary-bg);
+  transform: translateX(4px);
 }
 
 .activity-label {
@@ -957,11 +1045,13 @@ export default {
   background: var(--bg-canvas);
   border-radius: var(--radius-md);
   transition: all var(--transition-normal);
+  cursor: pointer;
 }
 
 .activity-list .activity-item:hover {
   background: var(--primary-bg);
   transform: translateX(var(--space-1));
+  box-shadow: var(--shadow-sm);
 }
 
 .activity-icon {

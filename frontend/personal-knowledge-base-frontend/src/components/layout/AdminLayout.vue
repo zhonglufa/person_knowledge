@@ -61,6 +61,19 @@
             <i class="el-icon-s-order"></i>
             <span slot="title">操作日志</span>
           </el-menu-item>
+
+          <el-submenu index="/admin/rbac">
+            <template slot="title">
+              <i class="el-icon-lock"></i>
+              <span>权限管理</span>
+            </template>
+            <el-menu-item index="/admin/roles">
+              <span slot="title">角色管理</span>
+            </el-menu-item>
+            <el-menu-item index="/admin/permissions">
+              <span slot="title">权限管理</span>
+            </el-menu-item>
+          </el-submenu>
         </el-menu>
 
         <!-- 折叠按钮 -->
@@ -278,6 +291,16 @@ export default {
   transition: all var(--transition-base);
 }
 
+::v-deep .el-submenu__title {
+  height: 48px;
+  line-height: 48px;
+  margin: 2px var(--space-2);
+  margin: 2px 6px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  transition: all var(--transition-base);
+}
+
 .sidebar-menu .el-menu-item i {
   color: var(--text-secondary);
   margin-right: var(--space-3);
@@ -285,6 +308,7 @@ export default {
   width: 20px;
   text-align: center;
 }
+
 
 .sidebar-menu .el-menu-item:hover {
   background-color: var(--primary-bg) !important;

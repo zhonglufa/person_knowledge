@@ -28,11 +28,11 @@ export default [
       },
       {
         path: 'processing',
-        name: 'ProcessingManagement',
-        component: () => import('@/views/creation/ProcessingManagement.vue'),
+        name: 'CollectionProcessing',
+        component: () => import('@/views/creation/CollectionProcessing.vue'),
         meta: {
           requiresAuth: true,
-          title: '加工管理'
+          title: '收藏项加工'
         }
       },
       {

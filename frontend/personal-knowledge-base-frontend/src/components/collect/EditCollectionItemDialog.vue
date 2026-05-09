@@ -238,6 +238,7 @@
 
 <script>
 import { collectApi } from '@/api/collect'
+import { createTag } from '@/api/tag'
 
 export default {
   name: 'EditCollectionItemDialog',
@@ -318,6 +319,8 @@ export default {
         const response = await collectApi.getTagList()
         if (response.code === 200) {
           this.availableTags = response.data || []
+          this.initSelectedTags()
+          this.updateTagIds()
         }
       } catch (error) {
         console.error('加载标签失败:', error)
@@ -381,15 +384,37 @@ export default {
       }
     },
     
-    addTag(tagId) {
-      if (!tagId) return
-      
-      const tag = this.availableTags.find(t => t.id === tagId)
-      if (tag && !this.selectedTags.some(t => t.id === tag.id)) {
-        this.selectedTags.push(tag)
-        this.updateTagIds()
+    async addTag(tagValue) {
+      if (!tagValue) return
+
+      const existingTag = this.availableTags.find(tag => tag.id === tagValue)
+      if (existingTag) {
+        if (!this.selectedTags.some(tag => tag.id === existingTag.id)) {
+          this.selectedTags.push(existingTag)
+          this.updateTagIds()
+        }
+        this.newTagInput = ''
+        return
       }
-      this.newTagInput = ''
+
+      try {
+        const response = await createTag({ name: String(tagValue) })
+        if (response.code === 200) {
+          const newTag = response.data
+          if (newTag) {
+            this.availableTags.unshift(newTag)
+            this.selectedTags.push(newTag)
+            this.updateTagIds()
+          }
+        } else {
+          this.$message.error(response.message || '创建标签失败')
+        }
+      } catch (error) {
+        console.error('创建标签失败:', error)
+        this.$message.error('创建标签失败')
+      } finally {
+        this.newTagInput = ''
+      }
     },
     
     removeTag(tag) {

@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * 收藏集控制器
@@ -111,5 +112,13 @@ public class CollectionController {
                                 @RequestParam(defaultValue = "20") Integer pageSize) {
         log.info("用户[{}]获取收藏集[{}]内的收藏项, 页码[{}], 每页[{}]", userId, id, pageNum, pageSize);
         return collectionService.getCollectionItems(userId, id, pageNum, pageSize);
+    }
+
+    @PostMapping("/upload-cover")
+    @Operation(summary = "上传收藏集封面图片", description = "上传收藏集封面图片，返回图片URL")
+    public R uploadCoverImage(@RequestAttribute("userId") Long userId,
+                              @RequestParam("file") MultipartFile file) {
+        log.info("用户[{}]上传收藏集封面图片", userId);
+        return collectionService.uploadCoverImage(userId, file);
     }
 }

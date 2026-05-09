@@ -122,7 +122,15 @@ router.beforeEach(async (to, from, next) => {
         }
       }
 
-      if (!token || !userInfo || userInfo.role !== 'admin') {
+      const isAdminRole = (() => {
+        const role = userInfo?.role
+        const roles = userInfo?.roles
+        if (role === 'admin' || role === 'super_admin') return true
+        if (Array.isArray(roles)) return roles.includes('admin') || roles.includes('super_admin')
+        return false
+      })()
+
+      if (!token || !userInfo || !isAdminRole) {
         localStorage.removeItem('adminToken')
         localStorage.removeItem('adminInfo')
         next({

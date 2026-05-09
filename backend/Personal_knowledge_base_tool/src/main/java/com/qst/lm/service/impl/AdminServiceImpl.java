@@ -12,6 +12,7 @@ import com.qst.lm.exception.BusinessException;
 import com.qst.lm.mapper.*;
 import com.qst.lm.pojo.*;
 import com.qst.lm.service.IAdminService;
+import com.qst.lm.service.IPermissionService;
 import com.qst.lm.service.VerificationCodeService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -40,6 +41,8 @@ public class AdminServiceImpl implements IAdminService {
     private final AdminOperationLogMapper adminOperationLogMapper;
     private final AnnouncementStatisticsMapper announcementStatisticsMapper;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final SysRoleMapper sysRoleMapper;
+    private final IPermissionService permissionService;
 
     public AdminServiceImpl(UserMapper userMapper,
                             CollectionMapper collectionMapper,
@@ -48,7 +51,9 @@ public class AdminServiceImpl implements IAdminService {
                             CollectionItemMapper collectionItemMapper,
                             NotificationMapper notificationMapper,
                             AdminOperationLogMapper adminOperationLogMapper,
-                            AnnouncementStatisticsMapper announcementStatisticsMapper) {
+                            AnnouncementStatisticsMapper announcementStatisticsMapper,
+                            SysRoleMapper sysRoleMapper,
+                            IPermissionService permissionService) {
         this.userMapper = userMapper;
         this.collectionMapper = collectionMapper;
         this.noteMapper = noteMapper;
@@ -58,6 +63,8 @@ public class AdminServiceImpl implements IAdminService {
         this.adminOperationLogMapper = adminOperationLogMapper;
         this.announcementStatisticsMapper = announcementStatisticsMapper;
         this.passwordEncoder = new BCryptPasswordEncoder();
+        this.sysRoleMapper = sysRoleMapper;
+        this.permissionService = permissionService;
     }
 
     @Override
@@ -295,7 +302,7 @@ public class AdminServiceImpl implements IAdminService {
 
         // 公告统计（统计已发布状态的公告）
         LambdaQueryWrapper<Announcement> announcementWrapper = new LambdaQueryWrapper<>();
-        announcementWrapper.eq(Announcement::getStatus, 1); // 1=已发布
+//        announcementWrapper.eq(Announcement::getStatus, 1); // 1=已发布
         long activeAnnouncements = announcementMapper.selectCount(announcementWrapper);
         dashboard.put("activeAnnouncements", activeAnnouncements);
 
@@ -323,9 +330,9 @@ public class AdminServiceImpl implements IAdminService {
             }
         }
 
-        // 角色校验：仅允许 "commonUser" 或 "admin"
-        if (!"commonUser".equals(dto.getRole()) && !"admin".equals(dto.getRole())) {
-            throw new BusinessException("角色值无效，仅允许 commonUser 或 admin");
+        // 角色校验：users.role 作为兼容字段，允许 "commonUser"、"admin" 或 "super_admin"
+        if (!"commonUser".equals(dto.getRole()) && !"admin".equals(dto.getRole()) && !"super_admin".equals(dto.getRole())) {
+            throw new BusinessException("角色值无效，仅允许 commonUser、admin 或 super_admin");
         }
 
         User user = new User();
@@ -335,6 +342,23 @@ public class AdminServiceImpl implements IAdminService {
         user.setNickname(StringUtils.hasText(dto.getNickname()) ? dto.getNickname() : dto.getUsername());
         user.setRole(dto.getRole());
         userMapper.insert(user);
+
+        // 同步写入 RBAC 体系（sys_user_role）
+        Long rbacRoleId;
+        if ("super_admin".equals(dto.getRole())) {
+            SysRole r = sysRoleMapper.selectByRoleCode("super_admin");
+            rbacRoleId = r == null ? null : r.getId();
+        } else if ("admin".equals(dto.getRole())) {
+            SysRole r = sysRoleMapper.selectByRoleCode("admin");
+            rbacRoleId = r == null ? null : r.getId();
+        } else {
+            SysRole r = sysRoleMapper.selectByRoleCode("common_user");
+            rbacRoleId = r == null ? null : r.getId();
+        }
+
+        if (rbacRoleId != null) {
+            permissionService.assignRoleToUser(user.getId(), rbacRoleId);
+        }
 
         user.setPassword(null);
         log.info("后台新增用户[{}]成功，用户名: {}", user.getId(), user.getUsername());
@@ -349,9 +373,9 @@ public class AdminServiceImpl implements IAdminService {
             throw new BusinessException("用户不存在");
         }
 
-        // 角色校验：仅允许 "commonUser" 或 "admin"
-        if (!"commonUser".equals(dto.getRole()) && !"admin".equals(dto.getRole())) {
-            throw new BusinessException("角色值无效，仅允许 commonUser 或 admin");
+        // 角色校验：允许 "commonUser"、"admin" 或 "super_admin"
+        if (!"commonUser".equals(dto.getRole()) && !"admin".equals(dto.getRole()) && !"super_admin".equals(dto.getRole())) {
+            throw new BusinessException("角色值无效，仅允许 commonUser、admin 或 super_admin");
         }
 
         LambdaUpdateWrapper<User> wrapper = new LambdaUpdateWrapper<>();
@@ -363,7 +387,25 @@ public class AdminServiceImpl implements IAdminService {
         wrapper.set(User::getRole, dto.getRole());
 
         userMapper.update(null, wrapper);
-        log.info("后台编辑用户[{}]成功", id);
+        
+        // 同步更新 RBAC 角色
+        Long rbacRoleId;
+        if ("super_admin".equals(dto.getRole())) {
+            SysRole r = sysRoleMapper.selectByRoleCode("super_admin");
+            rbacRoleId = r == null ? null : r.getId();
+        } else if ("admin".equals(dto.getRole())) {
+            SysRole r = sysRoleMapper.selectByRoleCode("admin");
+            rbacRoleId = r == null ? null : r.getId();
+        } else {
+            SysRole r = sysRoleMapper.selectByRoleCode("common_user");
+            rbacRoleId = r == null ? null : r.getId();
+        }
+        
+        if (rbacRoleId != null) {
+            permissionService.assignRoleToUser(id, rbacRoleId);
+        }
+        
+        log.info("后台编辑用户[{}]成功，角色更新为[{}]", id, dto.getRole());
         return R.success("更新用户成功");
     }
 
@@ -425,9 +467,11 @@ public class AdminServiceImpl implements IAdminService {
     @Transactional(rollbackFor = Exception.class)
     public R updateAnnouncement(Long adminId, Long id, AnnouncementDTO dto) {
         Announcement announcement = announcementMapper.selectById(id);
-        if (announcement == null) {
+        if (announcement == null || (announcement.getDeleted() != null && announcement.getDeleted() == 1)) {
             throw new BusinessException("公告不存在");
         }
+
+        Integer originalStatus = announcement.getStatus();
 
         LambdaUpdateWrapper<Announcement> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(Announcement::getId, id);
@@ -451,12 +495,18 @@ public class AdminServiceImpl implements IAdminService {
             wrapper.set(Announcement::getPriority, dto.getPriority());
         }
 
+        if (originalStatus != null && originalStatus == 1) {
+            wrapper.set(Announcement::getStatus, 0);
+        }
+
         announcementMapper.update(null, wrapper);
 
-        // 记录操作日志
         saveOperationLog(adminId, "update_announcement", "announcement", id, "更新公告");
 
         log.info("管理员[{}]更新公告[{}]成功", adminId, id);
+        if (originalStatus != null && originalStatus == 1) {
+            return R.success("更新成功，公告已转为草稿状态，需要重新发布");
+        }
         return R.success("更新公告成功");
     }
 
@@ -476,7 +526,7 @@ public class AdminServiceImpl implements IAdminService {
             throw new BusinessException("管理员ID不能为空");
         }
         Announcement announcement = announcementMapper.selectById(id);
-        if (announcement == null) {
+        if (announcement == null || (announcement.getDeleted() != null && announcement.getDeleted() == 1)) {
             throw new BusinessException("公告不存在");
         }
         if (announcement.getStatus() == 2) {
@@ -496,7 +546,7 @@ public class AdminServiceImpl implements IAdminService {
 
     /**
      * 删除公告（逻辑删除，不可恢复）
-     * <p>将指定ID的公告标记为已删除状态（status=-1），此操作不可逆。</p>
+     * <p>将指定ID的公告标记为逻辑删除（deleted=1），此操作不可逆。</p>
      *
      * @param adminId 执行操作的管理员ID，用于权限验证和操作日志记录
      * @param id      需要删除的公告ID
@@ -513,15 +563,18 @@ public class AdminServiceImpl implements IAdminService {
         if (announcement == null) {
             throw new BusinessException("公告不存在");
         }
+        if (announcement.getDeleted() != null && announcement.getDeleted() == 1) {
+            throw new BusinessException("公告已删除");
+        }
 
         LambdaUpdateWrapper<Announcement> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(Announcement::getId, id)
-                .set(Announcement::getStatus, -1);
+                .set(Announcement::getDeleted, 1);
         announcementMapper.update(null, wrapper);
 
-        saveOperationLog(adminId, "delete_announcement", "announcement", id, "删除公告(不可恢复)");
+        saveOperationLog(adminId, "delete_announcement", "announcement", id, "删除公告(逻辑删除)");
 
-        log.info("管理员[{}]删除公告[{}]成功(不可恢复)", adminId, id);
+        log.info("管理员[{}]删除公告[{}]成功(逻辑删除)", adminId, id);
         return R.success("公告已删除");
     }
 
@@ -552,6 +605,7 @@ public class AdminServiceImpl implements IAdminService {
         if (status != null) {
             wrapper.eq(Announcement::getStatus, status);
         }
+        wrapper.eq(Announcement::getDeleted, 0);
         if (StringUtils.hasText(type)) {
             wrapper.eq(Announcement::getType, type);
         }
@@ -614,7 +668,7 @@ public class AdminServiceImpl implements IAdminService {
     }
 
     @Override
-    public R getContentAuditLogs(Integer pageNum, Integer pageSize, String operationType, String targetType, String startTime, String endTime) {
+    public R getContentAuditLogs(Integer pageNum, Integer pageSize, String operationType, String targetType, String startTime, String endTime, String keyword) {
         if (pageNum == null || pageNum < 1) {
             pageNum = 1;
         }
@@ -634,11 +688,42 @@ public class AdminServiceImpl implements IAdminService {
         if (StringUtils.hasText(targetType)) {
             wrapper.eq(AdminOperationLog::getTargetType, targetType);
         }
+
+        java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         if (StringUtils.hasText(startTime)) {
-            wrapper.ge(AdminOperationLog::getCreatedAt, startTime);
+            try {
+                java.time.LocalDateTime start = java.time.LocalDateTime.parse(startTime, formatter);
+                wrapper.ge(AdminOperationLog::getCreatedAt, start);
+            } catch (Exception ignored) {
+            }
         }
         if (StringUtils.hasText(endTime)) {
-            wrapper.le(AdminOperationLog::getCreatedAt, endTime);
+            try {
+                java.time.LocalDateTime end = java.time.LocalDateTime.parse(endTime, formatter);
+                wrapper.le(AdminOperationLog::getCreatedAt, end);
+            } catch (Exception ignored) {
+            }
+        }
+
+        if (StringUtils.hasText(keyword)) {
+            String trimmed = keyword.trim();
+            boolean isLongNumber = trimmed.matches("\\d+");
+            Long numberValue = null;
+            if (isLongNumber) {
+                try {
+                    numberValue = Long.parseLong(trimmed);
+                } catch (Exception ignored) {
+                }
+            }
+
+            Long finalNumberValue = numberValue;
+            wrapper.and(w -> {
+                w.like(AdminOperationLog::getOperationDetail, trimmed);
+                if (finalNumberValue != null) {
+                    w.or().eq(AdminOperationLog::getTargetId, finalNumberValue)
+                     .or().eq(AdminOperationLog::getAdminId, finalNumberValue);
+                }
+            });
         }
 
         wrapper.orderByDesc(AdminOperationLog::getCreatedAt);
@@ -676,6 +761,30 @@ public class AdminServiceImpl implements IAdminService {
 
         log.info("管理员[{}]发布公告[{}]并推送通知", adminId, announcementId);
         return R.success("公告已发布并推送给所有用户");
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public R republishAnnouncement(Long adminId, Long announcementId) {
+        Announcement announcement = announcementMapper.selectById(announcementId);
+        if (announcement == null || (announcement.getDeleted() != null && announcement.getDeleted() == 1)) {
+            throw new BusinessException("公告不存在");
+        }
+        if (announcement.getStatus() != 2) {
+            throw new BusinessException("只能重新发布已下架的公告");
+        }
+
+        LambdaUpdateWrapper<Announcement> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(Announcement::getId, announcementId)
+                .set(Announcement::getStatus, 1);
+        announcementMapper.update(null, wrapper);
+
+        sendAnnouncementToAllUsers(announcement);
+
+        saveOperationLog(adminId, "republish_announcement", "announcement", announcementId, "重新发布公告");
+
+        log.info("管理员[{}]重新发布公告[{}]并推送通知", adminId, announcementId);
+        return R.success("公告已重新发布并推送给所有用户");
     }
 
     @Override
@@ -1166,11 +1275,17 @@ public class AdminServiceImpl implements IAdminService {
         if (announcement == null) {
             throw new BusinessException("公告不存在");
         }
+        if (announcement.getStatus() != 0) {
+            throw new BusinessException("只能对草稿状态的公告设置定时发布");
+        }
+        if (scheduledAt.isBefore(LocalDateTime.now())) {
+            throw new BusinessException("定时发布时间必须晚于当前时间");
+        }
 
-        // 更新公告为定时发布状态，并记录定时时间
         LambdaUpdateWrapper<Announcement> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(Announcement::getId, announcementId)
-                .set(Announcement::getStatus, 4); // 4=待定时发布
+                .set(Announcement::getStatus, 4)
+                .set(Announcement::getScheduledAt, scheduledAt);
         announcementMapper.update(null, wrapper);
 
         saveOperationLog(adminId, "schedule_announcement", "announcement", announcementId,
@@ -1178,6 +1293,49 @@ public class AdminServiceImpl implements IAdminService {
 
         log.info("管理员[{}]设置公告[{}]定时发布，时间：{}", adminId, announcementId, scheduledAt);
         return R.success("定时发布设置成功");
+    }
+
+    @Override
+    public R getScheduleList() {
+        LambdaQueryWrapper<Announcement> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Announcement::getStatus, 4)
+                .eq(Announcement::getDeleted, 0)
+                .orderByAsc(Announcement::getScheduledAt);
+        
+        List<Announcement> schedules = announcementMapper.selectList(wrapper);
+        
+        List<Map<String, Object>> result = schedules.stream().map(announcement -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", announcement.getId());
+            map.put("announcementTitle", announcement.getTitle());
+            map.put("scheduledAt", announcement.getScheduledAt());
+            return map;
+        }).collect(java.util.stream.Collectors.toList());
+        
+        return R.success(result);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public R cancelSchedule(Long adminId, Long scheduleId) {
+        Announcement announcement = announcementMapper.selectById(scheduleId);
+        if (announcement == null || (announcement.getDeleted() != null && announcement.getDeleted() == 1)) {
+            throw new BusinessException("公告不存在");
+        }
+        if (announcement.getStatus() != 4) {
+            throw new BusinessException("只能取消待定时发布的公告");
+        }
+
+        LambdaUpdateWrapper<Announcement> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(Announcement::getId, scheduleId)
+                .set(Announcement::getStatus, 0)
+                .set(Announcement::getScheduledAt, null);
+        announcementMapper.update(null, wrapper);
+
+        saveOperationLog(adminId, "cancel_schedule", "announcement", scheduleId, "取消定时发布");
+
+        log.info("管理员[{}]取消公告[{}]的定时发布", adminId, scheduleId);
+        return R.success("已取消定时发布");
     }
 
     @Override
@@ -1236,6 +1394,22 @@ public class AdminServiceImpl implements IAdminService {
         result.put("content", content);
         result.put("type", type);
         return R.success("模板创建成功", result);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public R updateAnnouncementTemplate(Long adminId, Long templateId, String name, String content, String type) {
+        if (!StringUtils.hasText(name) || !StringUtils.hasText(content)) {
+            throw new BusinessException("模板名称和内容不能为空");
+        }
+
+        log.info("管理员[{}]更新公告模板[{}]", adminId, templateId);
+        Map<String, Object> result = new HashMap<>();
+        result.put("id", templateId);
+        result.put("name", name);
+        result.put("content", content);
+        result.put("type", type);
+        return R.success("模板更新成功", result);
     }
 
     @Override

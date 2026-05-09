@@ -45,6 +45,17 @@ export const collectApi = {
     return getCategoryList();
   },
 
+  getTags() {
+    return request({
+      url: '/tags/list',
+      method: 'get'
+    });
+  },
+
+  getTagList() {
+    return this.getTags();
+  },
+
   createCollect(data) {
     return request({
       url: '/collect/add-collect',
@@ -187,6 +198,14 @@ export const collectApi = {
     });
   },
 
+  batchMoveItems(ids, targetCollectionId) {
+    return request({
+      url: '/collect/batch/move',
+      method: 'post',
+      data: { ids, targetCollectionId }
+    });
+  },
+
   importPreview(payload) {
     const data = typeof payload === 'string' ? { htmlContent: payload } : payload
     return request({
@@ -217,7 +236,37 @@ export const collectApi = {
       url: `/collect/${id}/remind`,
       method: 'delete'
     });
+  },
+
+  getRelatedNotes(id) {
+    return request({
+      url: `/collect/${id}/notes`,
+      method: 'get'
+    });
+  },
+
+  setCategory(id, categoryId) {
+    return request({
+      url: `/collect/${id}/category`,
+      method: 'put',
+      data: { categoryId }
+    });
+  },
+
+  batchSetCategory(ids, categoryId) {
+    return request({
+      url: '/collect/batch/category',
+      method: 'post',
+      data: { ids, categoryId }
+    });
   }
+};
+
+export const getPublicCollectionItem = (id) => {
+  return request({
+    url: `/collect/public/${id}`,
+    method: 'get'
+  });
 };
 
 export default collectApi;

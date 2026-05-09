@@ -3,6 +3,7 @@ package com.qst.lm.service;
 import com.qst.lm.common.R;
 import com.qst.lm.dto.collection.CollectionDTO;
 import com.qst.lm.dto.collection.CollectionQueryDTO;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * 收藏集服务接口
@@ -83,4 +84,13 @@ public interface ICollectionService {
      * @return 收藏项列表
      */
     R getCollectionItems(Long userId, Long collectionId, Integer page, Integer size);
+
+    /**
+     * 上传收藏集封面图片
+     *
+     * @param userId 用户ID
+     * @param file   图片文件
+     * @return 图片URL
+     */
+    R uploadCoverImage(Long userId, MultipartFile file);
 }

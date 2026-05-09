@@ -1,6 +1,6 @@
 <template>
   <div class="collection-grid-view">
-    <!-- 空状态提�?-->
+    <!-- 空状态提示-->
     <div v-if="collections.length === 0" class="empty-state">
       <i class="fas fa-inbox"></i>
       <p>还没有创建收藏集</p>
@@ -10,7 +10,7 @@
       </el-button>
     </div>
 
-    <!-- 收藏集网�?-->
+    <!-- 收藏集网格-->
     <div v-else class="grid-container">
       <collection-card
         v-for="collection in collections"
@@ -34,20 +34,20 @@ import CollectionCard from './CollectionCard.vue';
 
 /**
  * CollectionGridView 组件
- * 功能：网格布局展示多个收藏集卡�?
- * 
+ * 功能：网格布局展示多个收藏集卡�?
+ *
  * Props:
- *   - collections: Array - 收藏集列�?
+ *   - collections: Array - 收藏集列�?
  *   - selectedCollections: Array - 选中的收藏集ID列表
  *   - showSelectionMode: Boolean - 是否显示选择模式
- * 
+ *
  * Emits:
  *   - create-collection: 创建新收藏集
  *   - collection-click: 收藏集卡片被点击
  *   - show-context-menu: 右键菜单
- *   - edit-collection: 编辑收藏�?
- *   - delete-collection: 删除收藏�?
- *   - toggle-selection: 切换选中状�?
+ *   - edit-collection: 编辑收藏�?
+ *   - delete-collection: 删除收藏�?
+ *   - toggle-selection: 切换选中状�?
  */
 export default {
   name: 'CollectionGridView',
@@ -95,7 +95,7 @@ export default {
   margin: 0;
 }
 
-/* 空状�?*/
+/* 空状�?*/
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -118,7 +118,7 @@ export default {
   margin-bottom: 24px;
 }
 
-/* 响应式设�?*/
+/* 响应式设�?*/
 @media (max-width: 1200px) {
   .grid-container {
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));

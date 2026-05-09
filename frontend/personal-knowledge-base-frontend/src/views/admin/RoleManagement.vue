@@ -175,7 +175,11 @@ export default {
       try {
         const response = await permissionApi.getPermissionTree()
         if (response.code === 200) {
-          this.permissionTree = response.data || []
+          const tree = response.data || []
+          this.permissionTree = tree.map(node => ({
+            ...node,
+            id: node.id || `module-${node.permissionCode || node.permissionName || Math.random()}`
+          }))
         }
       } catch (error) {
         console.error('获取权限树失败:', error)
@@ -229,13 +233,11 @@ export default {
         let response
         if (this.isEdit) {
           response = await roleManageApi.updateRole(this.editRoleId, {
-            ...this.roleForm,
-            permissionIds: []
+            ...this.roleForm
           })
         } else {
           response = await roleManageApi.createRole({
-            ...this.roleForm,
-            permissionIds: []
+            ...this.roleForm
           })
         }
 
@@ -303,10 +305,15 @@ export default {
       const halfCheckedKeys = this.$refs.permissionTree.getHalfCheckedKeys()
       const allCheckedKeys = [...checkedKeys, ...halfCheckedKeys]
 
+      const permissionIds = allCheckedKeys
+        .map(k => String(k))
+        .filter(k => /^\d+$/.test(k))
+        .map(k => Number(k))
+
       this.submitting = true
       try {
         const response = await roleManageApi.assignPermissions(this.currentRoleId, {
-          permissionIds: allCheckedKeys
+          permissionIds
         })
 
         if (response.code === 200) {

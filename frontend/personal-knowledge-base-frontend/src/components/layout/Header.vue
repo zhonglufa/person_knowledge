@@ -460,6 +460,11 @@ export default {
     },
     handleRegister() {
       this.$router.push('/login?tab=register');
+    },
+    handleWindowFocus() {
+      if (this.isLoggedIn) {
+        this.fetchNotificationCount();
+      }
     }
   },
   mounted() {
@@ -471,11 +476,13 @@ export default {
       if (this.isLoggedIn) {
         this.fetchNotificationCount();
       }
-    }, 60000);
+    }, 10000);
     window.addEventListener('resize', this.handleResize);
+    window.addEventListener('focus', this.handleWindowFocus);
   },
   beforeDestroy() {
     window.removeEventListener('resize', this.handleResize);
+    window.removeEventListener('focus', this.handleWindowFocus);
     if (this.notificationTimer) {
       clearInterval(this.notificationTimer);
       this.notificationTimer = null;

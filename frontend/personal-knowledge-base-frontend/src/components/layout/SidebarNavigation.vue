@@ -119,6 +119,7 @@
             v-for="stat in statsConfig.items"
             :key="stat.key"
             class="stat-item"
+            @click="handleStatClick(stat)"
           >
             <div class="stat-value">{{ getStatValue(stat.key) }}</div>
             <div class="stat-label">{{ stat.label }}</div>
@@ -366,6 +367,9 @@ export default {
     // 处理菜单项点击
     handleMenuItemClick(item) {
       this.$emit('sidebar-item-click', item);
+    },
+    handleStatClick(stat) {
+      this.$emit('stat-item-click', stat);
     }
   }
 }

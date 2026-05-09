@@ -158,9 +158,13 @@
           <el-table-column prop="updateTime" label="更新时间" width="160" align="center">
             <template slot-scope="scope">{{ formatDate(scope.row.updateTime) }}</template>
           </el-table-column>
-          <el-table-column label="操作" width="180" align="center">
+          <el-table-column label="操作" width="240" align="center">
             <template slot-scope="scope">
+              <el-button type="text" size="small" @click.stop="handleViewNote(scope.row)">查看</el-button>
               <el-button type="text" size="small" @click.stop="handleEditNote(scope.row)">{{ getNoteStage(scope.row) === 'draft' ? '继续编辑' : '编辑' }}</el-button>
+              <el-button type="text" size="small" @click.stop="handleTogglePublic(scope.row)">
+                {{ scope.row.isPublic ? '设为私有' : '设为公开' }}
+              </el-button>
               <el-button type="text" size="small" class="text-danger" @click.stop="handleDeleteNote(scope.row)">删除</el-button>
             </template>
           </el-table-column>

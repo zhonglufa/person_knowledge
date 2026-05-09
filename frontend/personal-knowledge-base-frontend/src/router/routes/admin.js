@@ -77,7 +77,7 @@ export const adminRoutes = [
           title: '角色管理',
           requiresAuth: true,
           isAdmin: true,
-          permission: 'user:view'
+          permission: 'role:view'
         }
       },
       {
@@ -88,7 +88,7 @@ export const adminRoutes = [
           title: '权限管理',
           requiresAuth: true,
           isAdmin: true,
-          permission: 'user:view'
+          permission: 'permission:view'
         }
       }
     ]

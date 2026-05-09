@@ -32,10 +32,26 @@ public class NoteServiceImpl implements INoteService {
 
     private final NoteMapper noteMapper;
     private final NoteCollectRelationMapper noteCollectRelationMapper;
+    private final com.qst.lm.mapper.CollectionItemMapper collectionItemMapper;
 
-    public NoteServiceImpl(NoteMapper noteMapper, NoteCollectRelationMapper noteCollectRelationMapper) {
+    public NoteServiceImpl(NoteMapper noteMapper, 
+                          NoteCollectRelationMapper noteCollectRelationMapper,
+                          com.qst.lm.mapper.CollectionItemMapper collectionItemMapper) {
         this.noteMapper = noteMapper;
         this.noteCollectRelationMapper = noteCollectRelationMapper;
+        this.collectionItemMapper = collectionItemMapper;
+    }
+
+    private void validatePublicDraftRule(String status, Integer isPublic) {
+        if ("草稿".equals(status) && Integer.valueOf(1).equals(isPublic)) {
+            throw new BusinessException("草稿状态仅允许私密，需先发布才可公开");
+        }
+    }
+
+    private boolean isVisiblePublicNote(Note note) {
+        return note != null
+                && Integer.valueOf(1).equals(note.getIsPublic())
+                && "完成".equals(note.getStatus());
     }
 
     @Override
@@ -51,6 +67,7 @@ public class NoteServiceImpl implements INoteService {
         note.setIsPublic(dto.getIsPublic() != null ? dto.getIsPublic() : 0);
         // 如果status为null，默认设为"草稿"
         note.setStatus(dto.getStatus() != null ? dto.getStatus() : "草稿");
+        validatePublicDraftRule(note.getStatus(), note.getIsPublic());
 
         noteMapper.insert(note);
 
@@ -59,6 +76,7 @@ public class NoteServiceImpl implements INoteService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public R updateNote(Long userId, Long id, NoteDTO dto) {
         Note note = noteMapper.selectById(id);
         if (note == null || !note.getUserId().equals(userId)) {
@@ -79,21 +97,43 @@ public class NoteServiceImpl implements INoteService {
         if (dto.getStatus() != null) {
             note.setStatus(dto.getStatus());
         }
+        validatePublicDraftRule(note.getStatus(), note.getIsPublic());
 
         noteMapper.updateById(note);
+
+        if (note.getCollectionItemId() != null && "完成".equals(note.getStatus())) {
+            try {
+                updateCollectionItemStatistics(note.getCollectionItemId());
+            } catch (Exception e) {
+                log.error("更新收藏项统计失败", e);
+            }
+        }
 
         log.info("用户[{}]更新笔记[{}]成功", userId, id);
         return R.success("更新笔记成功", note);
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public R deleteNote(Long userId, Long id) {
         Note note = noteMapper.selectById(id);
         if (note == null || !note.getUserId().equals(userId)) {
             throw new BusinessException("笔记不存在");
         }
 
-        noteMapper.deleteById(id);
+        Long collectionItemId = note.getCollectionItemId();
+
+        note.setDeleted(1);
+        noteMapper.updateById(note);
+
+        if (collectionItemId != null) {
+            try {
+                updateCollectionItemStatistics(collectionItemId);
+                log.info("笔记[{}]删除成功，已触发收藏项[{}]统计更新", id, collectionItemId);
+            } catch (Exception e) {
+                log.error("更新收藏项统计失败", e);
+            }
+        }
 
         log.info("用户[{}]删除笔记[{}]成功", userId, id);
         return R.success("删除笔记成功");
@@ -131,8 +171,8 @@ public class NoteServiceImpl implements INoteService {
         if (note == null) {
             throw new BusinessException("笔记不存在");
         }
-        // 如果不是自己的笔记，需要是公开的才能查看
-        if (!note.getUserId().equals(userId) && (note.getIsPublic() == null || note.getIsPublic() != 1)) {
+        // 如果不是自己的笔记，需要是公开完成状态才能查看
+        if (!note.getUserId().equals(userId) && !isVisiblePublicNote(note)) {
             throw new BusinessException("笔记不存在");
         }
         
@@ -143,6 +183,18 @@ public class NoteServiceImpl implements INoteService {
     }
 
     @Override
+    public R getPublicNoteDetail(Long id) {
+        Note note = noteMapper.selectById(id);
+        if (!isVisiblePublicNote(note)) {
+            throw new BusinessException("笔记不存在");
+        }
+
+        incrementNoteViews(note);
+        return R.success(note);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public R publishNote(Long userId, Long id) {
         Note note = noteMapper.selectById(id);
         if (note == null || !note.getUserId().equals(userId)) {
@@ -151,16 +203,45 @@ public class NoteServiceImpl implements INoteService {
 
         note.setStatus("完成");
         note.setFinishedAt(LocalDateTime.now());
+        
+        int qualityScore = calculateNoteQuality(note);
+        note.setNoteQualityScore(qualityScore);
+        
         noteMapper.updateById(note);
 
-        log.info("用户[{}]发布笔记[{}]成功", userId, id);
+        if (note.getCollectionItemId() != null) {
+            updateCollectionItemAfterNotePublish(note.getCollectionItemId(), qualityScore);
+        }
+
+        log.info("用户[{}]发布笔记[{}]成功，质量评分[{}]", userId, id, qualityScore);
         return R.success("发布笔记成功", note);
     }
 
     @Override
     public R saveDraft(Long userId, NoteDTO dto) {
-        Note note = new Note();
-        note.setUserId(userId);
+        Note note = null;
+        boolean isUpdate = false;
+
+        if (dto.getCollectionItemId() != null) {
+            LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(Note::getUserId, userId)
+                    .eq(Note::getCollectionItemId, dto.getCollectionItemId())
+                    .eq(Note::getStatus, "草稿")
+                    .orderByDesc(Note::getUpdateTime)
+                    .last("LIMIT 1");
+            note = noteMapper.selectOne(wrapper);
+            
+            if (note != null) {
+                isUpdate = true;
+            }
+        }
+
+        if (note == null) {
+            note = new Note();
+            note.setUserId(userId);
+            note.setStatus("草稿");
+        }
+
         note.setTitle(dto.getTitle());
         note.setContent(dto.getContent());
         note.setNoteType(dto.getNoteType() != null ? dto.getNoteType() : "conceptual");
@@ -168,11 +249,17 @@ public class NoteServiceImpl implements INoteService {
         note.setCoverImage(dto.getCoverImage());
         note.setCollectionItemId(dto.getCollectionItemId());
         note.setIsPublic(dto.getIsPublic() != null ? dto.getIsPublic() : 0);
-        note.setStatus("草稿");
+        
+        validatePublicDraftRule(note.getStatus(), note.getIsPublic());
 
-        noteMapper.insert(note);
+        if (isUpdate) {
+            noteMapper.updateById(note);
+            log.info("用户[{}]更新草稿[{}]成功", userId, note.getId());
+        } else {
+            noteMapper.insert(note);
+            log.info("用户[{}]创建草稿[{}]成功", userId, note.getId());
+        }
 
-        log.info("用户[{}]保存草稿[{}]成功", userId, note.getId());
         return R.success("保存草稿成功", note);
     }
 
@@ -180,8 +267,8 @@ public class NoteServiceImpl implements INoteService {
     public R getPublicNotes(NoteQueryDTO query) {
         Page<Note> page = new Page<>(query.getPageNum(), query.getPageSize());
         LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
-        // 只查询公开且未删除的笔记
-        wrapper.eq(Note::getIsPublic, 1);
+        wrapper.eq(Note::getIsPublic, 1)
+                .eq(Note::getStatus, "完成");
 
         if (StringUtils.hasText(query.getNoteType())) {
             wrapper.eq(Note::getNoteType, query.getNoteType());
@@ -200,13 +287,12 @@ public class NoteServiceImpl implements INoteService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public R collectNote(Long userId, Long noteId) {
-        // 校验笔记存在且是公开的
         Note note = noteMapper.selectById(noteId);
         if (note == null) {
             throw new BusinessException("笔记不存在");
         }
-        if (note.getIsPublic() == null || note.getIsPublic() != 1) {
-            throw new BusinessException("该笔记不是公开笔记，无法收藏");
+        if (!isVisiblePublicNote(note)) {
+            throw new BusinessException("该笔记未公开发布，无法收藏");
         }
 
         // 校验是否已收藏
@@ -421,5 +507,98 @@ public class NoteServiceImpl implements INoteService {
         
         double hotScore = (views * 0.6) + (likes * 0.4);
         note.setHotScore(hotScore);
+    }
+
+    private int calculateNoteQuality(Note note) {
+        int score = 0;
+        String content = note.getContent() != null ? note.getContent() : "";
+        
+        if (content.length() > 500) score += 20;
+        if (content.length() > 1000) score += 20;
+        
+        if (content.contains("##") || content.contains("# ")) score += 15;
+        
+        if (note.getDescription() != null && !note.getDescription().isEmpty()) score += 15;
+        
+        if (note.getCoverImage() != null && !note.getCoverImage().isEmpty()) score += 10;
+        
+        score += 20;
+        
+        return Math.min(score, 100);
+    }
+
+    private void updateCollectionItemAfterNotePublish(Long collectionItemId, int qualityScore) {
+        try {
+            com.qst.lm.pojo.CollectionItem item = collectionItemMapper.selectById(collectionItemId);
+            if (item == null) {
+                log.warn("收藏项[{}]不存在，跳过闭环更新", collectionItemId);
+                return;
+            }
+            
+            Integer currentNoteCount = item.getNoteCount() != null ? item.getNoteCount() : 0;
+            item.setNoteCount(currentNoteCount + 1);
+            item.setLastNoteTime(LocalDateTime.now());
+            item.setNoteQualityScore(qualityScore);
+            
+            if (qualityScore >= 60) {
+                item.setDigestStatus("digested");
+            } else if (qualityScore >= 30) {
+                item.setDigestStatus("digesting");
+            }
+            
+            collectionItemMapper.updateById(item);
+            
+            log.info("收藏项[{}]闭环更新成功: 笔记数[{}], 质量评分[{}], 消化状态[{}]", 
+                    collectionItemId, item.getNoteCount(), qualityScore, item.getDigestStatus());
+        } catch (Exception e) {
+            log.error("更新收藏项[{}]闭环信息失败", collectionItemId, e);
+        }
+    }
+
+    private void updateCollectionItemStatistics(Long collectionItemId) {
+        try {
+            com.qst.lm.pojo.CollectionItem item = collectionItemMapper.selectById(collectionItemId);
+            if (item == null) {
+                log.warn("收藏项[{}]不存在，跳过统计更新", collectionItemId);
+                return;
+            }
+            
+            LambdaQueryWrapper<Note> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(Note::getCollectionItemId, collectionItemId)
+                   .eq(Note::getDeleted, 0);
+            
+            List<Note> notes = noteMapper.selectList(wrapper);
+            
+            int noteCount = notes.size();
+            LocalDateTime lastNoteTime = notes.stream()
+                .map(Note::getUpdateTime)
+                .max(LocalDateTime::compareTo)
+                .orElse(null);
+            
+            int avgQualityScore = (int) notes.stream()
+                .mapToInt(this::calculateNoteQuality)
+                .average()
+                .orElse(0.0);
+            
+            boolean hasPublishedNote = notes.stream()
+                .anyMatch(n -> "完成".equals(n.getStatus()));
+            
+            item.setNoteCount(noteCount);
+            item.setLastNoteTime(lastNoteTime);
+            item.setNoteQualityScore(avgQualityScore);
+            
+            if (hasPublishedNote && !"digested".equals(item.getDigestStatus())) {
+                item.setDigestStatus("digested");
+            } else if (noteCount == 0 && "digested".equals(item.getDigestStatus())) {
+                item.setDigestStatus("undigest");
+            }
+            
+            collectionItemMapper.updateById(item);
+            
+            log.info("更新收藏项[{}]统计: noteCount={}, lastNoteTime={}, qualityScore={}", 
+                     collectionItemId, noteCount, lastNoteTime, avgQualityScore);
+        } catch (Exception e) {
+            log.error("更新收藏项[{}]统计失败", collectionItemId, e);
+        }
     }
 }

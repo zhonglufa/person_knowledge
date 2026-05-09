@@ -9,7 +9,8 @@ import lombok.NoArgsConstructor;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Set;
+
+import com.qst.lm.pojo.Tag;
 
 
 /**
@@ -147,10 +148,54 @@ public class CollectionItem extends BasePojo implements Serializable {
     @TableField("remind_at")
     private LocalDateTime remindAt;
 
+    @TableField("remind_triggered")
+    private Integer remindTriggered = 0;
+
     /**
      * 是否公开: 0=私密, 1=公开
      */
     @TableField("is_public")
     private Integer isPublic;
+
+    /**
+     * 标签列表
+     */
+    @TableField(exist = false)
+    private List<Tag> tags;
+
+    /**
+     * 标签ID列表
+     */
+    @TableField(exist = false)
+    private List<Long> tagIds;
+
+    /**
+     * 关联笔记数量（闭环字段）
+     */
+    @TableField("note_count")
+    private Integer noteCount = 0;
+
+    /**
+     * 最后笔记创建时间（闭环字段）
+     */
+    @TableField("last_note_time")
+    private LocalDateTime lastNoteTime;
+
+    /**
+     * 笔记质量评分 0-100（闭环字段）
+     */
+    @TableField("note_quality_score")
+    private Integer noteQualityScore = 0;
+
+    /**
+     * 关联笔记列表
+     */
+    @TableField(exist = false)
+    private List<Note> relatedNotes;
+    /**
+     * 收藏项的中收藏集
+     */
+    @TableField(exist = false)
+    private String collectionName;
 
 }

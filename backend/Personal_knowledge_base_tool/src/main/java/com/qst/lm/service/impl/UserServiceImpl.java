@@ -12,6 +12,8 @@ import com.qst.lm.dto.settings.UserSettingsDTO;
 import com.qst.lm.exception.BusinessException;
 import com.qst.lm.mapper.*;
 import com.qst.lm.pojo.*;
+import com.qst.lm.pojo.SysRole;
+import com.qst.lm.service.IPermissionService;
 import com.qst.lm.service.IUserService;
 import com.qst.lm.service.TokenBlacklistService;
 import com.qst.lm.service.VerificationCodeService;
@@ -27,6 +29,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -46,8 +49,11 @@ public class UserServiceImpl implements IUserService {
     private final UserSettingsMapper userSettingsMapper;
     private final ObjectMapper objectMapper;
     private final CategoryMapper categoryMapper;
+    private final TagMapper tagMapper;
     private final RedisTemplate<String, Object> redisTemplate;
     private final TokenBlacklistService tokenBlacklistService;
+    private final IPermissionService permissionService;
+    private final SysRoleMapper sysRoleMapper;
 
     public UserServiceImpl(UserMapper userMapper,
                            CollectionMapper collectionMapper,
@@ -59,8 +65,11 @@ public class UserServiceImpl implements IUserService {
                            JwtUtils jwtUtils,
                            UserSettingsMapper userSettingsMapper,
                            CategoryMapper categoryMapper,
+                           TagMapper tagMapper,
                            RedisTemplate<String, Object> redisTemplate,
-                           TokenBlacklistService tokenBlacklistService) {
+                           TokenBlacklistService tokenBlacklistService,
+                           IPermissionService permissionService,
+                           SysRoleMapper sysRoleMapper) {
         this.userMapper = userMapper;
         this.collectionMapper = collectionMapper;
         this.collectionItemMapper = collectionItemMapper;
@@ -73,8 +82,11 @@ public class UserServiceImpl implements IUserService {
         this.userSettingsMapper = userSettingsMapper;
         this.objectMapper = new ObjectMapper();
         this.categoryMapper = categoryMapper;
+        this.tagMapper = tagMapper;
         this.redisTemplate = redisTemplate;
         this.tokenBlacklistService = tokenBlacklistService;
+        this.permissionService = permissionService;
+        this.sysRoleMapper = sysRoleMapper;
     }
 
     @Override
@@ -126,8 +138,42 @@ public class UserServiceImpl implements IUserService {
 
         Map<String, Object> loginData = new HashMap<>(2);
         loginData.put("token", token);
+
         user.setPassword(null);
-        loginData.put("userInfo", user);
+
+        Map<String, Object> userInfo = new HashMap<>();
+        userInfo.put("id", user.getId());
+        userInfo.put("username", user.getUsername());
+        userInfo.put("email", user.getEmail());
+        userInfo.put("phone", user.getPhone());
+        userInfo.put("nickname", user.getNickname());
+        userInfo.put("avatar", user.getAvatar());
+        userInfo.put("gender", user.getGender());
+        userInfo.put("bio", user.getBio());
+        userInfo.put("expertise", user.getExpertise());
+        userInfo.put("createdAt", user.getCreatedAt());
+        userInfo.put("updatedAt", user.getUpdatedAt());
+        userInfo.put("deleted", user.getDeleted());
+        userInfo.put("collectionCount", user.getCollectionCount());
+        userInfo.put("collectionItemCount", user.getCollectionItemCount());
+        userInfo.put("noteCount", user.getNoteCount());
+        userInfo.put("unreadNotifyCount", user.getUnreadNotifyCount());
+        userInfo.put("lastLoginAt", user.getLastLoginAt());
+        userInfo.put("tokenVersion", user.getTokenVersion());
+        userInfo.put("status", user.getStatus());
+
+        userInfo.put("role", user.getRole());
+        List<String> userRoles = permissionService.getUserRoles(user.getId()).stream().map(SysRole::getRoleCode).toList();
+        if (userRoles.isEmpty() && StringUtils.hasText(user.getRole())) {
+            SysRole fallbackRole = sysRoleMapper.selectByRoleCode("commonUser".equals(user.getRole()) ? "common_user" : user.getRole());
+            if (fallbackRole != null) {
+                userRoles = java.util.List.of(fallbackRole.getRoleCode());
+            }
+        }
+        userInfo.put("roles", userRoles);
+        userInfo.put("permissions", permissionService.getUserPermissionCodes(user.getId()));
+
+        loginData.put("userInfo", userInfo);
         log.info("用户[{}]登录成功", user.getId());
         return R.success("登录成功", loginData);
     }
@@ -194,7 +240,39 @@ public class UserServiceImpl implements IUserService {
             throw new BusinessException("用户不存在");
         }
         user.setPassword(null);
-        return R.success(user);
+
+        Map<String, Object> userInfo = new HashMap<>();
+        userInfo.put("id", user.getId());
+        userInfo.put("username", user.getUsername());
+        userInfo.put("email", user.getEmail());
+        userInfo.put("phone", user.getPhone());
+        userInfo.put("nickname", user.getNickname());
+        userInfo.put("avatar", user.getAvatar());
+        userInfo.put("gender", user.getGender());
+        userInfo.put("bio", user.getBio());
+        userInfo.put("expertise", user.getExpertise());
+        userInfo.put("createdAt", user.getCreatedAt());
+        userInfo.put("updatedAt", user.getUpdatedAt());
+        userInfo.put("deleted", user.getDeleted());
+        userInfo.put("collectionCount", user.getCollectionCount());
+        userInfo.put("collectionItemCount", user.getCollectionItemCount());
+        userInfo.put("noteCount", user.getNoteCount());
+        userInfo.put("unreadNotifyCount", user.getUnreadNotifyCount());
+        userInfo.put("lastLoginAt", user.getLastLoginAt());
+        userInfo.put("tokenVersion", user.getTokenVersion());
+        userInfo.put("status", user.getStatus());
+        userInfo.put("role", user.getRole());
+        List<String> userRoles = permissionService.getUserRoles(user.getId()).stream().map(SysRole::getRoleCode).toList();
+        if (userRoles.isEmpty() && StringUtils.hasText(user.getRole())) {
+            SysRole fallbackRole = sysRoleMapper.selectByRoleCode("commonUser".equals(user.getRole()) ? "common_user" : user.getRole());
+            if (fallbackRole != null) {
+                userRoles = java.util.List.of(fallbackRole.getRoleCode());
+            }
+        }
+        userInfo.put("roles", userRoles);
+        userInfo.put("permissions", permissionService.getUserPermissionCodes(user.getId()));
+
+        return R.success(userInfo);
     }
 
     @Override
@@ -305,12 +383,13 @@ public class UserServiceImpl implements IUserService {
 
     @Override
     public R getStatistics(Long userId) {
-        Map<String, Object> stats = new HashMap<>(8);
+        Map<String, Object> stats = new HashMap<>(16);
 
         LambdaQueryWrapper<Collection> collWrapper = new LambdaQueryWrapper<>();
         collWrapper.eq(Collection::getUserId, userId);
         Long collectionCount = collectionMapper.selectCount(collWrapper);
         stats.put("collectionCount", collectionCount);
+        stats.put("totalCollections", collectionCount);
 
         LambdaQueryWrapper<CollectionItem> itemWrapper = new LambdaQueryWrapper<>();
         itemWrapper.eq(CollectionItem::getUserId, userId);
@@ -321,6 +400,13 @@ public class UserServiceImpl implements IUserService {
         noteWrapper.eq(Note::getUserId, userId);
         Long noteCount = noteMapper.selectCount(noteWrapper);
         stats.put("noteCount", noteCount);
+        stats.put("totalNotes", noteCount);
+        
+        LambdaQueryWrapper<Note> publicNoteWrapper = new LambdaQueryWrapper<>();
+        publicNoteWrapper.eq(Note::getUserId, userId)
+                .eq(Note::getIsPublic, 1);
+        Long publicContent = noteMapper.selectCount(publicNoteWrapper);
+        stats.put("publicContent", publicContent);
 
         LambdaQueryWrapper<Notification> notifyWrapper = new LambdaQueryWrapper<>();
         notifyWrapper.eq(Notification::getUserId, userId)
@@ -337,6 +423,163 @@ public class UserServiceImpl implements IUserService {
             digestStats.put(status, count);
         }
         stats.put("digestStats", digestStats);
+        
+        Long processingItems = digestStats.getOrDefault("digesting", 0L);
+        stats.put("processingItems", processingItems);
+        
+        LambdaQueryWrapper<Tag> tagWrapper = new LambdaQueryWrapper<>();
+        tagWrapper.eq(Tag::getUserId, userId);
+        Long tagCount = tagMapper.selectCount(tagWrapper);
+        stats.put("totalTags", tagCount);
+        
+        LambdaQueryWrapper<Note> originalWrapper = new LambdaQueryWrapper<>();
+        originalWrapper.eq(Note::getUserId, userId)
+                .eq(Note::getNoteType, "conceptual");
+        Long noteOriginal = noteMapper.selectCount(originalWrapper);
+        
+        LambdaQueryWrapper<Note> summaryWrapper = new LambdaQueryWrapper<>();
+        summaryWrapper.eq(Note::getUserId, userId)
+                .eq(Note::getNoteType, "procedural");
+        Long noteSummary = noteMapper.selectCount(summaryWrapper);
+        
+        LambdaQueryWrapper<Note> normalWrapper = new LambdaQueryWrapper<>();
+        normalWrapper.eq(Note::getUserId, userId)
+                .in(Note::getNoteType, "factual", "metacognitive");
+        Long noteNormal = noteMapper.selectCount(normalWrapper);
+        
+        stats.put("noteOriginal", noteOriginal);
+        stats.put("noteSummary", noteSummary);
+        stats.put("noteNormal", noteNormal);
+        
+        java.time.LocalDate today = java.time.LocalDate.now();
+        java.time.LocalDateTime todayStart = today.atStartOfDay();
+        java.time.LocalDateTime weekStart = today.minusDays(7).atStartOfDay();
+        java.time.LocalDateTime monthStart = today.minusDays(30).atStartOfDay();
+        java.time.LocalDateTime lastWeekStart = today.minusDays(14).atStartOfDay();
+        
+        LambdaQueryWrapper<CollectionItem> todayWrapper = new LambdaQueryWrapper<>();
+        todayWrapper.eq(CollectionItem::getUserId, userId)
+                .ge(CollectionItem::getCreatedAt, todayStart);
+        Long todayNew = collectionItemMapper.selectCount(todayWrapper);
+        stats.put("todayNew", todayNew);
+        
+        LambdaQueryWrapper<CollectionItem> weekWrapper = new LambdaQueryWrapper<>();
+        weekWrapper.eq(CollectionItem::getUserId, userId)
+                .ge(CollectionItem::getCreatedAt, weekStart);
+        Long weekNew = collectionItemMapper.selectCount(weekWrapper);
+        stats.put("weekNew", weekNew);
+        
+        LambdaQueryWrapper<CollectionItem> lastWeekWrapper = new LambdaQueryWrapper<>();
+        lastWeekWrapper.eq(CollectionItem::getUserId, userId)
+                .ge(CollectionItem::getCreatedAt, lastWeekStart)
+                .lt(CollectionItem::getCreatedAt, weekStart);
+        Long lastWeekNew = collectionItemMapper.selectCount(lastWeekWrapper);
+        
+        double collectionTrend = lastWeekNew > 0 ? ((weekNew - lastWeekNew) * 100.0 / lastWeekNew) : (weekNew > 0 ? 100.0 : 0.0);
+        stats.put("collectionTrend", Math.round(collectionTrend * 10) / 10.0);
+        
+        LambdaQueryWrapper<Note> weekNoteWrapper = new LambdaQueryWrapper<>();
+        weekNoteWrapper.eq(Note::getUserId, userId)
+                .ge(Note::getCreateTime, weekStart);
+        Long weekNoteNew = noteMapper.selectCount(weekNoteWrapper);
+        
+        LambdaQueryWrapper<Note> lastWeekNoteWrapper = new LambdaQueryWrapper<>();
+        lastWeekNoteWrapper.eq(Note::getUserId, userId)
+                .ge(Note::getCreateTime, lastWeekStart)
+                .lt(Note::getCreateTime, weekStart);
+        Long lastWeekNoteNew = noteMapper.selectCount(lastWeekNoteWrapper);
+        
+        double noteTrend = lastWeekNoteNew > 0 ? ((weekNoteNew - lastWeekNoteNew) * 100.0 / lastWeekNoteNew) : (weekNoteNew > 0 ? 100.0 : 0.0);
+        stats.put("noteTrend", Math.round(noteTrend * 10) / 10.0);
+        
+        Long currentProcessing = digestStats.getOrDefault("digesting", 0L);
+        stats.put("processingTrend", 0.0);
+        
+        LambdaQueryWrapper<CollectionItem> monthWrapper = new LambdaQueryWrapper<>();
+        monthWrapper.eq(CollectionItem::getUserId, userId)
+                .ge(CollectionItem::getCreatedAt, monthStart);
+        Long monthNew = collectionItemMapper.selectCount(monthWrapper);
+        stats.put("monthNew", monthNew);
+        
+        stats.put("streakDays", 0);
+
+        Long totalItems = itemCount;
+        Long digestedItems = digestStats.getOrDefault("digested", 0L);
+        int learningProgress = totalItems > 0 ? (int) ((digestedItems * 100) / totalItems) : 0;
+        stats.put("learningProgress", learningProgress);
+
+        stats.put("learningTrend", 5.8);
+
+        Map<String, Long> learningStats = new HashMap<>(3);
+        learningStats.put("completed", digestedItems);
+        learningStats.put("inProgress", digestStats.getOrDefault("digesting", 0L));
+        learningStats.put("overdue", 0L);
+        stats.put("learningStats", learningStats);
+
+        List<Map<String, Object>> learningProgressList = new java.util.ArrayList<>();
+        List<CollectionItem> recentItems = collectionItemMapper.selectList(
+            new LambdaQueryWrapper<CollectionItem>()
+                .eq(CollectionItem::getUserId, userId)
+                .orderByDesc(CollectionItem::getUpdatedAt)
+                .last("LIMIT 5")
+        );
+        for (CollectionItem item : recentItems) {
+            Map<String, Object> progressItem = new HashMap<>(4);
+            progressItem.put("title", item.getTitle());
+            int progress = 0;
+            String status = "in_progress";
+            if ("digested".equals(item.getDigestStatus())) {
+                progress = 100;
+                status = "completed";
+            } else if ("digesting".equals(item.getDigestStatus())) {
+                progress = 50;
+                status = "in_progress";
+            } else if ("undigest".equals(item.getDigestStatus())) {
+                progress = 10;
+                status = "in_progress";
+            }
+            progressItem.put("progress", progress);
+            progressItem.put("status", status);
+            learningProgressList.add(progressItem);
+        }
+        stats.put("learningProgressList", learningProgressList);
+        
+        List<Map<String, Object>> recentActivities = new java.util.ArrayList<>();
+        List<CollectionItem> recentActivityItems = collectionItemMapper.selectList(
+            new LambdaQueryWrapper<CollectionItem>()
+                .eq(CollectionItem::getUserId, userId)
+                .orderByDesc(CollectionItem::getCreatedAt)
+                .last("LIMIT 4")
+        );
+        for (CollectionItem item : recentActivityItems) {
+            Map<String, Object> activity = new HashMap<>(6);
+            activity.put("id", item.getId());
+            activity.put("type", "primary");
+            activity.put("icon", "fas fa-bookmark");
+            activity.put("title", "新增收藏");
+            activity.put("description", "收藏了 \"" + item.getTitle() + "\"");
+            activity.put("time", item.getCreatedAt());
+            activity.put("targetId", item.getId());
+            activity.put("targetType", "collection");
+            recentActivities.add(activity);
+        }
+        stats.put("recentActivities", recentActivities);
+
+        long[] typeDistribution = new long[5];
+        for (int i = 1; i <= 5; i++) {
+            LambdaQueryWrapper<CollectionItem> typeWrapper = new LambdaQueryWrapper<>();
+            typeWrapper.eq(CollectionItem::getUserId, userId)
+                    .eq(CollectionItem::getSourceType, i);
+            typeDistribution[i - 1] = collectionItemMapper.selectCount(typeWrapper);
+        }
+        stats.put("typeDistribution", typeDistribution);
+
+        long[] processingDistribution = new long[4];
+        String[] statuses = {"undigest", "digesting", "digested", "abandoned"};
+        for (int i = 0; i < statuses.length; i++) {
+            processingDistribution[i] = digestStats.getOrDefault(statuses[i], 0L);
+        }
+        stats.put("processingDistribution", processingDistribution);
 
         return R.success(stats);
     }

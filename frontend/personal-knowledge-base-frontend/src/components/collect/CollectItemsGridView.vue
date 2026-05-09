@@ -5,7 +5,7 @@
       :key="collection.id"
       :class="['collection-card', 'card', { selected: selectedCollections.includes(collection.id), 'selection-mode': showSelectionMode } ]"
       @click="$emit('collection-click', collection)"
-      @contextmenu.prevent="$emit('show-context-menu', $event, collection)"
+      @contextmenu.prevent="handleContextMenu($event, collection)"
     >
       <div class="card-shell">
         <div class="card-header">
@@ -253,6 +253,38 @@
         </div>
       </div>
     </div>
+
+    <div
+      v-show="contextMenuVisible"
+      :style="{ left: contextMenuX + 'px', top: contextMenuY + 'px' }"
+      class="context-menu"
+      @click.stop
+    >
+      <div class="context-menu-item" @click="handleMenuCommand('move')">
+        <i class="el-icon-folder-opened"></i>
+        <span>移动到...</span>
+      </div>
+      <div class="context-menu-item" @click="handleMenuCommand('star')">
+        <i :class="isItemStarred(contextMenuItem) ? 'el-icon-star-on' : 'el-icon-star-off'"></i>
+        <span>{{ isItemStarred(contextMenuItem) ? '取消星标' : '星标收藏' }}</span>
+      </div>
+      <div v-if="activeSidebarItem !== 'recycle'" class="context-menu-divider"></div>
+      <div v-if="activeSidebarItem !== 'recycle' && canDeleteCollection(contextMenuItem)" class="context-menu-item danger" @click="handleMenuCommand('delete')">
+        <i class="el-icon-delete"></i>
+        <span>删除</span>
+      </div>
+      <template v-if="activeSidebarItem === 'recycle'">
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" @click="handleMenuCommand('recover')">
+          <i class="el-icon-refresh-left"></i>
+          <span>恢复</span>
+        </div>
+        <div class="context-menu-item danger" @click="handleMenuCommand('permanent-delete')">
+          <i class="el-icon-delete"></i>
+          <span>永久删除</span>
+        </div>
+      </template>
+    </div>
   </div>
 </template>
 
@@ -289,6 +321,14 @@ export default {
       default: false
     }
   },
+  data() {
+    return {
+      contextMenuVisible: false,
+      contextMenuX: 0,
+      contextMenuY: 0,
+      contextMenuItem: null
+    };
+  },
   emits: [
     'collection-click',
     'show-context-menu',
@@ -300,9 +340,47 @@ export default {
     'filter-by-tag',
     'show-all-collection-tags',
     'card-menu',
-    'toggle-selection'
+    'toggle-selection',
+    'move-item'
   ],
+  mounted() {
+    document.addEventListener('click', this.closeContextMenu);
+  },
+  beforeUnmount() {
+    document.removeEventListener('click', this.closeContextMenu);
+  },
   methods: {
+    handleContextMenu(event, collection) {
+      event.preventDefault();
+      this.contextMenuItem = collection;
+      this.contextMenuX = event.clientX;
+      this.contextMenuY = event.clientY;
+      this.contextMenuVisible = true;
+    },
+    closeContextMenu() {
+      this.contextMenuVisible = false;
+    },
+    handleMenuCommand(command) {
+      this.closeContextMenu();
+      
+      switch (command) {
+        case 'move':
+          this.$emit('move-item', this.contextMenuItem);
+          break;
+        case 'star':
+          this.$emit('toggle-star', this.contextMenuItem);
+          break;
+        case 'delete':
+          this.$emit('delete-collection', this.contextMenuItem);
+          break;
+        case 'recover':
+          this.$emit('recover-collection', this.contextMenuItem);
+          break;
+        case 'permanent-delete':
+          this.$emit('permanent-delete', this.contextMenuItem);
+          break;
+      }
+    },
     handleToggleSelection(collectionId) {
       this.$emit('toggle-selection', collectionId);
     },
@@ -386,6 +464,7 @@ export default {
     },
 
     canDeleteCollection(collection) {
+      if (!collection) return false;
       return collection.userId === this.currentUserId;
     },
 
@@ -1161,5 +1240,48 @@ export default {
     grid-template-columns: repeat(auto-fill, 350px);
     gap: 24px;
   }
+}
+
+.context-menu {
+  position: fixed;
+  z-index: 9999;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 4px 0;
+  min-width: 160px;
+}
+
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-size: 14px;
+  color: #333;
+}
+
+.context-menu-item:hover {
+  background-color: #f5f7fa;
+}
+
+.context-menu-item.danger {
+  color: #f56c6c;
+}
+
+.context-menu-item.danger:hover {
+  background-color: #fef0f0;
+}
+
+.context-menu-item i {
+  font-size: 16px;
+}
+
+.context-menu-divider {
+  height: 1px;
+  background-color: #e4e7ed;
+  margin: 4px 0;
 }
 </style>

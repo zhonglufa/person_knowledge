@@ -46,4 +46,22 @@ public class Category extends BasePojo implements Serializable {
     @TableField("user_id")
     private Long userId;
 
+    /**
+     * 分类描述
+     */
+    @TableField("description")
+    private String description;
+
+    /**
+     * 分类图标
+     */
+    @TableField("icon")
+    private String icon;
+
+    /**
+     * 分类颜色
+     */
+    @TableField("color")
+    private String color;
+
 }

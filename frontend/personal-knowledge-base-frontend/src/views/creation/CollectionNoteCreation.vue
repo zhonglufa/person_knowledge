@@ -213,11 +213,6 @@
                 <el-form-item label="笔记标题" prop="title">
                   <el-input v-model="noteForm.title" placeholder="请输入笔记标题" @input="markAsModified" />
                 </el-form-item>
-                <el-form-item label="分类" prop="categoryId">
-                  <el-select v-model="noteForm.categoryId" placeholder="请选择分类" @change="markAsModified" style="width: 100%;">
-                    <el-option v-for="category in categories" :key="category.id" :label="category.name" :value="category.id" />
-                  </el-select>
-                </el-form-item>
                 <el-form-item label="笔记类型" prop="noteType">
                   <el-radio-group v-model="noteForm.noteType" @change="handleNoteTypeChange">
                     <el-radio label="conceptual">概念型</el-radio>
@@ -306,7 +301,6 @@ export default {
       searchKeyword: '',
       noteForm: {
         title: '',
-        categoryId: '',
         noteType: 'conceptual',
         description: '',
         coverImage: '',
@@ -314,10 +308,8 @@ export default {
       },
       noteRules: {
         title: [{ required: true, message: '请输入笔记标题', trigger: 'blur' }],
-        categoryId: [{ required: true, message: '请选择分类', trigger: 'change' }],
         noteType: [{ required: true, message: '请选择笔记类型', trigger: 'change' }]
       },
-      categories: [],
       selectedText: '',
       savingDraft: false,
       publishing: false,
@@ -367,7 +359,7 @@ export default {
       return this.windowWidth < 1024
     },
     canPublish() {
-      return !!(this.noteForm.title && this.noteForm.categoryId && this.noteForm.noteType && this.noteForm.content)
+      return !!(this.noteForm.title && this.noteForm.noteType && this.noteForm.content)
     },
     wordCountStats() {
       const content = this.noteForm.content || ''
@@ -444,14 +436,6 @@ export default {
         this.goBack()
       }
     },
-    async loadCategories() {
-      try {
-        const response = await collectApi.getCategoryList()
-        this.categories = response?.data?.records || response?.data || []
-      } catch (error) {
-        console.error('加载分类失败:', error)
-      }
-    },
     async loadDrafts() {
       if (!this.routeCollectionId) {
         return
@@ -472,7 +456,6 @@ export default {
       this.currentDraftId = draft.id
       this.noteForm = {
         title: draft.title,
-        categoryId: draft.categoryId,
         noteType: draft.noteType || draft.type || 'conceptual',
         description: draft.description || '',
         coverImage: draft.coverImage || '',
@@ -562,7 +545,6 @@ export default {
         const draftData = {
           collectionItemId: this.collection.id || this.routeCollectionId,
           title: this.noteForm.title,
-          categoryId: this.noteForm.categoryId,
           noteType: this.noteForm.noteType,
           description: this.noteForm.description,
           coverImage: this.noteForm.coverImage,
@@ -676,7 +658,17 @@ export default {
       this.$router.push('/creation/drafts')
     },
     goBack() {
-      this.$router.push('/creation')
+      // 根据来源参数智能返回
+      const from = this.$route.query.from;
+      if (from) {
+        // 所有来源都返回收藏中心对应的标签页
+        this.$router.push({
+          path: '/collect/center',
+          query: { tab: from }
+        });
+      } else {
+        this.$router.back()
+      }
     },
     handleOnline() {
       this.isOnline = true
@@ -694,7 +686,7 @@ export default {
   },
   async mounted() {
     this.restorePanelSplitRatio()
-    await Promise.all([this.loadCollection(), this.loadCategories(), this.loadDrafts()])
+    await Promise.all([this.loadCollection(), this.loadDrafts()])
     this.activeMobilePanel = 'draft'
     this.startAutoSave()
     window.addEventListener('online', this.handleOnline)

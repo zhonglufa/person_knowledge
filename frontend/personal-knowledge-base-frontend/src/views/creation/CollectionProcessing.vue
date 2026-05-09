@@ -27,7 +27,7 @@
       <div class="toolbar-right">
         <el-input
           v-model="searchKeyword"
-          placeholder="搜索待加工内容"
+          placeholder="搜索收藏项"
           prefix-icon="el-icon-search"
           clearable
           @clear="handleSearch"
@@ -64,7 +64,7 @@
     </div>
 
     <div v-if="selectedItems.length > 0" class="batch-operation-bar">
-      <div class="batch-info">已选择 {{ selectedItems.length }} 项待加工内容</div>
+      <div class="batch-info">已选择 {{ selectedItems.length }} 项收藏项</div>
       <div class="batch-actions">
         <el-button type="primary" size="small" @click="handleBatchProcess">批量加工</el-button>
         <el-button type="success" size="small" @click="handleBatchComplete">标记完成</el-button>
@@ -77,7 +77,7 @@
       <div class="workbench-list">
         <div class="list-header">
           <div>
-            <h3>待加工内容</h3>
+            <h3>收藏项列表</h3>
             <p>围绕收藏项推进摘要提炼、学习目标与后续沉淀。</p>
           </div>
           <el-radio-group v-model="viewMode" size="small">
@@ -90,7 +90,7 @@
           <div class="empty-icon">
             <i class="fas fa-seedling"></i>
           </div>
-          <p class="empty-text">暂无待加工内容</p>
+          <p class="empty-text">暂无收藏项</p>
           <p class="empty-desc">先收藏内容，再回到这里推进你的知识加工流程。</p>
           <el-button type="primary" @click="handleAddCollectionItem">添加收藏项</el-button>
         </div>
@@ -119,7 +119,7 @@
                 <span>学习进度</span>
                 <span>{{ item.studyProgress || 0 }}%</span>
               </div>
-              <el-progress :percentage="item.studyProgress || item.processingProgress || 0" :show-text="false" :stroke-width="6" />
+              <el-progress :percentage="item.studyProgress || 0" :show-text="false" :stroke-width="6" />
             </div>
             <div class="card-actions" @click.stop>
               <el-button type="text" size="small" @click="handleProcessItem(item)">加工</el-button>
@@ -141,7 +141,7 @@
               </template>
             </el-table-column>
             <el-table-column label="学习进度" width="120" align="center">
-              <template slot-scope="scope">{{ scope.row.studyProgress || scope.row.processingProgress || 0 }}%</template>
+              <template slot-scope="scope">{{ scope.row.studyProgress || 0 }}%</template>
             </el-table-column>
             <el-table-column prop="updateTime" label="更新时间" width="180" align="center">
               <template slot-scope="scope">{{ formatDate(scope.row.updateTime) }}</template>
@@ -189,7 +189,7 @@
             </div>
             <div class="detail-section">
               <div class="section-title">学习进度</div>
-              <div class="section-content">{{ activeItem.studyProgress || activeItem.processingProgress || 0 }}%</div>
+              <div class="section-content">{{ activeItem.studyProgress || 0 }}%</div>
             </div>
           </div>
 
@@ -202,8 +202,8 @@
         </div>
         <div v-else class="detail-placeholder">
           <i class="fas fa-book-open"></i>
-          <h3>选择一条待加工内容</h3>
-          <p>右侧将展示该内容的摘要、学习目标与后续沉淀动作。</p>
+          <h3>选择一个收藏项</h3>
+          <p>右侧将展示该收藏项的摘要、学习目标与后续沉淀动作。</p>
         </div>
       </div>
     </div>
@@ -304,7 +304,8 @@ export default {
         this.items = (response.data.records || []).map(item => ({
           ...item,
           selected: false,
-          studyProgress: item.studyProgress || item.processingProgress || 0
+          studyProgress: parseInt(item.studyProgress) || 0,
+          collectionName: item.collectionName || (item.collection ? item.collection.name : null)
         }))
         this.total = response.data.total || 0
         if (this.items.length > 0) {

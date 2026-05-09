@@ -352,22 +352,13 @@ export default {
 
       this.submitting = true
       try {
-        const data = {
-          targetId: this.targetId,
-          targetType: this.targetType,
-          content: this.commentContent.trim()
-        }
-
-        // 如果是回复，添加回复相关信息
-        if (this.replyingTo) {
-          data.parentId = this.replyingTo.parentId || this.replyingTo.id
-          data.replyToId = this.replyingTo.id
-        }
+        const parentId = this.replyingTo ? (this.replyingTo.parentId || this.replyingTo.id) : null
 
         const response = await commentContent(
           this.targetId,
           this.targetType,
-          this.commentContent.trim()
+          this.commentContent.trim(),
+          parentId
         )
 
         if (response.data && response.data.code === 200) {
@@ -470,9 +461,9 @@ export default {
         type: 'warning'
       }).then(async () => {
         try {
-          // 此处应调用后端删除评论API
+          await deleteComment(comment.id)
           this.$message.success('删除成功')
-          this.loadComments()
+          await this.loadComments()
         } catch (error) {
           console.error('删除评论失败:', error)
           this.$message.error('删除失败')
@@ -502,8 +493,26 @@ export default {
      * 加载更多回复
      */
     async loadMoreReplies(comment) {
-      // 此处应调用后端API加载更多回复
-      this.$message.info('加载更多回复功能待实现')
+      try {
+        const response = await getComments(
+          this.targetId,
+          this.targetType,
+          comment.id,
+          1,
+          100
+        )
+
+        if (response.data && response.data.code === 200) {
+          const data = response.data.data
+          comment.replies = data.list || []
+          this.$message.success('加载成功')
+        } else {
+          this.$message.error(response.data.message || '加载失败')
+        }
+      } catch (error) {
+        console.error('加载更多回复失败:', error)
+        this.$message.error('加载失败，请稍后重试')
+      }
     },
 
     /**

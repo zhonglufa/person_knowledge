@@ -366,7 +366,10 @@ export default {
       }
     },
     handleCollectionClick(collection) {
-      this.$router.push(`/collections/${collection?.id}`)
+      this.$router.push({
+        path: `/collections/${collection?.id}`,
+        query: { from: 'my-collections' }
+      })
     },
     handleCardAction(command, collection) {
       switch (command) {
@@ -375,7 +378,10 @@ export default {
           this.showEditDialog = true
           break
         case 'view':
-          this.$router.push(`/collections/${collection?.id}`)
+          this.$router.push({
+            path: `/collections/${collection?.id}`,
+            query: { from: 'my-collections' }
+          })
           break
         case 'setDefault':
           this.handleSetDefault(collection)

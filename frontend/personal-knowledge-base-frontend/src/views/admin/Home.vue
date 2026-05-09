@@ -132,15 +132,7 @@
         </div>
       </div>
 
-      <div class="stat-card stat-card--interactions">
-        <div class="stat-icon">
-          <i class="el-icon-collection"></i>
-        </div>
-        <div class="stat-info">
-          <div class="stat-value">{{ stats.totalUserCollects || 0 }}</div>
-          <div class="stat-label">用户收藏数</div>
-        </div>
-      </div>
+
     </div>
 
     <!-- 快捷操作 -->
@@ -281,7 +273,6 @@ export default {
         announcementCount: 0,
         totalLikes: 0,
         totalComments: 0,
-        totalUserCollects: 0
       },
       loading: false,
       recentActivities: [],
@@ -352,7 +343,6 @@ export default {
             this.stats.noteCount = data.contentStats?.totalNotes || 0
             this.stats.totalLikes = data.interactionStats?.totalLikes || 0
             this.stats.totalComments = data.interactionStats?.totalComments || 0
-            this.stats.totalUserCollects = data.interactionStats?.totalCollects || 0
           } else {
             // 扁平结构（后端实际返回格式）
             this.stats.userCount = data?.totalUsers || 0
@@ -364,7 +354,6 @@ export default {
             this.stats.announcementCount = data?.activeAnnouncements || 0
             this.stats.totalLikes = data?.totalLikes || 0
             this.stats.totalComments = data?.totalComments || 0
-            this.stats.totalUserCollects = data?.totalCollects || 0
           }
 
           // 如果有最近动态数据则展示

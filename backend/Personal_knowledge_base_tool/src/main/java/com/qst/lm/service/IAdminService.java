@@ -149,7 +149,7 @@ public interface IAdminService {
      * @param endTime       结束时间
      * @return 操作日志列表
      */
-    R getContentAuditLogs(Integer pageNum, Integer pageSize, String operationType, String targetType, String startTime, String endTime);
+    R getContentAuditLogs(Integer pageNum, Integer pageSize, String operationType, String targetType, String startTime, String endTime, String keyword);
 
     /**
      * 发布公告（触发全站通知）
@@ -159,6 +159,15 @@ public interface IAdminService {
      * @return 操作结果
      */
     R publishAnnouncement(Long adminId, Long announcementId);
+
+    /**
+     * 重新发布公告（已下架 -> 已发布，触发全站通知）
+     *
+     * @param adminId        管理员ID
+     * @param announcementId 公告ID
+     * @return 操作结果
+     */
+    R republishAnnouncement(Long adminId, Long announcementId);
 
     /**
      * 获取公告触达统计
@@ -242,12 +251,28 @@ public interface IAdminService {
     /**
      * 定时发布公告
      *
-     * @param adminId     管理员ID
+     * @param adminId        管理员ID
      * @param announcementId 公告ID
-     * @param scheduledAt 定时发布时间
+     * @param scheduledAt    定时发布时间
      * @return 操作结果
      */
     R scheduleAnnouncement(Long adminId, Long announcementId, java.time.LocalDateTime scheduledAt);
+
+    /**
+     * 获取定时任务列表
+     *
+     * @return 定时任务列表
+     */
+    R getScheduleList();
+
+    /**
+     * 取消定时发布
+     *
+     * @param adminId    管理员ID
+     * @param scheduleId 公告ID（待定时发布的公告）
+     * @return 操作结果
+     */
+    R cancelSchedule(Long adminId, Long scheduleId);
 
     /**
      * 获取公告模板列表
@@ -268,9 +293,21 @@ public interface IAdminService {
     R createAnnouncementTemplate(Long adminId, String name, String content, String type);
 
     /**
+     * 更新公告模板
+     *
+     * @param adminId    管理员ID
+     * @param templateId 模板ID
+     * @param name       模板名称
+     * @param content    模板内容
+     * @param type       模板类型
+     * @return 操作结果
+     */
+    R updateAnnouncementTemplate(Long adminId, Long templateId, String name, String content, String type);
+
+    /**
      * 删除公告模板
      *
-     * @param adminId     管理员ID
+     * @param adminId    管理员ID
      * @param templateId 模板ID
      * @return 操作结果
      */

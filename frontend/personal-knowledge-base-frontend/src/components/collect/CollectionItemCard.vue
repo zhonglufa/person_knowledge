@@ -1,33 +1,35 @@
 <template>
-  <div 
+  <div
     class="collection-item-card"
     :class="{ 'selected': selected }"
     @click="$emit('click', item)"
     @contextmenu.prevent="$emit('contextmenu', $event, item)"
   >
-    <!-- 封面/缩略图区�?-->
+
+
+    <!-- 封面/缩略图区域-->
     <div class="item-cover">
       <!-- 加工状态角�?-->
-      <div 
-        v-if="item.digestStatus" 
+      <div
+        v-if="item.digestStatus"
         class="digest-status-badge"
         :class="`status-${item.digestStatus}`"
       >
         {{ getDigestStatusText(item.digestStatus) }}
       </div>
-      
+
       <!-- 图片类型的封�?-->
-      <img 
+      <img
         v-if="item.sourceType === 2 && item.sourceUrl"
         :src="item.sourceUrl"
         :alt="item.title"
         class="cover-image"
         @error="handleImageError"
       />
-      
+
       <!-- 网页类型的预览图或favicon -->
       <div v-else-if="item.sourceType === 1" class="web-preview">
-        <img 
+        <img
           v-if="faviconUrl"
           :src="faviconUrl"
           :alt="item.title"
@@ -38,60 +40,60 @@
           <i class="fas fa-globe"></i>
         </div>
       </div>
-      
+
       <!-- 文本类型 -->
       <div v-else-if="item.sourceType === 3" class="text-preview">
         <i class="fas fa-file-alt"></i>
       </div>
-      
+
       <!-- 视频类型 -->
       <div v-else-if="item.sourceType === 4" class="video-preview">
         <i class="fas fa-video"></i>
       </div>
-      
+
       <!-- 默认占位�?-->
       <div v-else class="default-preview">
         <i class="fas fa-bookmark"></i>
       </div>
-      
+
       <!-- 覆盖层操作按�?-->
       <div class="cover-overlay">
         <div class="overlay-actions">
-          <el-button 
-            type="text" 
+          <el-button
+            type="text"
             icon="el-icon-edit"
             @click.stop="$emit('edit', item)"
             title="编辑"
           />
-          <el-button 
-            type="text" 
+          <el-button
+            type="text"
             icon="el-icon-document"
             @click.stop="$emit('process', item)"
             title="加工编辑"
             class="process-btn"
           />
-          <el-button 
-            type="text" 
+          <el-button
+            type="text"
             icon="el-icon-delete"
             @click.stop="$emit('delete', item)"
             title="删除"
           />
         </div>
       </div>
-      
+
       <!-- 状态标�?-->
       <div class="status-indicators">
-        <el-tag 
-          v-if="!item.isRead" 
-          type="danger" 
+        <el-tag
+          v-if="!item.isRead"
+          type="danger"
           size="mini"
           class="unread-tag"
         >
           未读
         </el-tag>
-        <el-tag 
-          v-if="item.isPublic === 1" 
-          type="success" 
+        <el-tag
+          v-if="item.isPublic === 1"
+          type="success"
           size="mini"
           class="shared-tag"
         >
@@ -99,19 +101,19 @@
         </el-tag>
       </div>
     </div>
-    
+
     <!-- 内容信息区域 -->
     <div class="item-content">
       <!-- 标题 -->
       <h3 class="item-title" :title="item.title">
         {{ truncatedTitle }}
       </h3>
-      
+
       <!-- 摘要 -->
       <p v-if="item.coreAbstract" class="item-abstract">
         {{ truncatedAbstract }}
       </p>
-      
+
       <!-- 标签 -->
       <div v-if="item.tags && item.tags.length > 0" class="item-tags">
         <el-tag
@@ -132,7 +134,7 @@
           +{{ item.tags.length - 3 }}
         </el-tag>
       </div>
-      
+
       <!-- 底部信息 -->
       <div class="item-footer">
         <div class="footer-left">
@@ -146,7 +148,7 @@
             />
             <span class="progress-text">{{ item.studyProgress }}</span>
           </div>
-          
+
           <!-- 消化状�?-->
           <el-tag
             v-if="item.digestStatus"
@@ -157,14 +159,14 @@
             {{ getDigestStatusText(item.digestStatus) }}
           </el-tag>
         </div>
-        
+
         <div class="footer-right">
           <!-- 来源信息 -->
           <div v-if="item.source" class="source-info">
             <i class="fas fa-link"></i>
             <span>{{ item.source }}</span>
           </div>
-          
+
           <!-- 访问次数 -->
           <div v-if="item.visitCount > 0" class="visit-count">
             <i class="fas fa-eye"></i>
@@ -172,7 +174,7 @@
           </div>
         </div>
       </div>
-      
+
       <!-- 时间信息 -->
       <div class="item-time">
         <i class="fas fa-clock"></i>
@@ -209,19 +211,19 @@ export default {
       const title = this.item.title || '无标题';
       return title.length > 50 ? title.substring(0, 50) + '...' : title
     },
-    
+
     truncatedAbstract() {
       const abstract = this.item.coreAbstract || ''
       return abstract.length > 100 ? abstract.substring(0, 100) + '...' : abstract
     },
-    
+
     displayTags() {
       return (this.item.tags || []).slice(0, 3)
     },
-    
+
     faviconUrl() {
       if (this.item.sourceType !== 1 || !this.item.sourceUrl) return ''
-      
+
       try {
         const url = new URL(this.item.sourceUrl)
         return `https://www.google.com/s2/favicons?domain=${url.hostname}&sz=32`
@@ -237,7 +239,7 @@ export default {
       if (progress === 'overdue') return 0
       return parseInt(progress.replace('%', '')) || 0
     },
-    
+
     getDigestStatusType(status) {
       const statusMap = {
         'undigest': 'info',
@@ -247,7 +249,7 @@ export default {
       }
       return statusMap[status] || 'info'
     },
-    
+
     getDigestStatusText(status) {
       const statusMap = {
         'undigest': '未消化',
@@ -257,41 +259,41 @@ export default {
       }
       return statusMap[status] || status
     },
-    
+
     formatTime(timeString) {
       if (!timeString) return ''
       const time = new Date(timeString)
       const now = new Date()
       const diff = now - time
-      
+
       // 今天
       if (time.toDateString() === now.toDateString()) {
         return `今天 ${time.getHours().toString().padStart(2, '0')}:${time.getMinutes().toString().padStart(2, '0')}`
       }
-      
+
       // 昨天
       const yesterday = new Date(now)
       yesterday.setDate(yesterday.getDate() - 1)
       if (time.toDateString() === yesterday.toDateString()) {
         return '昨天'
       }
-      
+
       // 本周
       if (diff < 7 * 24 * 60 * 60 * 1000) {
         const days = Math.floor(diff / (24 * 60 * 60 * 1000))
         return `${days}天前`
       }
-      
+
       // 日期格式
       return `${time.getFullYear()}-${(time.getMonth() + 1).toString().padStart(2, '0')}-${time.getDate().toString().padStart(2, '0')}`
     },
-    
+
     handleImageError(event) {
       console.warn(`收藏项图片加载失�? ${event.target.src}`)
       event.target.style.display = 'none'
       event.target.parentElement.classList.add('image-error')
     },
-    
+
     handleFaviconError() {
       this.faviconLoaded = false
     }
@@ -591,25 +593,25 @@ export default {
   .item-cover {
     height: 140px;
   }
-  
+
   .item-content {
     padding: 12px;
   }
-  
+
   .item-title {
     font-size: 15px;
   }
-  
+
   .item-abstract {
     font-size: 13px;
   }
-  
+
   .footer-left {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
   }
-  
+
   .progress-info {
     width: 100%;
   }
@@ -619,34 +621,34 @@ export default {
   .item-cover {
     height: 120px;
   }
-  
+
   .web-preview,
   .text-preview,
   .video-preview,
   .default-preview {
     font-size: 24px;
   }
-  
+
   .item-content {
     padding: 10px;
   }
-  
+
   .item-title {
     font-size: 14px;
     -webkit-line-clamp: 1;
   }
-  
+
   .item-abstract {
     font-size: 12px;
     -webkit-line-clamp: 2;
   }
-  
+
   .item-footer {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
   }
-  
+
   .footer-right {
     align-self: flex-end;
   }

@@ -64,8 +64,8 @@
         <el-table-column prop="email" label="邮箱" min-width="180" align="center" />
         <el-table-column label="角色" width="110" align="center">
           <template slot-scope="scope">
-            <el-tag :type="scope.row.role === 'admin' ? 'danger' : 'primary'" size="small">
-              {{ scope.row.role === 'admin' ? '管理员' : '普通用户' }}
+            <el-tag :type="(scope.row.role === 'admin' || scope.row.role === 'super_admin') ? 'danger' : 'primary'" size="small">
+              {{ scope.row.role === 'super_admin' ? '超级管理员' : (scope.row.role === 'admin' ? '管理员' : '普通用户') }}
             </el-tag>
           </template>
         </el-table-column>
@@ -86,7 +86,7 @@
             {{ formatDate(scope.row.createdAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="180" align="center" fixed="right">
+        <el-table-column label="操作" width="260" align="center" fixed="right">
           <template slot-scope="scope">
             <div class="action-buttons">
               <el-button
@@ -95,6 +95,12 @@
                 icon="el-icon-edit"
                 @click="handleEditUser(scope.row)"
               >编辑</el-button>
+              <el-button
+                type="info"
+                size="mini"
+                icon="el-icon-lock"
+                @click="handleOpenAssignRole(scope.row)"
+              >RBAC角色</el-button>
               <el-button
                 :type="scope.row.status === 'enabled' ? 'warning' : 'success'"
                 size="mini"
@@ -170,6 +176,7 @@
           <el-select v-model="userForm.role" placeholder="请选择角色" style="width: 100%;">
             <el-option label="普通用户" value="commonUser"></el-option>
             <el-option label="管理员" value="admin"></el-option>
+            <el-option label="超级管理员" value="super_admin"></el-option>
           </el-select>
         </el-form-item>
       </el-form>
@@ -178,11 +185,43 @@
         <el-button type="primary" :loading="submitLoading" @click="handleSubmit">确 定</el-button>
       </div>
     </el-dialog>
+
+    <el-dialog
+      title="分配RBAC角色"
+      :visible.sync="assignRoleVisible"
+      width="520px"
+      :close-on-click-modal="false"
+      @close="handleAssignRoleDialogClose"
+    >
+      <el-form label-width="90px">
+        <el-form-item label="当前角色">
+          <div v-if="currentUserRoles.length > 0" style="display: flex; flex-wrap: wrap; gap: 6px;">
+            <el-tag v-for="r in currentUserRoles" :key="r.id" type="info" size="small">{{ r.roleName || r.roleCode }}</el-tag>
+          </div>
+          <span v-else>-</span>
+        </el-form-item>
+        <el-form-item label="选择角色">
+          <el-select v-model="roleAssignForm.roleId" placeholder="请选择角色" filterable style="width: 100%;" :loading="roleAssignLoading">
+            <el-option
+              v-for="r in roleOptions"
+              :key="r.id"
+              :label="(r.roleName || r.roleCode)"
+              :value="r.id"
+            />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button :disabled="roleAssignLoading" @click="handleClearUserRoles">清 空</el-button>
+        <el-button :disabled="roleAssignLoading" @click="assignRoleVisible = false">取 消</el-button>
+        <el-button type="primary" :loading="roleAssignLoading" @click="handleAssignRoleSubmit">确 定</el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script>
-import { userManageApi } from '@/api/admin'
+import { userManageApi, roleManageApi, permissionApi } from '@/api/admin'
 
 export default {
   name: 'UserManagement',
@@ -193,6 +232,8 @@ export default {
       selectedUsers: [],
       loading: false,
       submitLoading: false,
+      userRbacRolesMap: {},
+      rbacRolesFetchedFor: {},
 
       // 查询参数
       queryParams: {
@@ -212,6 +253,18 @@ export default {
       dialogTitle: '',
       isAdd: true,
 
+      // RBAC角色分配对话框
+      assignRoleVisible: false,
+      roleAssignLoading: false,
+      roleOptions: [],
+      currentUserForRoleAssign: null,
+      currentUserRoles: [],
+      roleAssignForm: {
+        roleId: null
+      },
+
+      allRolesLoaded: false,
+
       // 表单
       userForm: {
         id: '',
@@ -229,7 +282,7 @@ export default {
           { min: 3, max: 20, message: '长度在 3 到 20 个字符', trigger: 'blur' }
         ],
         nickname: [
-          { required: true, message: '请输入昵称', trigger: 'blur' }
+          { max: 20, message: '昵称长度不能超过 20 个字符', trigger: 'blur' }
         ],
         email: [
           { required: true, message: '请输入邮箱', trigger: 'blur' },
@@ -252,6 +305,145 @@ export default {
   },
 
   methods: {
+    async ensureAllRolesLoaded() {
+      if (this.allRolesLoaded) return
+
+      this.roleAssignLoading = true
+      try {
+        const response = await roleManageApi.getAllRoles()
+        if (response.code === 200) {
+          this.roleOptions = response.data || []
+          this.allRolesLoaded = true
+        } else {
+          this.$message.error(response.message || '获取角色列表失败')
+        }
+      } catch (error) {
+        console.error('获取全部角色失败:', error)
+        this.$message.error('获取角色列表失败')
+      } finally {
+        this.roleAssignLoading = false
+      }
+    },
+
+    async fetchUserRbacRoles(userId) {
+      if (!userId) return []
+      try {
+        const response = await permissionApi.getUserRoles(userId)
+        if (response.code === 200) {
+          return response.data || []
+        }
+        return []
+      } catch (error) {
+        console.error('获取用户RBAC角色失败:', error)
+        return []
+      }
+    },
+
+    async handleOpenAssignRole(row) {
+      this.currentUserForRoleAssign = row
+      this.roleAssignForm = { roleId: null }
+      await this.ensureAllRolesLoaded()
+
+      this.roleAssignLoading = true
+      try {
+        const roles = await this.fetchUserRbacRoles(row.id)
+        this.currentUserRoles = roles
+        const currentRoleId = roles.length > 0 ? roles[0].id : null
+        this.roleAssignForm.roleId = currentRoleId
+        this.assignRoleVisible = true
+      } finally {
+        this.roleAssignLoading = false
+      }
+    },
+
+    handleAssignRoleDialogClose() {
+      this.currentUserForRoleAssign = null
+      this.currentUserRoles = []
+      this.roleAssignForm = { roleId: null }
+    },
+
+    async handleAssignRoleSubmit() {
+      if (!this.currentUserForRoleAssign?.id) return
+      if (!this.roleAssignForm.roleId) {
+        this.$message.warning('请选择角色')
+        return
+      }
+
+      this.roleAssignLoading = true
+      try {
+        const response = await permissionApi.assignUserRole(this.currentUserForRoleAssign.id, {
+          roleId: this.roleAssignForm.roleId
+        })
+
+        if (response.code === 200) {
+          this.$message.success('角色设置成功')
+          const roles = await this.fetchUserRbacRoles(this.currentUserForRoleAssign.id)
+          this.currentUserRoles = roles
+
+          const selectedRole = this.roleOptions.find(r => r.id === this.roleAssignForm.roleId)
+          const normalizedUserRole = selectedRole?.roleCode === 'common_user'
+            ? 'commonUser'
+            : selectedRole?.roleCode
+
+          if (normalizedUserRole === 'admin' || normalizedUserRole === 'super_admin' || normalizedUserRole === 'commonUser') {
+            this.$set(this.currentUserForRoleAssign, 'role', normalizedUserRole)
+            const idx = this.userList.findIndex(u => u.id === this.currentUserForRoleAssign.id)
+            if (idx !== -1) {
+              this.$set(this.userList[idx], 'role', normalizedUserRole)
+            }
+          }
+
+          const adminInfo = JSON.parse(localStorage.getItem('adminInfo') || '{}')
+          if (adminInfo.id === this.currentUserForRoleAssign.id) {
+            try {
+              await this.$store.dispatch('permission/fetchUserPermissions')
+              this.$message.success('权限已更新，您现在可以访问新的功能模块')
+            } catch (error) {
+              console.error('刷新权限失败:', error)
+            }
+          }
+
+          this.assignRoleVisible = false
+        } else {
+          this.$message.error(response.message || '角色设置失败')
+        }
+      } catch (error) {
+        console.error('设置RBAC角色失败:', error)
+        this.$message.error('角色设置失败')
+      } finally {
+        this.roleAssignLoading = false
+      }
+    },
+
+    async handleClearUserRoles() {
+      if (!this.currentUserForRoleAssign?.id) return
+
+      this.roleAssignLoading = true
+      try {
+        const response = await permissionApi.clearUserRoles(this.currentUserForRoleAssign.id)
+        if (response.code === 200) {
+          this.$message.success('已清空角色')
+          this.currentUserRoles = []
+          this.roleAssignForm = { roleId: null }
+
+          this.$set(this.currentUserForRoleAssign, 'role', 'commonUser')
+          const idx = this.userList.findIndex(u => u.id === this.currentUserForRoleAssign.id)
+          if (idx !== -1) {
+            this.$set(this.userList[idx], 'role', 'commonUser')
+          }
+
+          this.assignRoleVisible = false
+        } else {
+          this.$message.error(response.message || '清空角色失败')
+        }
+      } catch (error) {
+        console.error('清空RBAC角色失败:', error)
+        this.$message.error('清空角色失败')
+      } finally {
+        this.roleAssignLoading = false
+      }
+    },
+
     async loadUserList() {
       this.loading = true
       try {

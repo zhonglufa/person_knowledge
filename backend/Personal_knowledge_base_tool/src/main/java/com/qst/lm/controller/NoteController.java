@@ -107,6 +107,15 @@ public class NoteController {
     }
 
     /**
+     * 获取公开笔记详情
+     */
+    @GetMapping("/public/{id}")
+    @Operation(summary = "公开笔记详情", description = "获取指定公开笔记的详细信息")
+    public R getPublicNoteDetail(@PathVariable Long id) {
+        return noteService.getPublicNoteDetail(id);
+    }
+
+    /**
      * 收藏笔记
      */
     @PostMapping("/{noteId}/collect")

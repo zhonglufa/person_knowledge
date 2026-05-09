@@ -36,6 +36,7 @@
         :show-my-collections="showMyCollections"
         @toggle-sidebar="toggleSidebar"
         @sidebar-item-click="handleSidebarItemClick"
+        @stat-item-click="handleStatItemClick"
         @show-all-collections="showAllCollections"
         @select="handleSidebarSelect"
         @view-change="handleViewChange"
@@ -211,6 +212,10 @@ export default {
     
     handleSidebarItemClick(item) {
       this.$emit('sidebar-item-click', item);
+    },
+    
+    handleStatItemClick(stat) {
+      this.$emit('stat-item-click', stat);
     },
     
     showAllCollections() {

@@ -1,6 +1,7 @@
 package com.qst.lm.controller;
 
 import com.qst.lm.common.R;
+import com.qst.lm.dto.collect.BatchMoveDTO;
 import com.qst.lm.dto.collect.BatchOperationDTO;
 import com.qst.lm.dto.collect.BookmarkImportDTO;
 import com.qst.lm.dto.collect.CollectionItemDTO;
@@ -181,6 +182,17 @@ public class CollectionItemController {
         return collectionItemService.batchPermanentDelete(userId, batchDTO);
     }
 
+    @PostMapping("/batch/move")
+    @Operation(summary = "批量移动收藏项", description = "批量移动多个收藏项到指定收藏集")
+    public R batchMoveItems(@RequestAttribute("userId") Long userId,
+                            @Valid @RequestBody BatchMoveDTO batchMoveDTO) {
+        log.info("用户[{}]批量移动收藏项, 数量[{}], 目标收藏集[{}]", 
+                userId, 
+                batchMoveDTO.getIds() != null ? batchMoveDTO.getIds().size() : 0,
+                batchMoveDTO.getTargetCollectionId());
+        return collectionItemService.batchMoveItems(userId, batchMoveDTO);
+    }
+
     @PutMapping("/{id}/star")
     @Operation(summary = "切换星标", description = "切换收藏项的星标状态（星标/非星标）")
     public R toggleStar(@RequestAttribute("userId") Long userId,
@@ -225,5 +237,42 @@ public class CollectionItemController {
                           @PathVariable Long id) {
         log.info("用户[{}]取消收藏项[{}]提醒", userId, id);
         return collectionItemService.cancelRemind(userId, id);
+    }
+
+    @GetMapping("/{id}/notes")
+    @Operation(summary = "查询关联笔记列表", description = "获取指定收藏项的所有关联笔记（闭环功能）")
+    public R getRelatedNotes(@RequestAttribute("userId") Long userId,
+                             @PathVariable Long id) {
+        log.info("用户[{}]查询收藏项[{}]的关联笔记", userId, id);
+        return collectionItemService.getRelatedNotes(userId, id);
+    }
+
+    @GetMapping("/public/{id}")
+    @Operation(summary = "获取公开收藏项详情", description = "获取指定公开收藏项的详细信息，无需登录，仅返回isPublic=1的收藏项")
+    public R getPublicItemDetail(@PathVariable Long id) {
+        log.info("访问公开收藏项详情[{}]", id);
+        return collectionItemService.getPublicItemDetail(id);
+    }
+
+    @PutMapping("/{id}/category")
+    @Operation(summary = "设置收藏项分类", description = "为指定收藏项设置分类")
+    public R setCategory(@RequestAttribute("userId") Long userId,
+                         @PathVariable Long id,
+                         @RequestBody Map<String, Long> body) {
+        Long categoryId = body.get("categoryId");
+        log.info("用户[]设置收藏项[{}]分类为[{}]", userId, id, categoryId);
+        return collectionItemService.setCategory(userId, id, categoryId);
+    }
+
+    @PostMapping("/batch/category")
+    @Operation(summary = "批量设置分类", description = "批量为多个收藏项设置分类")
+    public R batchSetCategory(@RequestAttribute("userId") Long userId,
+                              @RequestBody Map<String, Object> body) {
+        @SuppressWarnings("unchecked")
+        java.util.List<Long> ids = (java.util.List<Long>) body.get("ids");
+        Long categoryId = body.get("categoryId") != null ? 
+            ((Number) body.get("categoryId")).longValue() : null;
+        log.info("用户[{}]批量设置收藏项分类, 数量[{}], 分类[{}]", userId, ids != null ? ids.size() : 0, categoryId);
+        return collectionItemService.batchSetCategory(userId, ids, categoryId);
     }
 }

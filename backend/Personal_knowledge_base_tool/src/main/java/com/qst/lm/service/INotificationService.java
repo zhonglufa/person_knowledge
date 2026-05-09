@@ -1,5 +1,6 @@
 package com.qst.lm.service;
 
+import java.util.List;
 import java.util.Map;
 
 public interface INotificationService {
@@ -13,4 +14,6 @@ public interface INotificationService {
     int markAllAsRead(Long userId);
 
     boolean deleteNotification(Long userId, Long id);
+
+    int batchDeleteNotifications(Long userId, List<Long> ids);
 }

@@ -49,8 +49,13 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/note/recommended",
                         "/collections/recommended",
                         "/note/public",
+                        "/note/public/**",
                         "/notes/public",
                         "/collections/public",
+                        // 公开互动只读接口
+                        "/interaction/like/count",
+                        "/interaction/collect/count",
+                        "/interaction/comment/list",
                         // 搜索热门词（无需登录）
                         "/search/hot",
                         // Knife4j文档（无需登录）

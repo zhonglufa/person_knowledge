@@ -7,9 +7,12 @@
         <p class="page-desc">管理收藏项与笔记内容</p>
       </div>
       <div class="header-right">
-        <el-button type="info" icon="el-icon-document" @click="$router.push('/admin/content-logs')">
-          操作日志
-        </el-button>
+        <el-button
+           type="info"
+           icon="el-icon-document"
+           v-permission="'content:view'"
+           @click="$router.push('/admin/content-logs')"
+         >操作日志</el-button>
       </div>
     </div>
 
@@ -77,14 +80,22 @@
                 {{ formatDate(scope.row.createdAt) }}
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="180" align="center" fixed="right">
+            <el-table-column label="操作" width="240" align="center" fixed="right">
               <template slot-scope="scope">
                 <div class="action-buttons">
+                  <el-button
+                    type="primary"
+                    size="mini"
+                    icon="el-icon-view"
+                    v-permission="'content:view'"
+                    @click="handlePreviewContent('collect', scope.row)"
+                  >预览</el-button>
                   <el-button
                     v-if="scope.row.isPublic === 1"
                     type="warning"
                     size="mini"
                     icon="el-icon-bottom"
+                    v-permission="'content:take_down'"
                     @click="handleTakeDownContent('collect', scope.row)"
                   >下架</el-button>
                   <el-button
@@ -92,6 +103,7 @@
                     type="success"
                     size="mini"
                     icon="el-icon-top"
+                    v-permission="'content:restore'"
                     @click="handleRestoreContent('collect', scope.row)"
                   >恢复</el-button>
                 </div>
@@ -121,9 +133,11 @@
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="可见性" width="100" align="center">
+            <el-table-column label="公开状态" width="130" align="center">
               <template slot-scope="scope">
-                <el-tag type="success" size="small">公开</el-tag>
+                <el-tag :type="scope.row.isPublic === 1 ? 'success' : 'info'" size="small">
+                  {{ scope.row.isPublic === 1 ? '公开' : '私有' }}
+                </el-tag>
               </template>
             </el-table-column>
             <el-table-column prop="createTime" label="创建时间" min-width="170" align="center">
@@ -131,15 +145,32 @@
                 {{ formatDate(scope.row.createTime) }}
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="180" align="center" fixed="right">
+            <el-table-column label="操作" width="240" align="center" fixed="right">
               <template slot-scope="scope">
                 <div class="action-buttons">
                   <el-button
+                    type="primary"
+                    size="mini"
+                    icon="el-icon-view"
+                    v-permission="'content:view'"
+                    @click="handlePreviewContent('note', scope.row)"
+                  >预览</el-button>
+                  <el-button
+                    v-if="scope.row.isPublic === 1"
                     type="warning"
                     size="mini"
                     icon="el-icon-bottom"
+                    v-permission="'content:take_down'"
                     @click="handleTakeDownContent('note', scope.row)"
                   >下架</el-button>
+                  <el-button
+                    v-else
+                    type="success"
+                    size="mini"
+                    icon="el-icon-top"
+                    v-permission="'content:restore'"
+                    @click="handleRestoreContent('note', scope.row)"
+                  >恢复</el-button>
                 </div>
               </template>
             </el-table-column>
@@ -152,7 +183,7 @@
         <span class="batch-info">已选择 {{ selectedRows.length }} 项</span>
         <div class="batch-actions">
           <el-button type="warning" size="mini" icon="el-icon-bottom" @click="handleBatchTakeDown">批量下架</el-button>
-          <el-button v-if="activeTab === 'collect'" type="success" size="mini" icon="el-icon-top" @click="handleBatchRestore">批量恢复</el-button>
+          <el-button type="success" size="mini" icon="el-icon-top" @click="handleBatchRestore">批量恢复</el-button>
         </div>
       </div>
 
@@ -209,6 +240,29 @@ export default {
   },
 
   methods: {
+    handlePreviewContent(type, row) {
+      if (!row || !row.id) return
+
+      if (type === 'note') {
+        this.$router.push({
+          path: `/creation/notes/${row.id}`
+        })
+        return
+      }
+
+      if (type === 'collect') {
+        if (row.isPublic === 1) {
+          this.$router.push({
+            path: `/collection-items/${row.id}`
+          })
+        } else {
+          this.$router.push({
+            path: `/creation/collection-items/${row.id}/note/create`
+          })
+        }
+      }
+    },
+
     clearSelection() {
       this.selectedRows = []
       this.$nextTick(() => {

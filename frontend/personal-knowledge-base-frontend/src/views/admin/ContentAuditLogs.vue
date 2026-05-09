@@ -1,5 +1,5 @@
 <template>
-  <div class="content-audit-logs">
+  <div class="content-audit-logs" v-permission="'content:view'">
     <div class="page-header">
       <h2 class="page-title"><i class="el-icon-s-order"></i> 内容操作日志</h2>
       <p class="page-desc">查看管理员对内容的操作记录，包括下架、恢复等操作</p>
@@ -8,6 +8,18 @@
     <!-- 筛选区域 -->
     <el-card class="filter-card" shadow="hover">
       <el-form :inline="true" :model="filterForm" class="filter-form">
+        <el-form-item label="关键词">
+          <el-input
+            v-model="filterForm.keyword"
+            placeholder="操作详情 / 目标ID / 管理员ID"
+            clearable
+            @keyup.enter.native="handleFilterChange"
+            @clear="handleFilterChange"
+          >
+            <i slot="prefix" class="el-input__icon el-icon-search"></i>
+          </el-input>
+        </el-form-item>
+
         <el-form-item label="操作类型">
           <el-select v-model="filterForm.operationType" placeholder="全部" clearable @change="handleFilterChange">
             <el-option label="下架" value="take_down" />
@@ -17,6 +29,7 @@
             <el-option label="发布公告" value="publish_announcement" />
             <el-option label="创建公告" value="create_announcement" />
             <el-option label="更新公告" value="update_announcement" />
+            <el-option label="下架公告" value="take_down_announcement" />
             <el-option label="删除公告" value="delete_announcement" />
             <el-option label="批量禁用用户" value="batch_disable_user" />
             <el-option label="批量启用用户" value="batch_enable_user" />
@@ -76,6 +89,8 @@
             {{ getTargetTypeName(scope.row.targetType) }}
           </template>
         </el-table-column>
+        <el-table-column prop="adminId" label="管理员ID" width="110" />
+        <el-table-column prop="targetId" label="目标ID" width="110" />
         <el-table-column prop="operationDetail" label="操作详情" min-width="200" show-overflow-tooltip />
         <el-table-column prop="createdAt" label="操作时间" width="180" />
       </el-table>
@@ -105,6 +120,7 @@ export default {
   data() {
     return {
       filterForm: {
+        keyword: '',
         operationType: '',
         targetType: '',
         dateRange: []
@@ -131,12 +147,13 @@ export default {
           pageNum: this.pagination.pageNum,
           pageSize: this.pagination.pageSize,
           operationType: this.filterForm.operationType || undefined,
-          targetType: this.filterForm.targetType || undefined
+          targetType: this.filterForm.targetType || undefined,
+          keyword: this.filterForm.keyword || undefined
         }
 
         if (this.filterForm.dateRange && this.filterForm.dateRange.length === 2) {
           params.startTime = this.filterForm.dateRange[0]
-          params.endTime = this.filterForm.dateRange[1]
+          params.endTime = this.normalizeEndTime(this.filterForm.dateRange[1])
         }
 
         const response = await contentManageApi.getAuditLogs(params)
@@ -159,12 +176,19 @@ export default {
 
     handleReset() {
       this.filterForm = {
+        keyword: '',
         operationType: '',
         targetType: '',
         dateRange: []
       }
       this.pagination.pageNum = 1
       this.fetchLogs()
+    },
+
+    normalizeEndTime(endTime) {
+      if (!endTime || typeof endTime !== 'string') return endTime
+      if (!endTime.includes('00:00:00')) return endTime
+      return endTime.replace('00:00:00', '23:59:59')
     },
 
     handleSizeChange(size) {
@@ -187,6 +211,7 @@ export default {
         'publish_announcement': 'info',
         'create_announcement': '',
         'update_announcement': '',
+        'take_down_announcement': 'warning',
         'delete_announcement': 'danger',
         'batch_disable_user': 'warning',
         'batch_enable_user': 'success',
@@ -206,6 +231,7 @@ export default {
         'publish_announcement': '发布公告',
         'create_announcement': '创建公告',
         'update_announcement': '更新公告',
+        'take_down_announcement': '下架公告',
         'delete_announcement': '删除公告',
         'batch_disable_user': '批量禁用用户',
         'batch_enable_user': '批量启用用户',

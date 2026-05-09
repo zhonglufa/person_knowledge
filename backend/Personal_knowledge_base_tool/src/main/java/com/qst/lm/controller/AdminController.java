@@ -52,24 +52,36 @@ public class AdminController {
             return loginResult;
         }
 
-        User userInfo = (User) data.get("userInfo");
-        if (userInfo == null) {
+        Object userInfoObj = data.get("userInfo");
+        if (userInfoObj == null) {
             throw new BusinessException("登录失败，用户信息异常");
         }
 
-        List<String> roles = permissionService.getUserRoles(userInfo.getId()).stream()
+        Long loginUserId;
+        if (userInfoObj instanceof User userInfo) {
+            loginUserId = userInfo.getId();
+        } else if (userInfoObj instanceof Map<?, ?> userInfoMap) {
+            Object idVal = userInfoMap.get("id");
+            if (idVal == null) {
+                throw new BusinessException("登录失败，用户信息异常");
+            }
+            loginUserId = Long.valueOf(idVal.toString());
+        } else {
+            throw new BusinessException("登录失败，用户信息异常");
+        }
+
+        List<String> roles = permissionService.getUserRoles(loginUserId).stream()
                 .map(role -> role.getRoleCode())
                 .toList();
 
-        boolean isAdmin = roles.contains("admin") || roles.contains("super_admin")
-                || "admin".equals(userInfo.getRole());
+        boolean isAdmin = roles.contains("admin") || roles.contains("super_admin");
 
         if (!isAdmin) {
-            log.warn("非管理员用户[{}]尝试访问后台", userInfo.getId());
+            log.warn("非管理员用户[{}]尝试访问后台", loginUserId);
             throw new BusinessException("权限不足，仅管理员可登录后台");
         }
 
-        log.info("管理员[{}]登录后台成功", userInfo.getId());
+        log.info("管理员[{}]登录后台成功", loginUserId);
         return loginResult;
     }
 
@@ -168,12 +180,21 @@ public class AdminController {
         return adminService.updateAnnouncement(userId, id, dto);
     }
 
-    @DeleteMapping("/announcements/{id}")
+    @PutMapping("/announcements/{id}/take-down")
     @Operation(summary = "下架公告", description = "下架指定公告，使其不再显示")
     @RequiresPermission("announcement:update")
+    public R takeDownAnnouncement(@RequestAttribute Long userId,
+                                  @PathVariable Long id) {
+        log.info("管理员[{}]下架公告[{}]", userId, id);
+        return adminService.takeDownAnnouncement(userId, id);
+    }
+
+    @DeleteMapping("/announcements/{id}")
+    @Operation(summary = "删除公告", description = "逻辑删除指定公告")
+    @RequiresPermission("announcement:delete")
     public R deleteAnnouncement(@RequestAttribute Long userId,
                                 @PathVariable Long id) {
-        log.info("管理员[{}]下架公告[{}]", userId, id);
+        log.info("管理员[{}]删除公告[{}]", userId, id);
         return adminService.deleteAnnouncement(userId, id);
     }
 
@@ -208,9 +229,10 @@ public class AdminController {
                                  @RequestParam(required = false) String operationType,
                                  @RequestParam(required = false) String targetType,
                                  @RequestParam(required = false) String startTime,
-                                 @RequestParam(required = false) String endTime) {
+                                 @RequestParam(required = false) String endTime,
+                                 @RequestParam(required = false) String keyword) {
         log.info("管理员[{}]获取内容操作日志", userId);
-        return adminService.getContentAuditLogs(page.getPageNum(), page.getPageSize(), operationType, targetType, startTime, endTime);
+        return adminService.getContentAuditLogs(page.getPageNum(), page.getPageSize(), operationType, targetType, startTime, endTime, keyword);
     }
 
     @PostMapping("/announcements/{id}/publish")
@@ -220,6 +242,15 @@ public class AdminController {
                                  @PathVariable Long id) {
         log.info("管理员[{}]发布公告[{}]", userId, id);
         return adminService.publishAnnouncement(userId, id);
+    }
+
+    @PostMapping("/announcements/{id}/republish")
+    @Operation(summary = "重新发布公告", description = "将已下架的公告重新发布并推送给所有用户")
+    @RequiresPermission("announcement:publish")
+    public R republishAnnouncement(@RequestAttribute Long userId,
+                                   @PathVariable Long id) {
+        log.info("管理员[{}]重新发布公告[{}]", userId, id);
+        return adminService.republishAnnouncement(userId, id);
     }
 
     @GetMapping("/announcements/{id}/statistics")
@@ -321,9 +352,30 @@ public class AdminController {
     public R scheduleAnnouncement(@RequestAttribute Long userId,
                                   @PathVariable Long id,
                                   @RequestBody Map<String, String> params) {
-        java.time.LocalDateTime scheduledAt = java.time.LocalDateTime.parse(params.get("scheduledAt"));
-        log.info("管理员[{}]设置公告[{}]定时发布", userId, id);
+        String scheduledAtStr = params.get("scheduledAt");
+        java.time.LocalDateTime scheduledAt = java.time.LocalDateTime.parse(
+                scheduledAtStr,
+                java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+        );
+        log.info("管理员[{}]设置公告[]定时发布", userId, id);
         return adminService.scheduleAnnouncement(userId, id, scheduledAt);
+    }
+
+    @GetMapping("/announcements/schedules")
+    @Operation(summary = "获取定时任务列表", description = "获取所有待定时发布的公告列表")
+    @RequiresPermission("announcement:view")
+    public R getScheduleList(@RequestAttribute Long userId) {
+        log.info("管理员[{}]获取定时任务列表", userId);
+        return adminService.getScheduleList();
+    }
+
+    @DeleteMapping("/announcements/schedules/{scheduleId}")
+    @Operation(summary = "取消定时发布", description = "取消指定公告的定时发布")
+    @RequiresPermission("announcement:publish")
+    public R cancelSchedule(@RequestAttribute Long userId,
+                           @PathVariable Long scheduleId) {
+        log.info("管理员[{}]取消定时发布[{}]", userId, scheduleId);
+        return adminService.cancelSchedule(userId, scheduleId);
     }
 
     @GetMapping("/announcements/templates")
@@ -336,14 +388,27 @@ public class AdminController {
 
     @PostMapping("/announcements/templates")
     @Operation(summary = "创建公告模板", description = "创建自定义公告模板")
-    @RequiresPermission("announcement:create")
+    @RequiresPermission("announcement:update")
     public R createAnnouncementTemplate(@RequestAttribute Long userId,
-                                         @RequestBody Map<String, String> params) {
+                                        @RequestBody Map<String, String> params) {
         String name = params.get("name");
         String content = params.get("content");
         String type = params.get("type");
         log.info("管理员[{}]创建公告模板[{}]", userId, name);
         return adminService.createAnnouncementTemplate(userId, name, content, type);
+    }
+
+    @PutMapping("/announcements/templates/{templateId}")
+    @Operation(summary = "更新公告模板", description = "更新自定义公告模板")
+    @RequiresPermission("announcement:update")
+    public R updateAnnouncementTemplate(@RequestAttribute Long userId,
+                                        @PathVariable Long templateId,
+                                        @RequestBody Map<String, String> params) {
+        String name = params.get("name");
+        String content = params.get("content");
+        String type = params.get("type");
+        log.info("管理员[{}]更新公告模板[{}]", userId, templateId);
+        return adminService.updateAnnouncementTemplate(userId, templateId, name, content, type);
     }
 
     @DeleteMapping("/announcements/templates/{templateId}")
@@ -365,13 +430,23 @@ public class AdminController {
     }
 
     @PutMapping("/users/{id}/roles")
-    @Operation(summary = "分配用户角色", description = "为指定用户分配角色")
+    @Operation(summary = "设置用户角色", description = "覆盖式设置指定用户的角色（单用户单角色）")
     @RequiresPermission("user:update")
     public R assignUserRole(@RequestAttribute Long userId,
                             @PathVariable Long id,
                             @RequestBody Map<String, Object> params) {
-        Long roleId = Long.valueOf(params.get("roleId").toString());
-        log.info("管理员[{}]为用户[{}]分配角色[{}]", userId, id, roleId);
+        Object rawRoleId = params.get("roleId");
+        Long roleId = rawRoleId == null ? null : Long.valueOf(rawRoleId.toString());
+        log.info("管理员[{}]为用户[{}]设置角色[{}]", userId, id, roleId);
         return permissionService.assignRoleToUser(id, roleId);
+    }
+
+    @DeleteMapping("/users/{id}/roles")
+    @Operation(summary = "清空用户角色", description = "清空指定用户的所有 RBAC 角色")
+    @RequiresPermission("user:update")
+    public R clearUserRoles(@RequestAttribute Long userId,
+                            @PathVariable Long id) {
+        log.info("管理员[{}]清空用户[{}]角色", userId, id);
+        return permissionService.assignRoleToUser(id, null);
     }
 }

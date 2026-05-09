@@ -84,5 +84,26 @@ export default [
       requiresAuth: false,
       title: '收藏集详情'
     }
+  },
+  {
+    path: '/collection-items/:id',
+    name: 'PublicCollectionItemDetail',
+    component: () => import('@/views/collect/PublicCollectionItemDetail.vue'),
+    props: false,
+    meta: {
+      requiresAuth: false,
+      title: '收藏项详情'
+    }
+  },
+  {
+    path: '/announcements/:id',
+    name: 'AnnouncementDetailPage',
+    component: () => import('@/views/announcement/AnnouncementDetailPage.vue'),
+    props: true,
+    meta: {
+      requiresAuth: false,
+      title: '公告详情'
+    }
   }
 ]
+
