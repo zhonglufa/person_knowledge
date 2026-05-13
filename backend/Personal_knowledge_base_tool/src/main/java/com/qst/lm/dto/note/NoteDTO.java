@@ -42,9 +42,9 @@ public class NoteDTO {
     private Long collectionItemId;
 
     /**
-     * 是否公开，默认0
+     * 是否公开，默认false
      */
-    private Integer isPublic = 0;
+    private Boolean isPublic = false;
 
     /**
      * 状态（草稿/完成）

@@ -15,8 +15,8 @@
             placeholder="选择提醒时间"
             style="width: 100%"
             :picker-options="pickerOptions"
-            format="YYYY-MM-DD HH:mm"
-            value-format="YYYY-MM-DD HH:mm:ss"
+            format="yyyy-MM-dd HH:mm"
+            value-format="yyyy-MM-dd HH:mm:ss"
           />
         </el-form-item>
 

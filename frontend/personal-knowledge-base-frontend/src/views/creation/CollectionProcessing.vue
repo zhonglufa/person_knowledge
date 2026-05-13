@@ -184,20 +184,43 @@
 
           <div class="detail-grid">
             <div class="detail-section">
-              <div class="section-title">提醒时间</div>
-              <div class="section-content">{{ formatDate(activeItem.remindAt) || '未设置提醒' }}</div>
+              <div class="section-title">
+                <span>提醒时间</span>
+                <el-button 
+                  type="text" 
+                  icon="el-icon-bell" 
+                  size="small" 
+                  @click="handleSetRemind(activeItem)"
+                  class="remind-btn"
+                >
+                  {{ activeItem.remindAt ? '修改提醒' : '设置提醒' }}
+                </el-button>
+              </div>
+              <div class="section-content">
+                <span v-if="activeItem.remindAt" class="remind-time">
+                  <i class="el-icon-alarm-clock"></i>
+                  {{ formatDate(activeItem.remindAt) }}
+                </span>
+                <span v-else class="no-remind">未设置提醒</span>
+              </div>
             </div>
             <div class="detail-section">
               <div class="section-title">学习进度</div>
-              <div class="section-content">{{ activeItem.studyProgress || 0 }}%</div>
+              <div class="section-content">
+                <el-progress 
+                  :percentage="activeItem.studyProgress || 0" 
+                  :color="getProgressColor(activeItem.studyProgress)"
+                  :format="format => `${format}%`"
+                />
+              </div>
             </div>
           </div>
 
           <div class="detail-actions">
-            <el-button type="primary" @click="handleProcessItem(activeItem)">继续加工</el-button>
-            <el-button @click="handleCreateNote(activeItem)">创建笔记</el-button>
-            <el-button type="success" plain @click="handleMarkComplete(activeItem)">标记完成</el-button>
-            <el-button type="warning" plain @click="handleMarkAbandon(activeItem)">标记放弃</el-button>
+            <el-button type="primary" icon="el-icon-edit" @click="handleProcessItem(activeItem)">继续加工</el-button>
+            <el-button icon="el-icon-document-add" @click="handleCreateNote(activeItem)">创建笔记</el-button>
+            <el-button type="success" icon="el-icon-check" plain @click="handleMarkComplete(activeItem)">标记完成</el-button>
+            <el-button type="warning" icon="el-icon-close" plain @click="handleMarkAbandon(activeItem)">标记放弃</el-button>
           </div>
         </div>
         <div v-else class="detail-placeholder">
@@ -223,6 +246,13 @@
     <CollectionItemDigestEditor :visible.sync="showProcessDialog" :item-id="currentItemId" @success="handleProcessSuccess" />
     <BatchProcessingDialog :visible.sync="showBatchDialog" :selected-items="selectedItems" @success="handleBatchSuccess" />
     <AddCollectionItemDialog :visible.sync="showAddDialog" :collection-id="null" @success="handleAddSuccess" />
+    <RemindDialog 
+      :visible.sync="showRemindDialog" 
+      :item-id="currentItemId" 
+      :existing-remind="currentRemind"
+      @remind-saved="handleRemindSaved"
+      @remind-cancelled="handleRemindCancelled"
+    />
   </div>
 </template>
 
@@ -231,13 +261,15 @@ import { collectApi } from '@/api/collect'
 import CollectionItemDigestEditor from '@/components/collect/CollectionItemDigestEditor.vue'
 import BatchProcessingDialog from '@/components/collect/BatchProcessingDialog.vue'
 import AddCollectionItemDialog from '@/components/collect/AddCollectionItemDialog.vue'
+import RemindDialog from '@/components/collect/RemindDialog.vue'
 
 export default {
   name: 'CollectionProcessing',
   components: {
     CollectionItemDigestEditor,
     BatchProcessingDialog,
-    AddCollectionItemDialog
+    AddCollectionItemDialog,
+    RemindDialog
   },
   data() {
     return {
@@ -254,7 +286,9 @@ export default {
       showProcessDialog: false,
       showBatchDialog: false,
       showAddDialog: false,
+      showRemindDialog: false,
       currentItemId: null,
+      currentRemind: null,
       activeItem: null
     }
   },
@@ -308,6 +342,18 @@ export default {
           collectionName: item.collectionName || (item.collection ? item.collection.name : null)
         }))
         this.total = response.data.total || 0
+        
+        const itemIdFromQuery = this.$route.query.itemId
+        if (itemIdFromQuery && this.items.length > 0) {
+          const targetItem = this.items.find(item => item.id === Number(itemIdFromQuery))
+          if (targetItem) {
+            this.activeItem = targetItem
+            this.$message.success('已定位到提醒的收藏项')
+            this.$router.replace({ query: {} })
+            return
+          }
+        }
+        
         if (this.items.length > 0) {
           const current = this.activeItem && this.items.find(item => item.id === this.activeItem.id)
           this.activeItem = current || this.items[0]
@@ -479,6 +525,29 @@ export default {
     formatDate(date) {
       if (!date) return ''
       return new Date(date).toLocaleString('zh-CN')
+    },
+    handleSetRemind(item) {
+      this.currentItemId = item.id
+      this.currentRemind = item.remindAt ? {
+        remindAt: item.remindAt,
+        note: item.studyGoal || ''
+      } : null
+      this.showRemindDialog = true
+    },
+    handleRemindSaved(remindData) {
+      this.$message.success('学习提醒设置成功')
+      this.showRemindDialog = false
+      this.loadItems()
+    },
+    handleRemindCancelled() {
+      this.$message.success('学习提醒已取消')
+      this.showRemindDialog = false
+      this.loadItems()
+    },
+    getProgressColor(percentage) {
+      if (percentage >= 80) return '#67c23a'
+      if (percentage >= 50) return '#e6a23c'
+      return '#f56c6c'
     }
   },
   mounted() {
@@ -671,6 +740,47 @@ export default {
   color: var(--text-primary);
   font-weight: 600;
   margin-bottom: var(--space-2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.remind-btn {
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--primary-color);
+}
+
+.remind-btn:hover {
+  color: var(--primary-hover);
+}
+
+.remind-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--warning-color);
+  font-weight: 500;
+}
+
+.remind-time i {
+  font-size: 14px;
+}
+
+.no-remind {
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.detail-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.detail-actions .el-button {
+  flex: 1;
+  min-width: 120px;
 }
 
 .detail-placeholder,

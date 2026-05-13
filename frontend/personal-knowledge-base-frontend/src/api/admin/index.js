@@ -86,10 +86,6 @@ export const adminApi = {
       method: 'get'
     })
   },
-  // 获取后台首页统计数据（别名）
-  getDashboard() {
-    return this.getHomeData()
-  },
   // 获取仪表盘趋势数据
   getDashboardTrends(params) {
     return request({

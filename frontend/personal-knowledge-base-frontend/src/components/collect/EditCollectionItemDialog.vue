@@ -439,6 +439,12 @@ export default {
         
         this.submitting = true
         
+        // 验证item.id
+        if (!this.item || !this.item.id || typeof this.item.id !== 'number') {
+          this.$message.error('无效的收藏项ID')
+          return
+        }
+        
         // 准备提交数据
         const submitData = { ...this.formData }
         

@@ -338,7 +338,7 @@ export default {
       try {
         await this.$refs.categoryForm.validate()
         this.submitLoading = true
-        if (this.isEditing) {
+        if (this.isEditing && this.categoryForm.id && typeof this.categoryForm.id === 'number') {
           await updateCategory(this.categoryForm.id, this.categoryForm)
           this.$message.success('更新成功')
         } else {

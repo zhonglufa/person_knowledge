@@ -743,7 +743,7 @@ export default {
       }
 
       try {
-        if (this.editingCollection) {
+        if (this.editingCollection && this.editingCollection.id) {
           await collectionsApi.updateCollection(this.editingCollection.id, this.collectionForm)
           this.$message.success('收藏集更新成功')
         } else {

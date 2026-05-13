@@ -44,7 +44,7 @@ public class CollectionServiceImpl implements ICollectionService {
         collection.setName(dto.getName());
         collection.setDescription(dto.getDescription());
         collection.setCoverImage(dto.getCoverImage());
-        collection.setIsPublic(dto.getIsPublic());
+        collection.setIsPublic(booleanToInteger(dto.getIsPublic()));
         collectionMapper.insert(collection);
         log.info("用户[{}]创建收藏集[{}]成功", userId, collection.getId());
         return R.success("创建收藏集成功", collection);
@@ -55,6 +55,7 @@ public class CollectionServiceImpl implements ICollectionService {
     public R updateCollection(Long userId, Long id, CollectionDTO dto) {
         Collection collection = getAndCheckOwnership(userId, id);
 
+        Integer isPublicInt = booleanToInteger(dto.getIsPublic());
         LambdaUpdateWrapper<Collection> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(Collection::getId, id)
                 .eq(Collection::getUserId, userId)
@@ -62,14 +63,14 @@ public class CollectionServiceImpl implements ICollectionService {
                 .set(Collection::getName, dto.getName())
                 .set(Collection::getDescription, dto.getDescription())
                 .set(Collection::getCoverImage, dto.getCoverImage())
-                .set(Collection::getIsPublic, dto.getIsPublic());
+                .set(Collection::getIsPublic, isPublicInt);
         collectionMapper.update(null, updateWrapper);
 
-        if (collection.getIsPublic() != dto.getIsPublic()) {
+        if (!java.util.Objects.equals(collection.getIsPublic(), isPublicInt)) {
             LambdaUpdateWrapper<CollectionItem> itemUpdateWrapper = new LambdaUpdateWrapper<>();
             itemUpdateWrapper.eq(CollectionItem::getCollectionId, id)
                     .eq(CollectionItem::getDeleted, 0)
-                    .set(CollectionItem::getIsPublic, dto.getIsPublic());
+                    .set(CollectionItem::getIsPublic, isPublicInt);
             int updatedCount = collectionItemMapper.update(null, itemUpdateWrapper);
             log.info("用户[{}]更新收藏集[{}]公开状态，同步更新{}个收藏项", userId, id, updatedCount);
         } else {
@@ -240,5 +241,12 @@ public class CollectionServiceImpl implements ICollectionService {
             log.error("用户[{}]上传收藏集封面图片失败", userId, e);
             throw new BusinessException("封面图片上传失败，请稍后重试");
         }
+    }
+
+    private Integer booleanToInteger(Boolean value) {
+        if (value == null) {
+            return 0;
+        }
+        return value ? 1 : 0;
     }
 }

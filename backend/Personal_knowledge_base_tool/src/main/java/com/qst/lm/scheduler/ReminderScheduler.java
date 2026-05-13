@@ -72,6 +72,7 @@ public class ReminderScheduler {
                 notification.setRemindAt(item.getRemindAt());
                 notification.setTitle("学习提醒");
                 notification.setContent(item.getTitle() == null ? "您有一条学习提醒" : ("请回顾：" + item.getTitle()));
+                notification.setTargetUrl("/creation/processing?itemId=" + item.getId());
 
                 notificationsToInsert.add(notification);
                 itemIdsToUpdate.add(item.getId());

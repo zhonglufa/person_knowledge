@@ -100,7 +100,7 @@ public class CollectionItemDTO {
     private Boolean isStar;
 
     /**
-     * 是否公开: 0=私密, 1=公开
+     * 是否公开: false=私密, true=公开
      */
-    private Integer isPublic;
+    private Boolean isPublic;
 }

@@ -26,7 +26,7 @@ public class CollectionDTO {
     private String coverImage;
 
     /**
-     * 是否公开 (0=私有, 1=公开)，默认0
+     * 是否公开 (false=私有, true=公开)，默认false
      */
-    private Integer isPublic = 0;
+    private Boolean isPublic = false;
 }

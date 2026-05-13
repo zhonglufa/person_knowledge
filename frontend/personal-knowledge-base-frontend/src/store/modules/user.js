@@ -167,7 +167,7 @@ const actions = {
         }
       }
     } catch (error) {
-      const errorMessage = error.response?.data?.message || '注册失败，请稍后重试';
+      const errorMessage = error.message || '注册失败，请稍后重试';
       commit('SET_ERROR', errorMessage);
       throw new Error(errorMessage);
     } finally {

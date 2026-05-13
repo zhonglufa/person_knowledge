@@ -35,14 +35,6 @@ export const deleteCollection = (id) => {
   return apiClient.delete(`/collections/${id}`)
 }
 
-export const toggleCollectionStar = (id) => {
-  return apiClient.put(`/collections/${id}/star`)
-}
-
-export const processCollectionItem = (id, data) => {
-  return apiClient.put(`/collect/${id}/digest-status`, data)
-}
-
 export const getPublicCollections = (params = {}) => {
   return publicRequest.get('/collections/public', { params })
 }
@@ -61,8 +53,6 @@ export const collectionsApi = {
   createCollection,
   updateCollection,
   deleteCollection,
-  toggleCollectionStar,
-  processCollectionItem,
   updateCollectionPublicStatus
 }
 

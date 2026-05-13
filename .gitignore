@@ -36,7 +36,6 @@ target/
 
 # Node.js
 node_modules/
-dist/
 dist-ssr/
 build/
 
@@ -67,7 +66,7 @@ lerna-debug.log*
 docs/
 测试用例/
 *.md
-!README.md
+!docs/README.md
 
 # ==================== 其他 ====================
 nul

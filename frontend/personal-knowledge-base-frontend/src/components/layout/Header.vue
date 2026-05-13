@@ -45,6 +45,16 @@
               </el-menu-item>
 
               <el-menu-item
+                  index="discover"
+                  class="nav-item"
+                  @mouseenter="onNavHover('discover')"
+                  @mouseleave="onNavLeave"
+              >
+                <i class="fas fa-fire nav-icon"></i>
+                <span class="nav-text">发现</span>
+              </el-menu-item>
+
+              <el-menu-item
                   index="collect"
                   class="nav-item"
                   @mouseenter="onNavHover('collect')"
@@ -310,13 +320,13 @@ export default {
 
       const routeToNavMap = {
         '/': 'home',
-        '/home': 'home',
+        '/personal/dashboard': 'home',
+        '/discover': 'discover',
+        '/discover/square': 'discover',
         '/collect': 'collect',
         '/collect/center': 'collect',
-        '/collection': 'collect',
         '/creation': 'creation',
-        '/creation/center': 'creation',
-        '/create': 'creation',
+        '/creation/workspace': 'creation',
         '/search': 'search',
         '/search/center': 'search',
         '/personal': 'personal',
@@ -347,6 +357,7 @@ export default {
     handleNavSelect(index) {
       const routeMap = {
         'home': '/personal/center',
+        'discover': '/discover/square',
         'collect': '/collect/center',
         'creation': '/creation/workspace',
         'search': '/search/center'

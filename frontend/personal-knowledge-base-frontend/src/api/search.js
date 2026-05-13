@@ -70,14 +70,6 @@ export function getHotSearchKeywords() {
   })
 }
 
-export function getSearchSuggestions(keyword) {
-  return request({
-    url: '/search',
-    method: 'get',
-    params: buildSearchParams({ keyword, pageNum: 1, pageSize: 10 }, 'all')
-  })
-}
-
 export default {
   searchAll,
   searchCollections,
@@ -86,6 +78,5 @@ export default {
   getSearchHistory,
   deleteSearchHistory,
   clearSearchHistory,
-  getHotSearchKeywords,
-  getSearchSuggestions
+  getHotSearchKeywords
 }

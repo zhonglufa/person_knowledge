@@ -205,7 +205,7 @@ public class UserServiceImpl implements IUserService {
         Category defaultCategory = new Category();
         defaultCategory.setUserId(user.getId());
         defaultCategory.setName("默认分类");
-        defaultCategory.setParentId(0L);
+        defaultCategory.setParentId(null);
         categoryMapper.insert(defaultCategory);
 
         Collection defaultCollection = new Collection();

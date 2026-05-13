@@ -487,7 +487,7 @@ export default {
         await this.$refs.tagForm.validate()
         this.submitLoading = true
         const data = { name: this.tagForm.name.trim(), color: this.tagForm.color }
-        if (this.isEditing) {
+        if (this.isEditing && this.tagForm.id && typeof this.tagForm.id === 'number') {
           await updateTag(this.tagForm.id, data)
           this.$message.success('更新成功')
         } else {

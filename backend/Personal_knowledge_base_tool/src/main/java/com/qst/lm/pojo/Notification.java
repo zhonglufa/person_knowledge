@@ -62,4 +62,7 @@ public class Notification implements Serializable {
     @TableField("extra_data")
     private String extraData;
 
+    @TableField("target_url")
+    private String targetUrl;
+
 }

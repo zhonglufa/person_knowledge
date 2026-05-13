@@ -141,6 +141,11 @@ export default {
 
         this.submitting = true
         try {
+          if (!this.form.id || typeof this.form.id !== 'number') {
+            this.$message.error('无效的收藏集ID')
+            return
+          }
+
           const updateData = {
             name: this.form.name,
             description: this.form.description,

@@ -9,18 +9,17 @@ import com.qst.lm.exception.BusinessException;
 import com.qst.lm.mapper.CategoryMapper;
 import com.qst.lm.mapper.CollectionItemMapper;
 import com.qst.lm.pojo.Category;
-import com.qst.lm.pojo.CollectionItem;
 import com.qst.lm.service.ICategoryService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
+
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+
 
 /**
  * 分类管理服务实现类
@@ -59,8 +58,17 @@ public class CategoryServiceImpl implements ICategoryService {
         // 如果指定了父分类，校验父分类存在且属于当前用户
         if (parentId != null && parentId > 0) {
             Category parentCategory = categoryMapper.selectById(parentId);
-            if (parentCategory == null || !parentCategory.getUserId().equals(userId)) {
-                throw new BusinessException("父分类不存在");
+            if (parentCategory == null) {
+                log.error("父分类[{}]不存在，用户[{}]创建分类失败", parentId, userId);
+                throw new BusinessException("父分类不存在，ID: " + parentId);
+            }
+            if (parentCategory.getDeleted() == 1) {
+                log.error("父分类[{}]已被删除，用户[{}]创建分类失败", parentId, userId);
+                throw new BusinessException("父分类已被删除，ID: " + parentId);
+            }
+            if (!parentCategory.getUserId().equals(userId)) {
+                log.error("父分类[{}]不属于用户[{}]，创建分类失败", parentId, userId);
+                throw new BusinessException("父分类不属于当前用户");
             }
         }
 
@@ -251,8 +259,8 @@ public class CategoryServiceImpl implements ICategoryService {
         Long targetParentId = dto.getTargetParentId();
         if (targetParentId > 0) {
             Category parentCategory = categoryMapper.selectById(targetParentId);
-            if (parentCategory == null || !parentCategory.getUserId().equals(userId)) {
-                throw new BusinessException("目标父分类不存在");
+            if (parentCategory == null || parentCategory.getDeleted() == 1 || !parentCategory.getUserId().equals(userId)) {
+                throw new BusinessException("目标父分类不存在或已被删除");
             }
         }
 

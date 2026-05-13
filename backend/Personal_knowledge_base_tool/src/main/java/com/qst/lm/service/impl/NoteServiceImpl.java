@@ -64,7 +64,7 @@ public class NoteServiceImpl implements INoteService {
         note.setDescription(dto.getDescription());
         note.setCoverImage(dto.getCoverImage());
         note.setCollectionItemId(dto.getCollectionItemId());
-        note.setIsPublic(dto.getIsPublic() != null ? dto.getIsPublic() : 0);
+        note.setIsPublic(dto.getIsPublic() != null ? (dto.getIsPublic() ? 1 : 0) : 0);
         // 如果status为null，默认设为"草稿"
         note.setStatus(dto.getStatus() != null ? dto.getStatus() : "草稿");
         validatePublicDraftRule(note.getStatus(), note.getIsPublic());
@@ -92,7 +92,7 @@ public class NoteServiceImpl implements INoteService {
         note.setCoverImage(dto.getCoverImage());
         note.setCollectionItemId(dto.getCollectionItemId());
         if (dto.getIsPublic() != null) {
-            note.setIsPublic(dto.getIsPublic());
+            note.setIsPublic(dto.getIsPublic() ? 1 : 0);
         }
         if (dto.getStatus() != null) {
             note.setStatus(dto.getStatus());
@@ -123,8 +123,7 @@ public class NoteServiceImpl implements INoteService {
 
         Long collectionItemId = note.getCollectionItemId();
 
-        note.setDeleted(1);
-        noteMapper.updateById(note);
+        noteMapper.deleteById(id);
 
         if (collectionItemId != null) {
             try {
@@ -152,7 +151,7 @@ public class NoteServiceImpl implements INoteService {
             wrapper.eq(Note::getStatus, query.getStatus());
         }
         if (query.getIsPublic() != null) {
-            wrapper.eq(Note::getIsPublic, query.getIsPublic());
+            wrapper.eq(Note::getIsPublic, query.getIsPublic() ? 1 : 0);
         }
         if (StringUtils.hasText(query.getKeyword())) {
             wrapper.and(w -> w.like(Note::getTitle, query.getKeyword())
@@ -248,7 +247,7 @@ public class NoteServiceImpl implements INoteService {
         note.setDescription(dto.getDescription());
         note.setCoverImage(dto.getCoverImage());
         note.setCollectionItemId(dto.getCollectionItemId());
-        note.setIsPublic(dto.getIsPublic() != null ? dto.getIsPublic() : 0);
+        note.setIsPublic(dto.getIsPublic() != null ? (dto.getIsPublic() ? 1 : 0) : 0);
         
         validatePublicDraftRule(note.getStatus(), note.getIsPublic());
 

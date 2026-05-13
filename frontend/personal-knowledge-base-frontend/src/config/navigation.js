@@ -7,6 +7,12 @@ export const NAV_ITEMS = [
     url: '/personal/center' 
   },
   { 
+    id: 'discover', 
+    text: '发现', 
+    icon: 'fas fa-fire', 
+    url: '/discover/square' 
+  },
+  { 
     id: 'creation', 
     text: '创作', 
     icon: 'fas fa-pen', 

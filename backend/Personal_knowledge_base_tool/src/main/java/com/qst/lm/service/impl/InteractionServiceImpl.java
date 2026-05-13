@@ -278,7 +278,23 @@ public class InteractionServiceImpl implements IInteractionService {
 
         wrapper.orderByAsc(InteractionComment::getCreatedAt);
         Page<InteractionComment> result = interactionCommentMapper.selectPage(pageObj, wrapper);
-        return R.success(result);
+
+        List<Map<String, Object>> commentList = result.getRecords().stream().map(comment -> {
+            Map<String, Object> commentMap = new LinkedHashMap<>();
+            commentMap.put("id", comment.getId());
+            commentMap.put("userId", comment.getUserId());
+            commentMap.put("targetId", comment.getTargetId());
+            commentMap.put("targetType", comment.getTargetType());
+            commentMap.put("content", comment.getContent());
+            commentMap.put("parentId", comment.getParentId());
+            commentMap.put("createdAt", comment.getCreatedAt());
+            commentMap.put("userName", getUserNickname(comment.getUserId()));
+            return commentMap;
+        }).toList();
+
+        Page<Map<String, Object>> resultPage = new Page<>(result.getCurrent(), result.getSize(), result.getTotal());
+        resultPage.setRecords(commentList);
+        return R.success(resultPage);
     }
 
     @Override

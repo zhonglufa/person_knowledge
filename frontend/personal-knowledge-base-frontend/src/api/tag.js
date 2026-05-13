@@ -73,15 +73,6 @@ export const getTagStatistics = () => {
   })
 }
 
-// 批量操作标签
-export const batchOperateTags = (data) => {
-  return request({
-    url: '/tags/batch',
-    method: 'post',
-    data
-  })
-}
-
 // 获取热门标签
 export const getPopularTags = (limit = 20) => {
   return request({

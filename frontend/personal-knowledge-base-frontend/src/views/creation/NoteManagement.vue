@@ -112,6 +112,7 @@
                 </div>
                 <div class="card-actions" @click.stop>
                   <el-button type="text" size="mini" @click="handleEditNote(note)">{{ getNoteStage(note) === 'draft' ? '继续编辑' : '编辑' }}</el-button>
+                  <el-button v-if="getNoteStage(note) === 'draft'" type="text" size="mini" style="color: #10b981" @click="handlePublishNote(note)">发布</el-button>
                   <el-dropdown @command="handleCommand">
                     <el-button type="text" size="mini">
                       <i class="fas fa-ellipsis-v"></i>
@@ -131,12 +132,12 @@
           </el-col>
         </el-row>
 
-        <el-table v-else :data="paginatedNotes" style="width: 100%" @row-click="handleViewNote">
+        <el-table ref="notesTable" v-else :data="paginatedNotes" style="width: 100%" @row-click="handleViewNote" @selection-change="handleTableSelectionChange">
           <el-table-column v-if="showBatchMode" type="selection" width="55" align="center" />
           <el-table-column prop="title" label="标题" min-width="200">
             <template slot-scope="scope">
               <div class="table-title">
-                <span class="type-dot" :class="getTypeClass(scope.row.type)"></span>
+                <span class="type-dot" :class="getTypeClass(scope.row.noteType)"></span>
                 <span>{{ scope.row.title }}</span>
                 <el-tag size="mini" :type="getNoteStage(scope.row) === 'draft' ? 'warning' : 'success'" style="margin-left: 8px;">
                   {{ getNoteStage(scope.row) === 'draft' ? '草稿' : '已完成' }}
@@ -158,10 +159,11 @@
           <el-table-column prop="updateTime" label="更新时间" width="160" align="center">
             <template slot-scope="scope">{{ formatDate(scope.row.updateTime) }}</template>
           </el-table-column>
-          <el-table-column label="操作" width="240" align="center">
+          <el-table-column label="操作" width="300" align="center">
             <template slot-scope="scope">
               <el-button type="text" size="small" @click.stop="handleViewNote(scope.row)">查看</el-button>
               <el-button type="text" size="small" @click.stop="handleEditNote(scope.row)">{{ getNoteStage(scope.row) === 'draft' ? '继续编辑' : '编辑' }}</el-button>
+              <el-button v-if="getNoteStage(scope.row) === 'draft'" type="text" size="small" style="color: #10b981" @click.stop="handlePublishNote(scope.row)">发布</el-button>
               <el-button type="text" size="small" @click.stop="handleTogglePublic(scope.row)">
                 {{ scope.row.isPublic ? '设为私有' : '设为公开' }}
               </el-button>
@@ -229,11 +231,13 @@ export default {
       viewMode: 'grid',
       loading: false,
       searchKeyword: '',
+      searchTimer: null,
       filterType: '',
       filterStatus: '',
       currentPage: 1,
       pageSize: 12,
       notes: [],
+      totalNotes: 0,
       showBatchMode: false,
       selectedNotes: []
     }
@@ -279,7 +283,7 @@ export default {
       return this.filteredNotes.slice(start, start + this.pageSize)
     },
     overviewMetrics() {
-      const total = this.normalizedNotes.length
+      const total = this.totalNotes || this.normalizedNotes.length
       const drafts = this.normalizedNotes.filter(note => note.stage === 'draft').length
       const published = this.normalizedNotes.filter(note => note.stage === 'published').length
       const publicCount = this.normalizedNotes.filter(note => note.isPublic).length
@@ -298,7 +302,19 @@ export default {
       ]
     },
     focusNotes() {
-      return this.filteredNotes.slice(0, 4)
+      return [...this.normalizedNotes]
+        .sort((a, b) => new Date(b.updateTime || 0) - new Date(a.updateTime || 0))
+        .slice(0, 6)
+    }
+  },
+  watch: {
+    searchKeyword() {
+      if (this.searchTimer) {
+        clearTimeout(this.searchTimer)
+      }
+      this.searchTimer = setTimeout(() => {
+        this.handleSearch()
+      }, 400)
     }
   },
   methods: {
@@ -312,9 +328,13 @@ export default {
           type: this.filterType || undefined,
           isPublic: this.filterStatus === 'public' ? true : this.filterStatus === 'private' ? false : undefined
         }
-        const response = await noteApi.getNoteList(params)
+        const isDraft = this.isDraftMode
+        const apiMethod = isDraft ? noteApi.getDraftList : noteApi.getNoteList
+        const response = await apiMethod(params)
         if (response?.code === 200) {
-          this.notes = response.data?.records || []
+          const records = response.data?.records || []
+          this.notes = records
+          this.totalNotes = response.data?.total || records.length
         }
       } catch (error) {
         console.error('加载笔记失败:', error)
@@ -357,6 +377,24 @@ export default {
         }
       }
     },
+    async handlePublishNote(note) {
+      try {
+        await this.$confirm('确定要发布这篇草稿为正式笔记吗？', '确认发布', { type: 'info' })
+        const response = await noteApi.publishNote(note.id)
+        if (response?.code !== 200) {
+          throw new Error(response?.message || '发布失败')
+        }
+        note.stage = 'published'
+        note.status = 'published'
+        this.$message.success('发布成功')
+        this.loadNotes()
+      } catch (error) {
+        if (error !== 'cancel') {
+          console.error('发布笔记失败:', error)
+          this.$message.error(error?.message || '发布失败')
+        }
+      }
+    },
     handleCommand(command) {
       const { action, data } = command
       if (action === 'toggle') {
@@ -368,7 +406,7 @@ export default {
     async handleTogglePublic(note) {
       try {
         const newStatus = !note.isPublic
-        const response = await noteApi.updateNote(note.id, { isPublic: newStatus })
+        const response = await noteApi.updateNotePublicStatus(note.id, newStatus)
         if (response?.code !== 200) {
           throw new Error(response?.message || '操作失败')
         }
@@ -398,6 +436,15 @@ export default {
     },
     clearSelection() {
       this.selectedNotes = []
+      if (this.$refs.notesTable) {
+        this.$refs.notesTable.clearSelection()
+      }
+    },
+    handleTableSelectionChange(selection) {
+      this.selectedNotes = selection.map(item => item.id)
+      if (selection.length === 0) {
+        this.selectedNotes = []
+      }
     },
     async batchSetPublic(isPublic) {
       if (this.selectedNotes.length === 0) {
@@ -405,7 +452,7 @@ export default {
         return
       }
       try {
-        await Promise.all(this.selectedNotes.map(id => noteApi.updateNote(id, { isPublic })))
+        await Promise.all(this.selectedNotes.map(id => noteApi.updateNotePublicStatus(id, isPublic)))
         this.$message.success(`批量设为${isPublic ? '公开' : '私有'}成功`)
         this.clearSelection()
         this.loadNotes()
@@ -433,6 +480,10 @@ export default {
       }
     },
     handleSearch() {
+      if (this.searchTimer) {
+        clearTimeout(this.searchTimer)
+        this.searchTimer = null
+      }
       this.currentPage = 1
       this.loadNotes()
     },
@@ -497,6 +548,12 @@ export default {
   created() {
     this.filterStatus = this.initialStatus || ''
     this.loadNotes()
+  },
+  beforeDestroy() {
+    if (this.searchTimer) {
+      clearTimeout(this.searchTimer)
+      this.searchTimer = null
+    }
   }
 }
 </script>

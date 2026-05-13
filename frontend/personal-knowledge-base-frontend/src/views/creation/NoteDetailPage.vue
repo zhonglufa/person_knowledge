@@ -27,18 +27,20 @@
           <el-tag size="small" :type="noteForm.isPublic ? 'success' : 'info'">{{ noteForm.isPublic ? '公开' : '私有' }}</el-tag>
         </div>
         <div class="right-section">
-          <template v-if="isEditMode">
+          <template v-if="isEditMode && isOwner">
             <el-button v-if="!isCreateMode" @click="goBackToReading">返回阅读</el-button>
             <el-button @click="cancelEdit">取消编辑</el-button>
             <el-button type="primary" @click="saveDraft" :loading="savingDraft">{{ isCreateMode ? '创建笔记' : '保存' }}</el-button>
             <el-button @click="previewNote">预览笔记</el-button>
             <el-button v-if="!isCreateMode" type="success" @click="publishCurrentNote" :disabled="!canPublish" :loading="publishing">完成沉淀</el-button>
           </template>
-          <template v-else-if="!isCreateMode">
+          <template v-else-if="!isCreateMode && isOwner">
             <el-button @click="enterEditMode">进入编辑</el-button>
           </template>
         </div>
       </div>
+
+      <AuthorInfoCard v-if="authorInfo.userName" :author="authorInfo" class="author-card-section" />
 
       <div class="context-banner card-panel">
         <div class="context-item">
@@ -480,6 +482,7 @@
 </template>
 
 <script>
+import { mapGetters } from 'vuex'
 import { noteApi } from '@/api/note'
 import { collectApi } from '@/api/collect'
 import {
@@ -494,6 +497,7 @@ import {
   checkLikeStatus,
   checkCollectStatus
 } from '@/api/interaction'
+import AuthorInfoCard from '@/components/note/AuthorInfoCard.vue'
 
 const escapeHtml = (text) => String(text || '')
   .replace(/&/g, '&amp;')
@@ -535,6 +539,9 @@ const formatNoteContentToHtml = (content, fallback) => {
 
 export default {
   name: 'NoteDetailPage',
+  components: {
+    AuthorInfoCard
+  },
   data() {
     return {
       loading: true,
@@ -543,6 +550,7 @@ export default {
       publishing: false,
       isEditMode: false,
       note: {},
+      authorInfo: {},
       sourceItem: {},
       comments: [],
       commentPagination: {
@@ -585,14 +593,28 @@ export default {
     }
   },
   computed: {
+    ...mapGetters('user', ['getUserInfo']),
     noteId() {
-      return this.$route.params.id
+      const id = this.$route.params.id
+      if (!id || id === 'create') {
+        return null
+      }
+      const numId = Number(id)
+      return Number.isNaN(numId) ? null : numId
     },
     routeMode() {
       return this.$route.query.mode
     },
     isCreateMode() {
       return this.$route.name === 'CreationNoteCreate' || this.routeMode === 'create'
+    },
+    isOwner() {
+      if (this.isCreateMode) {
+        return true
+      }
+      const currentUserId = this.getUserInfo?.id
+      const noteUserId = this.note?.userId || this.note?.user_id
+      return currentUserId && noteUserId && currentUserId === noteUserId
     },
     canPublish() {
       return !!(this.noteForm.title && this.noteForm.noteType && this.noteForm.content)
@@ -768,6 +790,19 @@ export default {
         }
         const detail = response.data
         this.note = detail
+        
+        this.authorInfo = {
+          userName: detail.userName || detail.authorName,
+          avatar: detail.userAvatar || detail.authorAvatar,
+          userAvatar: detail.userAvatar || detail.authorAvatar,
+          bio: detail.userBio || detail.authorBio,
+          description: detail.userBio || detail.authorBio,
+          isVerified: detail.isVerified || false,
+          noteCount: detail.authorNoteCount || 0,
+          likesCount: detail.authorLikesCount || 0,
+          followersCount: detail.authorFollowersCount || 0
+        }
+        
         const normalizedForm = {
           id: detail.id,
           title: detail.title || '',
@@ -822,7 +857,7 @@ export default {
         const [likeRes, collectRes, commentRes, likeStatusRes, collectStatusRes] = await Promise.all([
           getLikeCount(this.noteId, targetType),
           getCollectCount(this.noteId, targetType),
-          getComments(this.noteId, targetType, 1, 10),
+          getComments(this.noteId, targetType, null, 1, 10),
           checkLikeStatus(this.noteId, targetType),
           checkCollectStatus(this.noteId, targetType)
         ])
@@ -952,6 +987,9 @@ export default {
         if (this.isCreateMode) {
           response = await noteApi.createNote(payload)
         } else {
+          if (!this.noteId || typeof this.noteId !== 'number') {
+            throw new Error('无效的笔记ID')
+          }
           response = await noteApi.updateNote(this.noteId, payload)
         }
         if (response?.code !== 200) {
@@ -975,7 +1013,7 @@ export default {
       this.goBackToReading()
     },
     async publishCurrentNote() {
-      if (!this.noteId) {
+      if (!this.noteId || typeof this.noteId !== 'number') {
         this.$message.warning('请先保存笔记后再发布')
         return
       }
@@ -1243,6 +1281,10 @@ export default {
 .panel-header p {
   margin: 6px 0 0;
   color: #909399;
+}
+
+.author-card-section {
+  margin-bottom: 20px;
 }
 
 .context-banner {

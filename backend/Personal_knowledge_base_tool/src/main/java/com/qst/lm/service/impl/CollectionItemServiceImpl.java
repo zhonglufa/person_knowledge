@@ -137,13 +137,13 @@ public class CollectionItemServiceImpl implements ICollectionItemService {
             updateWrapper.set(CollectionItem::getDigestStatus, dto.getDigestStatus());
         }
         if (dto.getIsRead() != null) {
-            updateWrapper.set(CollectionItem::getIsRead, dto.getIsRead());
+            updateWrapper.set(CollectionItem::getIsRead, dto.getIsRead() ? 1 : 0);
         }
         if (dto.getIsStar() != null) {
-            updateWrapper.set(CollectionItem::getIsStar, dto.getIsStar());
+            updateWrapper.set(CollectionItem::getIsStar, dto.getIsStar() ? 1 : 0);
         }
         if (dto.getIsPublic() != null) {
-            updateWrapper.set(CollectionItem::getIsPublic, dto.getIsPublic());
+            updateWrapper.set(CollectionItem::getIsPublic, dto.getIsPublic() ? 1 : 0);
         }
         collectionItemMapper.update(null, updateWrapper);
 

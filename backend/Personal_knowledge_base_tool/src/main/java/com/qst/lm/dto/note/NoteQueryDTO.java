@@ -24,7 +24,7 @@ public class NoteQueryDTO extends PageDTO {
     /**
      * 是否公开
      */
-    private Integer isPublic;
+    private Boolean isPublic;
 
     /**
      * 搜索关键词
